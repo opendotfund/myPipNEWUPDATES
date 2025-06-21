@@ -364,16 +364,40 @@ const App: React.FC = () => {
                   />
                 </div>
               ) : (
-                <div className="flex items-center">
-                  <img 
-                    src={appLogo} 
-                    alt="App Logo" 
-                    className="h-8 w-8 rounded"
-                  />
-                  <span className="ml-3 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    {appName}
-                  </span>
-                </div>
+                <>
+                  <SignedIn>
+                    <div className="flex items-center">
+                      <div className="h-8 w-8 rounded-full overflow-hidden bg-blue-700 flex items-center justify-center">
+                        {user?.imageUrl ? (
+                          <img 
+                            src={user.imageUrl} 
+                            alt="Profile" 
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                          </svg>
+                        )}
+                      </div>
+                      <span className="ml-3 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        {user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || appName}
+                      </span>
+                    </div>
+                  </SignedIn>
+                  <SignedOut>
+                    <div className="flex items-center">
+                      <img 
+                        src={appLogo} 
+                        alt="App Logo" 
+                        className="h-8 w-8 rounded"
+                      />
+                      <span className="ml-3 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        {appName}
+                      </span>
+                    </div>
+                  </SignedOut>
+                </>
               )}
             </div>
           </div>
@@ -382,14 +406,26 @@ const App: React.FC = () => {
           <nav className="flex-1 p-4 space-y-2">
             {/* My Account Section */}
             <div className="space-y-1">
-              <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-                <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  My Account
-                </span>
-              </div>
+              <SignedIn>
+                <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                  <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    {user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || 'My Account'}
+                  </span>
+                </div>
+              </SignedIn>
+              <SignedOut>
+                <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                  <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    My Account
+                  </span>
+                </div>
+              </SignedOut>
               {isEditingProfile ? (
                 <div className="flex items-center space-x-1">
                   <button
@@ -600,14 +636,26 @@ const App: React.FC = () => {
           <nav className="flex-1 p-4 space-y-2">
             {/* My Account Section */}
             <div className="space-y-1">
-              <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer">
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-                <span className="ml-3 text-sm">
-                  My Account
-                </span>
-              </div>
+              <SignedIn>
+                <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                  <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    {user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || 'My Account'}
+                  </span>
+                </div>
+              </SignedIn>
+              <SignedOut>
+                <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                  <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    My Account
+                  </span>
+                </div>
+              </SignedOut>
               {isEditingProfile ? (
                 <div className="flex items-center space-x-1">
                   <button
@@ -636,21 +684,21 @@ const App: React.FC = () => {
               ) : (
                 <div 
                   onClick={handleEditProfile}
-                  className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
+                  className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer"
                 >
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                   </svg>
-                  <span className="ml-3 text-sm">
+                  <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     Edit Profile
                   </span>
                 </div>
               )}
-              <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer">
+              <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
                 </svg>
-                <span className="ml-3 text-sm">
+                <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   Settings
                 </span>
               </div>
@@ -752,7 +800,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Main Content with left margin for sidebar */}
-      <div className="ml-0 md:ml-16">
+      <div className="ml-0 md:ml-16 flex flex-col min-h-screen">
         <header className="p-4 border-b border-neutral-200 sticky top-0 bg-white/80 backdrop-blur-md z-20">
           <div className="container mx-auto flex items-center justify-between">
             <div className="flex items-center">
@@ -852,7 +900,7 @@ const App: React.FC = () => {
               </div>
 
               {/* Code/Prompt Section */}
-              <div className={`${isHorizontal ? 'w-2/3 pl-6 flex flex-col space-y-6' : 'flex flex-col space-y-6'}`}>
+              <div className={`${isHorizontal ? 'w-2/3 pl-6 flex flex-col space-y-6' : 'flex flex-col space-y-6 mt-8 md:mt-12'}`}>
                 <div className="transition-opacity duration-500 ease-in-out">
                   <h2 className="text-xl font-semibold mb-3 text-neutral-700">Describe Your App</h2>
                   <PromptInput
@@ -1162,9 +1210,6 @@ const App: React.FC = () => {
             </div>
           ) : null}
         </main>
-        <footer className="p-4 text-center text-sm text-neutral-500 border-t border-neutral-200">
-          &copy; {new Date().getFullYear()} {APP_TITLE}. All rights reserved.
-        </footer>
 
         {isSubscriptionModalOpen && (
           <SubscriptionModal
