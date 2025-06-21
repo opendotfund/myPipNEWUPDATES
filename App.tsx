@@ -465,14 +465,16 @@ const App: React.FC = () => {
                 </div>
               </SignedIn>
               <SignedOut>
-                <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                  </svg>
-                  <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
-                    My Account
-                  </span>
-                </div>
+                <SignInButton mode="modal">
+                  <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5l-5-5zM20 19h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/>
+                    </svg>
+                    <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                      Sign In
+                    </span>
+                  </div>
+                </SignInButton>
               </SignedOut>
               {isEditingProfile ? (
                 <div className="flex items-center space-x-1">
@@ -701,14 +703,16 @@ const App: React.FC = () => {
                 </div>
               </SignedIn>
               <SignedOut>
-                <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                  </svg>
-                  <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
-                    My Account
-                  </span>
-                </div>
+                <SignInButton mode="modal">
+                  <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5l-5-5zM20 19h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/>
+                    </svg>
+                    <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                      Sign In
+                    </span>
+                  </div>
+                </SignInButton>
               </SignedOut>
               {isEditingProfile ? (
                 <div className="flex items-center space-x-1">
