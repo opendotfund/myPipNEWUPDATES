@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html class="windows os unknown mozilla">
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1 maximum-scale=1">
+		<meta charset="UTF-8">
+		
+			<title>mypip-removebg-preview</title>
+		<!-- Head: common/_head -->
+		<meta name="application-name" content="Jumpshare"/>
+		<meta name="og:type" content="website">
+
+					<meta name="robots" content="noindex">
+							<!-- Meta: Set 1 -->
+					<meta property="og:title" content="mypip-removebg-preview.png">
+					<meta property="og:description" content="Shared with Jumpshare">
+					<meta property="og:image" content="https://previews.jumpshare.com/thumb/4ea2c443a4623ad282087187a00fc426c5d7b1ac09ee0ab07c5c05a84bffaddca64b4b472ae76ab0bdb8e7a98c997239366d4678eb7d80e14fd32752a0dd89e218b34d38e1784b5e7357dcfa6d25d03c">
+					
+					<meta property="og:url" content="https://jumpshare.com/v/LFbnz3Ofo0wlaffkFSlq"/>
+					<meta property="og:site_name" content="Jumpshare"/>
+					<meta property="fb:app_id" content="614727055210698"/>
+					
+					<!-- Twitter -->
+					<meta name="twitter:card" content="summary_large_image">
+					<meta name="twitter:site" content="@Jumpshare">
+					<meta name="twitter:url" content="https://jumpshare.com/v/LFbnz3Ofo0wlaffkFSlq"/>
+					<meta name="twitter:title" content="mypip-removebg-preview.png">
+					<meta name="twitter:image:src" content="https://previews.jumpshare.com/thumb/4ea2c443a4623ad282087187a00fc426c5d7b1ac09ee0ab07c5c05a84bffaddca64b4b472ae76ab0bdb8e7a98c997239366d4678eb7d80e14fd32752a0dd89e218b34d38e1784b5e7357dcfa6d25d03c"/>
+					<meta name="twitter:image" value="https://previews.jumpshare.com/thumb/4ea2c443a4623ad282087187a00fc426c5d7b1ac09ee0ab07c5c05a84bffaddca64b4b472ae76ab0bdb8e7a98c997239366d4678eb7d80e14fd32752a0dd89e218b34d38e1784b5e7357dcfa6d25d03c"/>
+					<meta name="twitter:domain" content="jumpshare.com"/>
+												<link rel="alternate" type="application/json+oembed" href="https://jumpshare.com/api/v1/oembed?url=https://jumpshare.com/v/LFbnz3Ofo0wlaffkFSlq" title="mypip-removebg-preview.png" />
+		<link rel="iframely" href="https://jumpshare.com/embed/LFbnz3Ofo0wlaffkFSlq" media="(aspect-ratio: 677/369)" />
+			<link rel="apple-touch-icon" href="https://static.jumpshare.com/res/images/new_static/favicon/favicon-48x48.png">
+
+		<!-- Standard Favicon -->
+<link rel="icon" href="https://static.jumpshare.com/res/images/new_static/favicon/favicon-32x32.ico" sizes="any">
+
+<!-- For Retina Displays -->
+<link rel="icon" href="https://static.jumpshare.com/res/images/new_static/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="icon" href="https://static.jumpshare.com/res/images/new_static/favicon/favicon-16x16.png" sizes="16x16">
+
+<!-- Apple Touch Icon (iOS and macOS) -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://static.jumpshare.com/res/images/new_static/favicon/apple-icon-180x180.png">
+
+<!-- Android Chrome -->
+<link rel="icon" type="image/png" sizes="192x192" href="https://static.jumpshare.com/res/images/new_static/favicon/android-icon-192x192.png">
+
+<!-- Web Manifest for Android & Progressive Web Apps -->
+<link rel="manifest" href="https://static.jumpshare.com/res/images/new_static/favicon/manifest.json">
+
+<link id="favicon" href="https://static.jumpshare.com/res/images/new_static/favicon/favicon-32x32.png" rel="shortcut icon" type="image/png" /><style>
+@font-face {
+  font-family: "Cerebri Sans";
+  font-weight: 100;
+  font-style: "normal";
+  font-display: swap;
+  src: url(https://static.jumpshare.com/res/fonts/cerebrisans-italic.woff) format('woff'), url('https://static.jumpshare.com/res/fonts/CerebriSans-Italic.ttf') format('truetype'), url('https://static.jumpshare.com/res/fonts/cerebrisans-italic.svg') format('svg'), url('https://static.jumpshare.com/res/fonts/cerebrisans-italic.eot') format('embedded-opentype');
+
+}
+
+@font-face {
+  font-family: "Cerebri Sans";
+  font-weight: 400;
+  font-style: "normal";
+  font-display: swap;
+  src: url(https://static.jumpshare.com/res/fonts/cerebrisans-regular.woff) format('woff'), url('https://static.jumpshare.com/res/fonts/CerebriSans-Regular.ttf') format('truetype'), url('https://static.jumpshare.com/res/fonts/cerebrisans-regular.svg') format('svg'), url('https://static.jumpshare.com/res/fonts/cerebrisans-regular.eot') format('embedded-opentype');
+
+}
+
+@font-face {
+  font-family: "Cerebri Sans";
+  font-weight: 500;
+  font-style: "normal";
+  font-display: swap;
+  src: url(https://static.jumpshare.com/res/fonts/cerebrisans-book.woff) format('woff'), url('https://static.jumpshare.com/res/fonts/cerebrisans-book.ttf') format('truetype'), url('https://static.jumpshare.com/res/fonts/cerebrisans-book.svg') format('svg'), url('https://static.jumpshare.com/res/fonts/cerebrisans-book.eot') format('embedded-opentype');
+
+}
+
+@font-face {
+  font-family: "Cerebri Sans";
+  font-weight: 600;
+  font-style: "normal";
+  font-display: swap;
+  src: url(https://static.jumpshare.com/res/fonts/cerebrisans-medium.woff) format('woff'), url('https://static.jumpshare.com/res/fonts/cerebrisans-medium.ttf') format('truetype'), url('https://static.jumpshare.com/res/fonts/cerebrisans-medium.svg') format('svg'), url('https://static.jumpshare.com/res/fonts/cerebrisans-medium.eot') format('embedded-opentype');
+
+}
+@font-face {
+  font-family: "Cerebri Sans";
+  font-weight: 700;
+  font-style: "normal";
+  font-display: swap;
+  src: url(https://static.jumpshare.com/res/fonts/cerebrisans-bold.woff) format('woff'), url('https://static.jumpshare.com/res/fonts/CerebriSans-Bold.ttf') format('truetype'), url('https://static.jumpshare.com/res/fonts/cerebrisans-bold.svg') format('svg'), url('https://static.jumpshare.com/res/fonts/cerebrisans-bold.eot') format('embedded-opentype');
+
+}
+@font-face {
+  font-family: "Cerebri Sans";
+  font-weight: 800;
+  font-style: "normal";
+  font-display: swap;
+  src: url(https://static.jumpshare.com/res/fonts/cerebrisans-extrabold.woff) format('woff'), url('https://static.jumpshare.com/res/fonts/CerebriSans-ExtraBold.ttf') format('truetype'), url('https://static.jumpshare.com/res/fonts/cerebrisans-extrabold.svg') format('svg'), url('https://static.jumpshare.com/res/fonts/cerebrisans-extrabold.eot') format('embedded-opentype');
+
+}
+@font-face {
+  font-family: "Cerebri Sans";
+  font-weight: 900;
+  font-style: "normal";
+  font-display: swap;
+  src: url(https://static.jumpshare.com/res/fonts/cerebrisans-heavy.woff) format('woff'), url('https://static.jumpshare.com/res/fonts/CerebriSans-Heavy.ttf') format('truetype'), url('https://static.jumpshare.com/res/fonts/cerebrisans-heavy.svg') format('svg'), url('https://static.jumpshare.com/res/fonts/cerebrisans-heavy.eot') format('embedded-opentype');
+
+}
+
+
+.content_fluid.is-empty .empty {
+background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='5' ry='5' stroke='%23AFB8BCFF' stroke-width='1.5' stroke-dasharray='6 8' stroke-dashoffset='0' stroke-linecap='round'/%3e%3c/svg%3e");
+  }
+</style><link href="https://static.jumpshare.com/res/cssm/jumpshare_1750182882.css" rel="stylesheet" type="text/css" media="screen, projection, print" />
+<link href="https://static.jumpshare.com/res/cssm/nprogress_1716571150.css" rel="stylesheet" type="text/css" media="screen, projection" />
+				<!-- Preload login / signup pages -->
+				<!-- <link rel="prefetch" href="/login">
+				<link rel="prefetch" href="/signup"> -->
+			
+	<script src="https://static.jumpshare.com/res/css/modernizr.js"></script>
+
+	<script type="text/javascript">
+		var b = document.documentElement;
+		b.setAttribute('data-useragent',  navigator.userAgent);
+		b.setAttribute('data-platform', navigator.platform );
+	</script>
+
+	<script>
+				var EMBED_URL = "https://jumpshare.com/embed/LFbnz3Ofo0wlaffkFSlq";
+		var WS_PREFIX = "";
+		var WORKSPACE_NAME = "";
+		var BASEURL = "https://jumpshare.com/";
+		var CUSTOM_BASEURL = "";
+		var BASEURL_WS = "https://jumpshare.com/";
+		var SHORT_BASEURL = "https://jumpshare.com/";
+		var CUSTOM_DOMAIN_URL = "";
+		var SHORT_URL_STATUS = "0";
+		var VERIFIED = "1"; 
+		var SITETITLE = 'Jumpshare';
+		var PLANID = 0;
+		var IS_TRIAL = 0;
+		var O_PLANID = 1;
+		var ACCESS_LEVEL = 0;
+		var TEAM_INVITE_CODE = "";
+		var VIEW = "public";
+		var CAPTION_BR_LIMIT = 55;
+		var TZ = "";
+		var TZ_OFFSET = parseInt(0);
+		var PASSWORD_EXPIRED = false;
+		var FORCE_PASSWORD_CHANGE = false;
+		var VIEWER_SUBDIR = 's';
+		var UTYPE = 'normal';
+				var DesktopPushNotificationsWebRoom = "";
+					var PublicPushNotificationsRoom = 'riLPpu39TMCCREodtmeFVqGtxsUHBETp32VuOot7n4o5q4nJmsuPJpvlIAEQH6N0|QOP6AIssPIs7F1k4qVRm';
+		
+		var jmp_gs = {"gd":"enable"};
+		if (typeof console == "undefined" || typeof console.log == "undefined" || typeof console.error == "undefined" || typeof console.warn == "undefined") var console = { log: function() {}, error: function() {}, warn: function() {} };
+			EmbedRedirect();
+			function EmbedRedirect() {
+				var inIframe = false;
+				try {
+					inIframe = window.self !== window.top;
+				} catch (e) {
+					inIframe = false;
+				}
+
+				if(inIframe && VIEW == "public" && CUSTOM_DOMAIN_URL != "" && EMBED_URL!="") window.location = EMBED_URL;
+			}
+		var USER_SURVEYS = "";
+	</script>		
+		<script type="text/javascript" src="https://static.jumpshare.com/res/jsm/js0_1750419784.js?state=/"></script>
+		<script type="text/javascript" src="https://static.jumpshare.com/res/jsm/js5_1750318748.js?state=/"></script>
+				<script type="text/javascript">
+			Jmp.Helpers.update_iur("false");
+		</script>
+
+		
+
+
+<script type="text/javascript" src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"></script>
+<script type="text/javascript">
+	AppleID.auth.init({
+		clientId : "com.jumpshare.login.apple",
+		scope : 'name email',
+		redirectURI: "https://jumpshare.com/apple_auth",
+		state : "07735882631da2728478",
+		usePopup : true
+	});
+</script>
+<script type="text/javascript" src="https://alcdn.msftauth.net/lib/1.2.1/js/msal.js" integrity="sh
