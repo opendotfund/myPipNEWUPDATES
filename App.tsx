@@ -447,7 +447,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H17c-.8 0-1.54.37-2.01 1l-1.7 2.26A6.003 6.003 0 0 0 8 16v6h2v-6c0-2.21 1.79-4 4-4s4 1.79 4 4v6h2zm-8-2v-6c0-1.1.9-2 2-2s2 .9 2 2v6h-4z"/>
                 </svg>
-                <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
                   Community
                 </span>
               </div>
@@ -458,7 +458,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                 </svg>
-                <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
                   My Pips
                 </span>
               </div>
@@ -665,7 +665,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H17c-.8 0-1.54.37-2.01 1l-1.7 2.26A6.003 6.003 0 0 0 8 16v6h2v-6c0-2.21 1.79-4 4-4s4 1.79 4 4v6h2zm-8-2v-6c0-1.1.9-2 2-2s2 .9 2 2v6h-4z"/>
                 </svg>
-                <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
                   Community
                 </span>
               </div>
@@ -676,7 +676,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                 </svg>
-                <span className="ml-3 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
                   My Pips
                 </span>
               </div>
@@ -920,37 +920,38 @@ const App: React.FC = () => {
           ) : currentView === 'community' ? (
             <div className="col-span-1 md:col-span-2">
               {/* Community Page Content */}
-              <div className="bg-white border border-neutral-200 rounded-lg p-8 min-h-[600px] relative shadow-sm">
+              <div className="bg-white border border-neutral-200 rounded-lg p-4 md:p-8 min-h-[600px] relative shadow-sm">
                 {/* Back Button */}
-                <div className="absolute left-8 top-8">
+                <div className="absolute left-4 md:left-8 top-4 md:top-8">
                   <button
                     onClick={() => setCurrentView('main')}
-                    className="flex items-center px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg transition-colors shadow-sm"
+                    className="flex items-center px-3 md:px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg transition-colors shadow-sm text-sm md:text-base"
                   >
-                    <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
-                    Back to App Builder
+                    <span className="hidden sm:inline">Back to App Builder</span>
+                    <span className="sm:hidden">Back</span>
                   </button>
                 </div>
-                <div className="text-center">
-                  <h1 className="text-3xl font-bold mb-4 text-neutral-800">Community Pips</h1>
-                  <p className="text-neutral-600 mb-8">Discover and explore amazing pips created by the myPip community</p>
+                <div className="text-center pt-16 md:pt-0">
+                  <h1 className="text-2xl md:text-3xl font-bold mb-4 text-neutral-800">Community Pips</h1>
+                  <p className="text-neutral-600 mb-6 md:mb-8 px-4 md:px-0">Discover and explore amazing pips created by the myPip community</p>
                   {/* Search and Filter System */}
-                  <div className="max-w-2xl mx-auto mb-8">
-                    <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="max-w-2xl mx-auto mb-6 md:mb-8 px-4 md:px-0">
+                    <div className="flex flex-col gap-3 md:gap-4">
                       <div className="flex-1">
                         <input
                           type="text"
                           placeholder="Search projects..."
-                          className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-800 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-800 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-sm md:text-base"
                           value={communitySearch}
                           onChange={e => setCommunitySearch(e.target.value)}
                         />
                       </div>
                       <div className="relative">
                         <select
-                          className="appearance-none px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 pr-10 shadow-sm hover:bg-neutral-100 transition-colors"
+                          className="appearance-none w-full px-3 md:px-4 py-2 md:py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-800 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 pr-10 shadow-sm hover:bg-neutral-100 transition-colors text-sm md:text-base"
                           value={communityCategory}
                           onChange={e => setCommunityCategory(e.target.value)}
                         >
@@ -960,14 +961,14 @@ const App: React.FC = () => {
                           <option>Entertainment</option>
                           <option>Education</option>
                         </select>
-                        <svg className="w-5 h-5 text-neutral-500 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 md:w-5 md:h-5 text-neutral-500 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </div>
                     </div>
                   </div>
                   {/* Filtered Project List */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div className="grid grid-cols-1 gap-4 md:gap-6 mb-6 md:mb-8 px-4 md:px-0">
                     {sampleProjects
                       .filter(p =>
                         (communityCategory === 'All Categories' || p.category === communityCategory) &&
@@ -975,12 +976,12 @@ const App: React.FC = () => {
                          p.description.toLowerCase().includes(communitySearch.toLowerCase()))
                       )
                       .map(project => (
-                        <div key={project.id} className="bg-neutral-50 border border-neutral-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="flex items-center mb-2">
-                            <span className="text-lg font-semibold text-neutral-800 flex-1">{project.name}</span>
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full ml-2">{project.category}</span>
+                        <div key={project.id} className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:mb-2">
+                            <span className="text-base md:text-lg font-semibold text-neutral-800 flex-1">{project.name}</span>
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full self-start sm:self-auto sm:ml-2">{project.category}</span>
                           </div>
-                          <p className="text-neutral-600 text-sm">{project.description}</p>
+                          <p className="text-neutral-600 text-sm mt-2 sm:mt-0">{project.description}</p>
                         </div>
                       ))}
                     {sampleProjects.filter(p =>
@@ -988,7 +989,7 @@ const App: React.FC = () => {
                         (p.name.toLowerCase().includes(communitySearch.toLowerCase()) ||
                          p.description.toLowerCase().includes(communitySearch.toLowerCase()))
                       ).length === 0 && (
-                        <div className="col-span-2 text-neutral-500 text-center py-12 text-lg">
+                        <div className="text-neutral-500 text-center py-8 md:py-12 text-base md:text-lg">
                           No projects found.
                         </div>
                     )}
@@ -999,54 +1000,55 @@ const App: React.FC = () => {
           ) : currentView === 'myPips' ? (
             <div className="col-span-1 md:col-span-2">
               {/* My Pips Page Content */}
-              <div className="bg-white border border-neutral-200 rounded-lg p-8 min-h-[600px] relative shadow-sm">
+              <div className="bg-white border border-neutral-200 rounded-lg p-4 md:p-8 min-h-[600px] relative shadow-sm">
                 {/* Back Button */}
-                <div className="absolute left-8 top-8">
+                <div className="absolute left-4 md:left-8 top-4 md:top-8">
                   <button
                     onClick={() => setCurrentView('main')}
-                    className="flex items-center px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg transition-colors shadow-sm"
+                    className="flex items-center px-3 md:px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-lg transition-colors shadow-sm text-sm md:text-base"
                   >
-                    <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
-                    Back to App Builder
+                    <span className="hidden sm:inline">Back to App Builder</span>
+                    <span className="sm:hidden">Back</span>
                   </button>
                 </div>
                 
-                <div className="text-center">
-                  <h1 className="text-3xl font-bold mb-4 text-neutral-800">My Pips</h1>
-                  <p className="text-neutral-600 mb-8">Manage your created pips and share them with the community</p>
+                <div className="text-center pt-16 md:pt-0">
+                  <h1 className="text-2xl md:text-3xl font-bold mb-4 text-neutral-800">My Pips</h1>
+                  <p className="text-neutral-600 mb-6 md:mb-8 px-4 md:px-0">Manage your created pips and share them with the community</p>
                   
                   {/* Tabs */}
-                  <div className="max-w-4xl mx-auto mb-8">
-                    <div className="flex justify-center mb-6">
-                      <div className="flex bg-neutral-100 rounded-lg p-1">
+                  <div className="max-w-4xl mx-auto mb-6 md:mb-8 px-4 md:px-0">
+                    <div className="flex justify-center mb-4 md:mb-6">
+                      <div className="flex bg-neutral-100 rounded-lg p-1 w-full max-w-xs">
                         <button
                           onClick={() => setMyPipsTab('recent')}
-                          className={`px-6 py-2 rounded-md transition-colors ${
+                          className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-colors text-sm md:text-base ${
                             myPipsTab === 'recent' 
                               ? 'bg-white text-neutral-800 shadow-sm' 
                               : 'text-neutral-600 hover:text-neutral-800'
                           }`}
                         >
-                          Recent Builds
+                          Recent
                         </button>
                         <button
                           onClick={() => setMyPipsTab('public')}
-                          className={`px-6 py-2 rounded-md transition-colors ${
+                          className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-colors text-sm md:text-base ${
                             myPipsTab === 'public' 
                               ? 'bg-white text-neutral-800 shadow-sm' 
                               : 'text-neutral-600 hover:text-neutral-800'
                           }`}
                         >
-                          Public Builds
+                          Public
                         </button>
                       </div>
                     </div>
                     
                     {/* Action Bar */}
-                    <div className="flex justify-between items-center mb-6">
-                      <div className="flex items-center space-x-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4 md:mb-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                         <label className="flex items-center">
                           <input
                             type="checkbox"
@@ -1061,13 +1063,13 @@ const App: React.FC = () => {
                         {selectedPips.size > 0 && (
                           <button
                             onClick={handleDeletePips}
-                            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm transition-colors"
+                            className="px-3 md:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm transition-colors self-start sm:self-auto"
                           >
                             Delete Selected ({selectedPips.size})
                           </button>
                         )}
                       </div>
-                      <div className="text-sm text-neutral-600">
+                      <div className="text-sm text-neutral-600 text-center sm:text-left">
                         {sampleMyPips.filter(pip => 
                           myPipsTab === 'recent' ? !pip.isPublic : pip.isPublic
                         ).length} {myPipsTab === 'recent' ? 'recent' : 'public'} builds
@@ -1075,65 +1077,67 @@ const App: React.FC = () => {
                     </div>
                     
                     {/* Pip List */}
-                    <div className="space-y-4">
+                    <div className="space-y-3 md:space-y-4">
                       {sampleMyPips
                         .filter(pip => myPipsTab === 'recent' ? !pip.isPublic : pip.isPublic)
                         .map(pip => (
-                          <div key={pip.id} className="bg-neutral-50 border border-neutral-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-4 flex-1">
+                          <div key={pip.id} className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
+                              <div className="flex items-start gap-3 flex-1">
                                 <input
                                   type="checkbox"
                                   checked={selectedPips.has(pip.id)}
                                   onChange={() => handleSelectPip(pip.id)}
-                                  className="mr-2"
+                                  className="mt-1"
                                 />
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   {editingPipId === pip.id ? (
-                                    <div className="flex items-center space-x-2">
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                       <input
                                         type="text"
                                         value={editingPipName}
                                         onChange={(e) => setEditingPipName(e.target.value)}
-                                        className="bg-white text-neutral-800 px-2 py-1 rounded border border-neutral-300 focus:outline-none focus:border-blue-400"
+                                        className="bg-white text-neutral-800 px-2 py-1 rounded border border-neutral-300 focus:outline-none focus:border-blue-400 text-sm"
                                         onKeyPress={(e) => {
                                           if (e.key === 'Enter') {
                                             handleRenamePip(pip.id, editingPipName);
                                           }
                                         }}
                                       />
-                                      <button
-                                        onClick={() => handleRenamePip(pip.id, editingPipName)}
-                                        className="text-green-600 hover:text-green-700"
-                                      >
-                                        ✓
-                                      </button>
-                                      <button
-                                        onClick={handleCancelRename}
-                                        className="text-red-600 hover:text-red-700"
-                                      >
-                                        ✕
-                                      </button>
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleRenamePip(pip.id, editingPipName)}
+                                          className="text-green-600 hover:text-green-700 text-sm"
+                                        >
+                                          ✓
+                                        </button>
+                                        <button
+                                          onClick={handleCancelRename}
+                                          className="text-red-600 hover:text-red-700 text-sm"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center space-x-2">
-                                      <span className="text-lg font-semibold text-neutral-800">{pip.name}</span>
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-base md:text-lg font-semibold text-neutral-800 break-words">{pip.name}</span>
                                       <button
                                         onClick={() => handleStartRename(pip.id, pip.name)}
-                                        className="text-neutral-500 hover:text-neutral-700 text-sm"
+                                        className="text-neutral-500 hover:text-neutral-700 text-sm flex-shrink-0 mt-1"
                                       >
                                         ✏️
                                       </button>
                                     </div>
                                   )}
-                                  <div className="flex items-center space-x-4 mt-2">
-                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">{pip.category}</span>
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full self-start">{pip.category}</span>
                                     <span className="text-xs text-neutral-500">Last modified: {pip.lastModified}</span>
                                   </div>
                                   <p className="text-neutral-600 text-sm mt-2">{pip.description}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex flex-col sm:flex-row gap-2 lg:flex-shrink-0">
                                 <button className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors">
                                   Open
                                 </button>
@@ -1147,7 +1151,7 @@ const App: React.FC = () => {
                       {sampleMyPips.filter(pip => 
                         myPipsTab === 'recent' ? !pip.isPublic : pip.isPublic
                       ).length === 0 && (
-                        <div className="text-neutral-500 text-center py-12 text-lg">
+                        <div className="text-neutral-500 text-center py-8 md:py-12 text-base md:text-lg">
                           No {myPipsTab === 'recent' ? 'recent' : 'public'} builds found.
                         </div>
                       )}
