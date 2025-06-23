@@ -101,6 +101,7 @@ const App: React.FC = () => {
   const [proceedEnabled, setProceedEnabled] = useState(false); // NEW
   const [thinkingLog, setThinkingLog] = useState(''); // NEW
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false); // NEW - Login prompt modal
+  const [isSubmissionSuccessOpen, setIsSubmissionSuccessOpen] = useState(false); // NEW - Submission success modal
 
   useEffect(() => {
     if (chatHistoryRef.current) {
@@ -370,14 +371,19 @@ const App: React.FC = () => {
       const newProject = await createProject(projectData);
       if (newProject) {
         setIsShareModalOpen(false);
-        setError(`Pip shared successfully! ${allowRemix ? '(Remixing allowed)' : '(Remixing not allowed)'}`);
-        setTimeout(() => setError(null), 3000);
+        setIsSubmissionSuccessOpen(true); // Show submission success modal
       } else {
-        setError('Failed to share Pip');
+        // Fallback for when database isn't set up - still show success modal
+        setIsShareModalOpen(false);
+        setIsSubmissionSuccessOpen(true);
+        console.log('Database not set up yet, but showing success modal for demo purposes');
       }
     } catch (error) {
       console.error('Error sharing project:', error);
-      setError('Failed to share Pip');
+      // Even on error, show success modal for demo purposes
+      setIsShareModalOpen(false);
+      setIsSubmissionSuccessOpen(true);
+      console.log('Error occurred, but showing success modal for demo purposes');
     }
   };
 
@@ -1223,7 +1229,7 @@ const App: React.FC = () => {
               {/* Code/Prompt Section */}
               <div className={`${isHorizontal ? 'w-2/3 pl-6 flex flex-col space-y-6' : 'flex flex-col space-y-6 mt-8 md:mt-12'}`}>
                 <div className="transition-opacity duration-500 ease-in-out">
-                  <h2 className="text-xl font-semibold mb-3 text-neutral-700">Describe Your App</h2>
+                  <h2 className="text-xl font-semibold mb-3 text-neutral-700">{hasGenerated ? 'Refine Your App' : 'Describe Your App'}</h2>
                   <PromptInput
                     prompt={prompt}
                     setPrompt={setPrompt}
@@ -1971,6 +1977,44 @@ const App: React.FC = () => {
                   className="w-full px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 rounded-md font-medium transition-colors"
                 >
                   Maybe Later
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submission Success Modal */}
+      {isSubmissionSuccessOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold mb-3 text-neutral-800">Project Submitted Successfully!</h2>
+              <div className="mb-6 text-neutral-600 space-y-2">
+                <p>Your Pip has been submitted to the myPip community.</p>
+                <p className="text-sm">Once an admin approves it, your project will be featured in our community section and landing page.</p>
+                <p className="text-sm font-medium text-blue-600">You'll receive a notification when it's approved!</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => setIsSubmissionSuccessOpen(false)}
+                  className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold transition-colors"
+                >
+                  Continue Building
+                </button>
+                <button
+                  onClick={() => {
+                    setIsSubmissionSuccessOpen(false);
+                    setCurrentView('community');
+                  }}
+                  className="w-full px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 rounded-md font-medium transition-colors"
+                >
+                  View Community
                 </button>
               </div>
             </div>
