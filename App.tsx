@@ -605,6 +605,7 @@ const App: React.FC = () => {
 
   // Dark mode toggle function
   const toggleDarkMode = () => {
+    console.log('Dark mode toggle clicked, current state:', isDarkMode);
     setIsDarkMode(prev => !prev);
   };
 
@@ -1169,35 +1170,61 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        {/* + Button for New Project - Top Right */}
-        <div className="container mx-auto flex justify-end mt-4 px-4">
-          {/* Dark Mode Toggle */}
-          <button
-            className={`h-10 w-10 flex items-center justify-center rounded-full shadow transition-colors cursor-pointer mr-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-yellow-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
-            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            onClick={toggleDarkMode}
-          >
-            {isDarkMode ? (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            ) : (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            )}
-          </button>
-          <button
-            className={`h-10 w-10 flex items-center justify-center rounded-full text-2xl font-normal shadow transition-colors cursor-pointer leading-none select-none ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
-            title="New Project"
-            aria-label="New Project"
-            onClick={handleNewProject}
-            style={{ lineHeight: '1', fontSize: '1.5rem' }}
-          >
-            +
-          </button>
-        </div>
+        {/* + Button for New Project - Top Right (only show when not on first prompt) */}
+        {hasConfirmedFirstPrompt && (
+          <div className="container mx-auto flex justify-end mt-4 px-4">
+            <div className="flex items-center space-x-3">
+              {/* Dark Mode Toggle */}
+              <button
+                className={`h-10 w-10 flex items-center justify-center rounded-full shadow transition-colors cursor-pointer ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-yellow-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+                title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                onClick={toggleDarkMode}
+              >
+                {isDarkMode ? (
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+              </button>
+              <button
+                className={`h-10 w-10 flex items-center justify-center rounded-full text-2xl font-normal shadow transition-colors cursor-pointer leading-none select-none ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                title="New Project"
+                aria-label="New Project"
+                onClick={handleNewProject}
+                style={{ lineHeight: '1', fontSize: '1.5rem' }}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Dark Mode Toggle for First Prompt Page */}
+        {!hasConfirmedFirstPrompt && (
+          <div className="container mx-auto flex justify-end mt-4 px-4 relative z-10">
+            <button
+              className={`h-10 w-10 flex items-center justify-center rounded-full shadow transition-colors cursor-pointer z-20 relative ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-yellow-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              onClick={toggleDarkMode}
+            >
+              {isDarkMode ? (
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+          </div>
+        )}
 
         <main className={`flex-grow container mx-auto p-4 ${isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
           {currentView === 'main' ? (
@@ -1839,6 +1866,7 @@ const App: React.FC = () => {
               setIsSubscriptionModalOpen(false);
             }}
             contactEmail={CONTACT_EMAIL}
+            isDarkMode={isDarkMode}
           />
         )}
 
