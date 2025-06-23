@@ -224,6 +224,7 @@
 
     .sidebar-container:not(:hover) .nav-item svg {
       margin: 0 !important;
+      display: none !important;
     }
 
     .sidebar-container .nav-text {
@@ -235,6 +236,16 @@
     .sidebar-container:hover .nav-text {
       opacity: 1;
       transform: translateX(0);
+    }
+
+    /* Hide icons completely when collapsed */
+    .sidebar-container:not(:hover) .nav-item svg {
+      display: none !important;
+    }
+
+    /* Show icons only on hover */
+    .sidebar-container:hover .nav-item svg {
+      display: block !important;
     }
 
     /* Ensure consistent spacing for all sidebar sections */
