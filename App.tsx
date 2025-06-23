@@ -598,7 +598,7 @@ const App: React.FC = () => {
   const resetAppState = () => {
     setPrompt('');
     setGeneratedCode('// Code will appear here once generated...');
-    setPreviewHtml('<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"><h3 class="text-lg font-semibold text-neutral-800 mb-3">Welcome to myPip!</h3><p class="text-neutral-600">Describe your app idea below to see it come to life with interactive previews.</p></div></div>');
+    setPreviewHtml('<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"><h3 class="text-lg font-semibold text-neutral-800 mb-3">Ready to build!</h3><p class="text-neutral-600">Describe your app idea below to see it come to life with interactive previews.</p></div></div>');
     setChatHistory([]);
     setAiThoughtProcess('');
     setThinkingLog('');
@@ -1034,7 +1034,7 @@ const App: React.FC = () => {
             
             {/* Configuration Section */}
             <div className="pt-4 border-t border-blue-800">
-              <div className="text-xs text-blue-300 mb-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="text-xs text-blue-300 mb-2 px-2">
                 Configuration
               </div>
               <div 
@@ -1044,7 +1044,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.29 12.29a1 1 0 0 0-1.42 0L15 16.17V4a1 1 0 0 0-2 0v12.17l-3.88-3.88a1 1 0 0 0-1.41 1.41l5.59 5.59a1 1 0 0 0 1.41 0l5.59-5.59a1 1 0 0 0 0-1.41z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white">
                   Supabase
                 </span>
               </div>
@@ -1056,7 +1056,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white">
                   StoreKit 2
                 </span>
               </div>
@@ -1068,7 +1068,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white">
                   Clerk
                 </span>
               </div>
@@ -1080,7 +1080,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white">
                   n8n
                 </span>
               </div>
@@ -1093,7 +1093,7 @@ const App: React.FC = () => {
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
-              <span className="ml-3 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <span className="ml-3 text-xs text-white">
                 Developer Tools
               </span>
             </div>
@@ -1273,7 +1273,7 @@ const App: React.FC = () => {
                 // Full Layout (Existing) - Improved for Refine App
                 <div className="col-span-1 md:col-span-2 refine-app-container">
                   {/* Left Section - Change Logs, Thinking, and Prompt */}
-                  <div className="flex flex-col space-y-4">
+                  <div className="flex flex-col space-y-4 order-2 md:order-1">
                     {/* Change Logs and AI Thinking */}
                     <div className="space-y-4">
                       {chatHistory.length > 0 && (

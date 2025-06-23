@@ -508,7 +508,7 @@
     [data-theme="light"] .glass-input::placeholder,
     .light-mode .glass-input::placeholder,
     body:not(.dark) .glass-input::placeholder {
-      color: #6b7280 !important;
+      color: #374151 !important;
     }
 
     /* Fix prompt input text visibility */
@@ -527,7 +527,22 @@
       }
       
       .glass-input::placeholder {
-        color: #6b7280 !important;
+        color: #374151 !important;
+      }
+      
+      /* Make grey text in prompt boxes black in light mode */
+      .glass-input .text-gray-500,
+      .glass-input .text-neutral-500,
+      .glass-input .text-gray-600,
+      .glass-input .text-neutral-600,
+      .glass-input .text-gray-700,
+      .glass-input .text-neutral-700 {
+        color: #1f2937 !important;
+      }
+      
+      /* Ensure placeholder text is visible but not too dark */
+      .glass-input::placeholder {
+        color: #374151 !important;
       }
     }
 
@@ -568,6 +583,23 @@
       .refine-app-container {
         grid-template-columns: 1fr;
         gap: 1rem;
+        display: flex;
+        flex-direction: column;
+      }
+    }
+
+    /* Ensure proper flexbox ordering on mobile */
+    @media (max-width: 1024px) {
+      .refine-app-container > div:nth-child(1) {
+        order: 2; /* Left section (changelog, thinking, prompt) comes second */
+      }
+      
+      .refine-app-container > div:nth-child(2) {
+        order: 1; /* Middle section (preview) comes first */
+      }
+      
+      .refine-app-container > div:nth-child(3) {
+        order: 3; /* Right section (code) comes third */
       }
     }
 
@@ -666,6 +698,185 @@
         grid-template-columns: 350px auto 500px;
         gap: 3rem;
       }
+    }
+
+    /* Dark mode text readability improvements */
+    @media (prefers-color-scheme: dark) {
+      /* Make grey text darker on grey backgrounds for better contrast */
+      .text-gray-500,
+      .text-neutral-500,
+      .text-gray-600,
+      .text-neutral-600,
+      .text-gray-700,
+      .text-neutral-700 {
+        color: #d1d5db !important; /* Light grey instead of dark grey */
+      }
+
+      /* Make very light grey text more visible */
+      .text-gray-400,
+      .text-neutral-400 {
+        color: #e5e7eb !important; /* Lighter grey for better visibility */
+      }
+
+      /* Ensure white/light text on dark backgrounds */
+      .text-white,
+      .text-gray-100,
+      .text-gray-200,
+      .text-neutral-100,
+      .text-neutral-200 {
+        color: #ffffff !important;
+      }
+
+      /* Improve placeholder text contrast */
+      input::placeholder,
+      textarea::placeholder {
+        color: #9ca3af !important; /* Medium grey for better readability */
+      }
+
+      /* Improve muted text in dark mode */
+      .text-muted,
+      .text-gray-500,
+      .text-neutral-500 {
+        color: #d1d5db !important;
+      }
+    }
+
+    /* Force dark mode improvements regardless of system preference */
+    [data-theme="dark"] .text-gray-500,
+    [data-theme="dark"] .text-neutral-500,
+    [data-theme="dark"] .text-gray-600,
+    [data-theme="dark"] .text-neutral-600,
+    [data-theme="dark"] .text-gray-700,
+    [data-theme="dark"] .text-neutral-700 {
+      color: #d1d5db !important;
+    }
+
+    [data-theme="dark"] .text-gray-400,
+    [data-theme="dark"] .text-neutral-400 {
+      color: #e5e7eb !important;
+    }
+
+    [data-theme="dark"] input::placeholder,
+    [data-theme="dark"] textarea::placeholder {
+      color: #9ca3af !important;
+    }
+
+    /* Specific improvements for common UI elements */
+    .dark .text-gray-500,
+    .dark .text-neutral-500,
+    .dark .text-gray-600,
+    .dark .text-neutral-600,
+    .dark .text-gray-700,
+    .dark .text-neutral-700 {
+      color: #d1d5db !important;
+    }
+
+    .dark .text-gray-400,
+    .dark .text-neutral-400 {
+      color: #e5e7eb !important;
+    }
+
+    /* Improve glass components text visibility */
+    .glass-card .text-gray-500,
+    .glass-card .text-gray-600,
+    .glass-card .text-neutral-500,
+    .glass-card .text-neutral-600 {
+      color: #1f2937 !important;
+    }
+
+    .dark .glass-card .text-gray-500,
+    .dark .glass-card .text-gray-600,
+    .dark .glass-card .text-neutral-500,
+    .dark .glass-card .text-neutral-600 {
+      color: #d1d5db !important;
+    }
+
+    /* Improve button text visibility */
+    .glass-button .text-gray-500,
+    .glass-button .text-gray-600,
+    .glass-button .text-neutral-500,
+    .glass-button .text-neutral-600 {
+      color: #1f2937 !important;
+    }
+
+    .dark .glass-button .text-gray-500,
+    .dark .glass-button .text-gray-600,
+    .dark .glass-button .text-neutral-500,
+    .dark .glass-button .text-neutral-600 {
+      color: #d1d5db !important;
+    }
+
+    /* Improve sidebar text visibility */
+    .sidebar-container .text-gray-500,
+    .sidebar-container .text-gray-600,
+    .sidebar-container .text-neutral-500,
+    .sidebar-container .text-neutral-600 {
+      color: #1f2937 !important;
+    }
+
+    .dark .sidebar-container .text-gray-500,
+    .dark .sidebar-container .text-gray-600,
+    .dark .sidebar-container .text-neutral-500,
+    .dark .sidebar-container .text-neutral-600 {
+      color: #d1d5db !important;
+    }
+
+    /* Improve header text visibility */
+    header .text-gray-500,
+    header .text-gray-600,
+    header .text-neutral-500,
+    header .text-neutral-600 {
+      color: #1f2937 !important;
+    }
+
+    .dark header .text-gray-500,
+    .dark header .text-gray-600,
+    .dark header .text-neutral-500,
+    .dark header .text-neutral-600 {
+      color: #d1d5db !important;
+    }
+
+    /* Improve modal text visibility */
+    .modal-content .text-gray-500,
+    .modal-content .text-gray-600,
+    .modal-content .text-neutral-500,
+    .modal-content .text-neutral-600 {
+      color: #1f2937 !important;
+    }
+
+    .dark .modal-content .text-gray-500,
+    .dark .modal-content .text-gray-600,
+    .dark .modal-content .text-neutral-500,
+    .dark .modal-content .text-neutral-600 {
+      color: #d1d5db !important;
+    }
+
+    /* Ensure proper contrast for secondary text */
+    .text-secondary,
+    .text-gray-400,
+    .text-neutral-400 {
+      color: #374151 !important;
+    }
+
+    .dark .text-secondary,
+    .dark .text-gray-400,
+    .dark .text-neutral-400 {
+      color: #e5e7eb !important;
+    }
+
+    /* Improve form labels and descriptions */
+    label,
+    .form-label,
+    .text-sm.text-gray-500,
+    .text-sm.text-neutral-500 {
+      color: #374151 !important;
+    }
+
+    .dark label,
+    .dark .form-label,
+    .dark .text-sm.text-gray-500,
+    .dark .text-sm.text-neutral-500 {
+      color: #d1d5db !important;
     }
   </style>
 <script type="importmap">
