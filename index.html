@@ -100,7 +100,7 @@
       .first-prompt-container .w-\[400px\] {
         width: 100% !important;
         max-width: 100% !important;
-        padding: 0 0.75rem;
+        padding: 0 0.5rem;
         margin-bottom: 2rem;
       }
       
@@ -109,14 +109,35 @@
         max-width: 100% !important;
       }
       
-      /* Make ALL text in header white on mobile for visibility */
-      header * {
+      /* AGGRESSIVE header text fix for mobile */
+      header,
+      header *,
+      header button,
+      header div,
+      header span,
+      header .text-emerald-300,
+      header .text-emerald-700,
+      header .text-blue-300,
+      header .text-blue-700,
+      header .text-gray-200,
+      header .text-neutral-700,
+      header .bg-emerald-900\/50,
+      header .bg-blue-900\/50,
+      header .bg-blue-600,
+      header .bg-blue-500,
+      header .bg-gray-700 {
         color: white !important;
       }
       
-      /* Exception for neutral background buttons */
-      header .bg-neutral-100 {
+      /* Exception for light background buttons */
+      header .bg-neutral-100,
+      header .bg-gray-200 {
         color: #374151 !important;
+      }
+      
+      /* Force white text on all header elements */
+      header svg {
+        color: white !important;
       }
     }
   </style>
