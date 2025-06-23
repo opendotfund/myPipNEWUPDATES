@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 interface PhonePreviewProps {
   htmlContent: string;
   onPreviewInteraction: (actionId: string, actionDescription: string) => void;
-  size?: 'tiny' | 'small' | 'default';
+  size?: 'tiny' | 'small' | 'default' | 'mini';
   className?: string;
 }
 
@@ -12,6 +12,10 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPrevi
 
   // Size configurations
   const sizeConfig = {
+    mini: {
+      container: 'bg-neutral-200 p-0.5 rounded-lg shadow-md w-[120px] h-[240px] md:w-[140px] md:h-[280px] flex-shrink-0',
+      screen: 'bg-neutral-800 w-full h-full rounded-md overflow-hidden relative'
+    },
     tiny: {
       container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[180px] h-[360px] md:w-[200px] md:h-[400px] flex-shrink-0',
       screen: 'bg-neutral-800 w-full h-full rounded-lg overflow-hidden relative'

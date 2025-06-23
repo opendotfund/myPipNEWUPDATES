@@ -31,7 +31,12 @@ const App: React.FC = () => {
   const [prompt, setPrompt] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<ModelId>(ModelId.GEMINI_FLASH);
   const [generatedCode, setGeneratedCode] = useState<string>('// Code will appear here once generated...');
-  const [previewHtml, setPreviewHtml] = useState<string>('<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"><h3 class="text-lg font-semibold text-neutral-800 mb-3">Welcome to myPip!</h3><p class="text-neutral-600">Describe your app idea below to see it come to life with interactive previews.</p></div></div>');
+  const [previewHtml, setPreviewHtml] = useState<string>(
+    '<div class="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-br from-blue-50 to-indigo-100">' +
+    '<div class="max-w-xs">' +
+    '<p class="text-neutral-600 text-sm">Describe your app idea below to see it come to life.</p>' +
+    '</div></div>'
+  );
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<AppView>('main');
@@ -910,7 +915,8 @@ const App: React.FC = () => {
               <button 
                 onClick={() => setIsSidebarOpen(false)}
                 disabled={isEditingProfile}
-                className={`p-1 text-white hover:text-gray-300 ${isEditingProfile ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`p-2 text-white hover:text-gray-300 hover:bg-white/10 rounded-lg transition-all duration-300 ${isEditingProfile ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                aria-label="Close sidebar"
               >
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1110,6 +1116,16 @@ const App: React.FC = () => {
         <header className="glass-card p-4 sticky top-0 z-20 transition-all duration-300 m-4">
           <div className="container mx-auto flex items-center justify-between">
             <div className="flex items-center">
+              {/* Mobile Hamburger Menu Button */}
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="md:hidden p-2 text-white hover:text-gray-300 hover:bg-white/10 rounded-lg transition-all duration-300 mr-3"
+                aria-label="Open menu"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
               <img 
                 src={isDarkMode ? '/robot-dark-logo.png' : appLogo} 
                 alt={`${appName} Logo`} 
@@ -1220,23 +1236,22 @@ const App: React.FC = () => {
           {currentView === 'main' ? (
             <>
               {!hasConfirmedFirstPrompt ? (
-                // Simplified First Screen Layout
-                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center min-h-[calc(100vh-30rem)] space-y-6 -mt-4 first-prompt-container">
-                  {/* Phone Preview - Tiny and Centered */}
-                  <div className="w-[200px] flex justify-center">
-                    <div className="glass-card p-4">
+                // Replace the first prompt container div with a version that has no top padding and minimal spacing
+                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-start space-y-1 first-prompt-container" style={{paddingTop: '0', paddingBottom: '0.25rem'}}>
+                  {/* Phone Preview - Even Smaller */}
+                  <div className="w-[110px] flex justify-center">
+                    <div className="glass-card p-1">
                       <PhonePreview 
                         htmlContent={previewHtml} 
                         onPreviewInteraction={handlePreviewInteraction}
                         key={previewRefreshKey}
-                        size="tiny"
+                        size="mini"
                       />
                     </div>
                   </div>
-
-                  {/* Prompt Input - At Bottom */}
-                  <div className="w-[400px] flex justify-center">
-                    <div className="glass-card p-6 w-full transition-opacity duration-500 ease-in-out">
+                  {/* Prompt Input - Even More Compact */}
+                  <div className="w-full max-w-[340px] flex justify-center">
+                    <div className="glass-card p-2 w-full transition-opacity duration-500 ease-in-out">
                       <PromptInput
                         prompt={prompt}
                         setPrompt={setPrompt}
@@ -1252,26 +1267,81 @@ const App: React.FC = () => {
                         hasGenerated={hasGenerated}
                       />
                     </div>
-                    
                     {error && (
-                      <div className={`mt-3 glass-card p-4 text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
+                      <div className={`mt-1 glass-card p-2 text-xs transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
                         {error}
                       </div>
                     )}
-
                     {!canSubmit && !isEarlyBirdKeyApplied && (
-                      <div className="mt-3 glass-card p-4 text-sm text-center bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-400/30">
+                      <div className="mt-1 glass-card p-2 text-xs text-center bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-400/30">
                         You've used all your free prompts. Enter an Early Bird Code for unlimited access or subscribe for unlimited prompts!
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                // Full Layout (Existing)
-                <>
-                  {/* Preview Section */}
-                  <div className={`${isHorizontal ? 'w-1/3' : 'flex flex-col items-center justify-start md:sticky md:top-20 h-full md:h-[calc(100vh-6rem)]'}`}>
-                    <div className="glass-card p-4 w-full mb-4">
+                // Full Layout (Existing) - Improved for Refine App
+                <div className="col-span-1 md:col-span-2 refine-app-container">
+                  {/* Left Section - Change Logs, Thinking, and Prompt */}
+                  <div className="flex flex-col space-y-4">
+                    {/* Change Logs and AI Thinking */}
+                    <div className="space-y-4">
+                      {chatHistory.length > 0 && (
+                        <div className={`p-3 rounded-lg border text-xs ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
+                          <p className={`font-semibold mb-2 ${isDarkMode ? 'text-blue-200' : 'text-neutral-600'}`}>Change Log:</p>
+                          <div ref={chatHistoryRef} className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                            {chatHistory.map((item, index) => (
+                              <div key={index} className={`p-1.5 rounded text-xs ${getChatItemBackgroundClass(item.type)}`}>
+                                <strong>{getChatSpeaker(item.type)}</strong> {item.content}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* AI Thinking Process */}
+                      {aiThoughtProcess && (
+                        <div className={`p-3 rounded-lg border text-xs ${isDarkMode ? 'bg-purple-900/20 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
+                          <p className={`font-semibold mb-2 ${isDarkMode ? 'text-purple-200' : 'text-neutral-600'}`}>AI Thinking:</p>
+                          <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                            <div className={`p-1.5 rounded text-xs ${isDarkMode ? 'bg-purple-800/30' : 'bg-purple-100'}`}>
+                              {aiThoughtProcess}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Refinement Prompt Box - At Bottom */}
+                    <div className="mt-auto">
+                      <h2 className={`text-xl font-semibold mb-3 ${isDarkMode ? 'text-gray-200' : 'text-neutral-700'}`}>Refine Your App</h2>
+                      <PromptInput
+                        prompt={prompt}
+                        setPrompt={setPrompt}
+                        onSubmit={handleSubmit}
+                        isLoading={isLoading}
+                        selectedModel={selectedModel}
+                        onModelChange={(modelId) => setSelectedModel(modelId as ModelId)}
+                        isDisabled={!canSubmit || isLoading}
+                        actionText="Refine App"
+                        aiThoughtProcess={aiThoughtProcess}
+                        thinkingLog={thinkingLog}
+                        isDarkMode={isDarkMode}
+                        hasGenerated={hasGenerated}
+                        fullWidth={true}
+                      />
+                      
+                      {error && (
+                        <div className={`mt-3 p-3 border rounded-md text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? (isDarkMode ? 'bg-emerald-900/20 border-emerald-700 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-700') : (isDarkMode ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-red-100 border-red-300 text-red-700')}`}>
+                          {error}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Middle Section - iPhone Preview with Buttons */}
+                  <div className="flex flex-col items-center justify-start">
+                    <div className="glass-card p-4 w-full">
                       <div className="w-full flex justify-between items-center mb-4">
                         <h2 className="text-xl font-semibold text-white">App Preview</h2>
                         <div className="flex items-center gap-2">
@@ -1293,93 +1363,63 @@ const App: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                      <div className="w-full flex justify-end mb-4">
-                        <div className="flex flex-col gap-2">
-                          {/* Save Button */}
-                          <button
-                            onClick={handleSave}
-                            title="Save Pip"
-                            className="glass-button p-2 rounded-lg transition-all duration-300"
-                          >
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                          </button>
-                          
-                          {/* GitHub Icon */}
-                          <button
-                            title="GitHub"
-                            className="glass-button p-2 rounded-lg transition-all duration-300"
-                          >
-                            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                            </svg>
-                          </button>
-                          
-                          {/* Apple Store Icon */}
-                          <button
-                            title="App Store"
-                            className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-blue-400 to-purple-500"
-                            onClick={() => setIsXcodeModalOpen(true)}
-                          >
-                            <AppleIcon className="h-5 w-5" />
-                          </button>
-                          
-                          {/* Google Play Store Icon (Greyed Out) */}
-                          <button
-                            title="Google Play Store"
-                            disabled
-                            className="glass-button p-2 rounded-lg transition-all duration-300 opacity-50 cursor-not-allowed"
-                          >
-                            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
-                            </svg>
-                          </button>
-                        </div>
+                      
+                      {/* Phone Preview - Centered */}
+                      <div className="flex justify-center mb-4">
+                        <PhonePreview 
+                          htmlContent={previewHtml} 
+                          onPreviewInteraction={handlePreviewInteraction}
+                          key={previewRefreshKey} 
+                          className=""
+                        />
                       </div>
-                      <PhonePreview 
-                        htmlContent={previewHtml} 
-                        onPreviewInteraction={handlePreviewInteraction}
-                        key={previewRefreshKey} 
-                        className=""
-                      />
+                      
+                      {/* Action Buttons Row */}
+                      <div className="flex justify-center gap-2">
+                        {/* Save Button */}
+                        <button
+                          onClick={handleSave}
+                          title="Save Pip"
+                          className="glass-button p-2 rounded-lg transition-all duration-300"
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </button>
+                        
+                        {/* GitHub Icon */}
+                        <button
+                          title="GitHub"
+                          className="glass-button p-2 rounded-lg transition-all duration-300"
+                        >
+                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                          </svg>
+                        </button>
+                        
+                        {/* Apple Store Icon */}
+                        <button
+                          title="App Store"
+                          className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-blue-400 to-purple-500"
+                          onClick={() => setIsXcodeModalOpen(true)}
+                        >
+                          <AppleIcon className="h-5 w-5" />
+                        </button>
+                        
+                        {/* Google Play Store Icon (Greyed Out) */}
+                        <button
+                          title="Google Play Store"
+                          disabled
+                          className="glass-button p-2 rounded-lg transition-all duration-300 opacity-50 cursor-not-allowed"
+                        >
+                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Code/Prompt Section */}
-                  <div className={`${isHorizontal ? 'w-2/3 pl-6 flex flex-col space-y-6' : 'flex flex-col space-y-6 mt-8 md:mt-12'}`}>
-                    <div className="transition-opacity duration-500 ease-in-out">
-                      <h2 className={`text-xl font-semibold mb-3 ${isDarkMode ? 'text-gray-200' : 'text-neutral-700'}`}>{hasGenerated ? 'Refine Your App' : 'Describe Your App'}</h2>
-                      <PromptInput
-                        prompt={prompt}
-                        setPrompt={setPrompt}
-                        onSubmit={handleSubmit}
-                        isLoading={isLoading}
-                        selectedModel={selectedModel}
-                        onModelChange={(modelId) => setSelectedModel(modelId as ModelId)}
-                        isDisabled={!canSubmit || isLoading}
-                        actionText={hasGenerated ? 'Refine App' : 'Generate App'}
-                        aiThoughtProcess={aiThoughtProcess}
-                        thinkingLog={thinkingLog}
-                        isDarkMode={isDarkMode}
-                        hasGenerated={hasGenerated}
-                        fullWidth={hasGenerated}
-                      />
-                      
-                      {chatHistory.length > 0 && (
-                        <div className={`mt-4 p-3 rounded-lg border text-xs ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
-                          <p className={`font-semibold mb-2 ${isDarkMode ? 'text-blue-200' : 'text-neutral-600'}`}>Activity Log:</p>
-                          <div ref={chatHistoryRef} className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                            {chatHistory.map((item, index) => (
-                              <div key={index} className={`p-1.5 rounded text-xs ${getChatItemBackgroundClass(item.type)}`}>
-                                <strong>{getChatSpeaker(item.type)}</strong> {item.content}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {error && <div className={`p-3 border rounded-md text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? (isDarkMode ? 'bg-emerald-900/20 border-emerald-700 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-700') : (isDarkMode ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-red-100 border-red-300 text-red-700')}`}>{error}</div>}
-                    
+                  {/* Code Section - Right */}
+                  <div className="flex flex-col space-y-4">
                     <div className="mt-2">
                        <div className="flex justify-between items-center mb-3">
                           <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-neutral-700'}`}>
@@ -1414,7 +1454,7 @@ const App: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </>
           ) : currentView === 'community' ? (

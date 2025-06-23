@@ -324,13 +324,28 @@
 
     /* Fix navbar text visibility on mobile */
     @media (max-width: 768px) {
-      header * {
+      /* Force white text on all header elements on mobile */
+      header,
+      header *,
+      header div,
+      header span,
+      header button,
+      header a,
+      header h1,
+      header h2,
+      header h3,
+      header h4,
+      header h5,
+      header h6,
+      header p,
+      header label {
         color: white !important;
       }
       
       /* Exception for light background buttons */
       header .bg-neutral-100,
-      header .bg-gray-200 {
+      header .bg-gray-200,
+      header .bg-white {
         color: #374151 !important;
       }
       
@@ -350,7 +365,9 @@
       .sidebar-container h6,
       .sidebar-container p,
       .sidebar-container li,
-      .sidebar-container label {
+      .sidebar-container label,
+      .sidebar-container .nav-item,
+      .sidebar-container .nav-text {
         color: white !important;
       }
       
@@ -367,6 +384,57 @@
       .text-neutral-800,
       .text-gray-900,
       .text-neutral-900 {
+        color: white !important;
+      }
+
+      /* Ensure header text is always visible on mobile */
+      header .glass-button,
+      header .glass-card,
+      header div,
+      header span,
+      header button {
+        color: white !important;
+      }
+
+      /* Force white text for all header elements */
+      header {
+        color: white !important;
+      }
+
+      header * {
+        color: white !important;
+      }
+
+      /* Exception for specific elements that should have dark text */
+      header .bg-white,
+      header .bg-gray-100,
+      header .bg-neutral-100 {
+        color: #374151 !important;
+      }
+
+      /* Additional mobile sidebar text fixes */
+      .sidebar-container .nav-item {
+        color: white !important;
+      }
+      
+      .sidebar-container .nav-item svg {
+        color: white !important;
+      }
+      
+      .sidebar-container .nav-text {
+        color: white !important;
+      }
+      
+      .sidebar-container .glass-button {
+        color: white !important;
+      }
+      
+      .sidebar-container .glass-button svg {
+        color: white !important;
+      }
+
+      /* Force white text on all sidebar elements regardless of theme */
+      .sidebar-container * {
         color: white !important;
       }
     }
@@ -391,6 +459,31 @@
       
       .sidebar-container .glass-button svg {
         color: var(--text-dark) !important;
+      }
+    }
+
+    /* Override light mode for mobile sidebar - always use white text */
+    @media (max-width: 768px) and (prefers-color-scheme: light) {
+      .sidebar-container,
+      .sidebar-container *,
+      .sidebar-container .nav-item,
+      .sidebar-container .nav-item svg,
+      .sidebar-container .nav-text,
+      .sidebar-container .glass-button,
+      .sidebar-container .glass-button svg {
+        color: white !important;
+      }
+    }
+
+    /* Ensure mobile sidebar overlay text is visible */
+    @media (max-width: 768px) {
+      .sidebar-container.md\\:hidden,
+      .sidebar-container.md\\:hidden *,
+      .sidebar-container.md\\:hidden .nav-item,
+      .sidebar-container.md\\:hidden .nav-text,
+      .sidebar-container.md\\:hidden button,
+      .sidebar-container.md\\:hidden svg {
+        color: white !important;
       }
     }
 
@@ -437,6 +530,130 @@
       textarea.glass-input,
       input.glass-input {
         color: #1f2937 !important;
+      }
+    }
+
+    /* Improved layout for first prompt page */
+    .first-prompt-container {
+      min-height: calc(100vh - 200px);
+      padding-top: 2rem;
+      padding-bottom: 2rem;
+    }
+
+    /* Compact layout for refine app page */
+    .refine-app-container {
+      min-height: calc(100vh - 150px);
+      padding-top: 1rem;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 2rem;
+      align-items: start;
+      width: 100%;
+      max-width: none;
+    }
+
+    /* Responsive layout for mobile */
+    @media (max-width: 1024px) {
+      .refine-app-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+    }
+
+    /* Ensure the preview section stays centered and doesn't take too much space */
+    .refine-app-container > div:nth-child(2) {
+      justify-self: center;
+      max-width: 400px;
+    }
+
+    /* Ensure the code section takes up the right side properly */
+    .refine-app-container > div:nth-child(3) {
+      justify-self: end;
+    }
+
+    /* Override main container constraints for refine app */
+    main .refine-app-container {
+      grid-column: 1 / -1;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Ensure icons are properly centered in collapsed sidebar */
+    .sidebar-container:not(:hover) .nav-item {
+      justify-content: center !important;
+      padding: 0.75rem !important;
+    }
+
+    .sidebar-container:not(:hover) .nav-item svg {
+      margin: 0 !important;
+      width: 1.25rem !important;
+      height: 1.25rem !important;
+    }
+
+    /* Ensure nav items have proper background in collapsed state */
+    .sidebar-container:not(:hover) .nav-item {
+      background: rgba(255, 255, 255, 0.1) !important;
+      border-radius: 0.5rem !important;
+      margin: 0.25rem 0.5rem !important;
+      width: calc(100% - 1rem) !important;
+    }
+
+    /* Improve spacing for first prompt layout */
+    @media (max-width: 768px) {
+      .first-prompt-container {
+        min-height: calc(100vh - 150px);
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+      }
+
+      /* Ensure mobile sidebar close button is always clickable */
+      .sidebar-container button[aria-label="Close sidebar"] {
+        position: relative;
+        z-index: 60;
+        pointer-events: auto;
+        touch-action: manipulation;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      /* Ensure mobile sidebar is properly positioned */
+      .sidebar-container.md\\:hidden {
+        z-index: 50;
+        pointer-events: auto;
+      }
+
+      /* Ensure mobile sidebar overlay doesn't interfere with close button */
+      .sidebar-container.md\\:hidden + div {
+        z-index: 40;
+      }
+    }
+
+    /* Ensure proper spacing and layout for the three sections */
+    .refine-app-container > div:first-child {
+      min-width: 300px;
+      max-width: 400px;
+    }
+
+    .refine-app-container > div:nth-child(2) {
+      min-width: 350px;
+      max-width: 450px;
+    }
+
+    .refine-app-container > div:nth-child(3) {
+      min-width: 400px;
+      max-width: 600px;
+    }
+
+    /* Ensure the layout works well on larger screens */
+    @media (min-width: 1400px) {
+      .refine-app-container {
+        grid-template-columns: 350px auto 500px;
+        gap: 3rem;
       }
     }
   </style>

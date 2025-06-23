@@ -125,12 +125,26 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={hasGenerated ? "e.g., Change the background to green, add a paperclip icon for file uploads, make the text larger..." : "e.g., A simple todo list app with a button to add tasks..."}
-          className="glass-input w-full p-4 pb-20 rounded-xl focus:ring-2 focus:ring-white/30 focus:border-white/40 transition-all duration-300 placeholder-white/50 min-h-[120px] resize-none disabled:opacity-70 disabled:cursor-not-allowed text-white"
+          className="glass-input w-full p-4 rounded-xl focus:ring-2 focus:ring-white/30 focus:border-white/40 transition-all duration-300 placeholder-white/50 min-h-[120px] resize-none disabled:opacity-70 disabled:cursor-not-allowed text-white"
           rows={5}
           disabled={isLoading || isDisabled}
           aria-label="App description prompt"
+          style={{ position: 'relative', backgroundClip: 'padding-box' }}
         />
-        
+        {/* Overlay for thinking log and spinner */}
+        {isLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none" style={{background: 'rgba(30,30,40,0.55)', borderRadius: '0.75rem'}}>
+            <div className="flex items-center gap-2 mb-1">
+              <LoadingSpinner className="h-4 w-4 text-white animate-spin" />
+              <span className="text-white text-xs font-medium opacity-90">Generating App...</span>
+            </div>
+            {thinkingLog && (
+              <div className="text-xs text-white/80 font-mono text-center max-w-[90%] break-words" style={{lineHeight: '1.3'}}>
+                {typedLog}
+              </div>
+            )}
+          </div>
+        )}
         {/* Bottom controls overlay */}
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
           {/* Model selector - bottom left */}
@@ -156,7 +170,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-
             {/* Dropdown Menu */}
             {isDropdownOpen && (
               <div className="absolute bottom-full left-0 mb-2 w-48 glass-card border border-white/20 rounded-xl shadow-xl overflow-hidden z-50">
@@ -164,7 +177,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                   const modelConfig = getModelConfig(model.id);
                   const isSelected = model.id === selectedModel;
                   const isAvailable = model.available;
-                  
                   return (
                     <button
                       key={model.id}
@@ -181,12 +193,8 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                     >
                       <span className="text-sm">{modelConfig.icon}</span>
                       <div className="text-left flex-1">
-                        <div className={`font-semibold text-xs ${isSelected ? 'text-white' : 'text-white/80'}`}>
-                          {model.name}
-                        </div>
-                        <div className={`text-xs ${isSelected ? 'text-white/70' : 'text-white/60'}`}>
-                          {modelConfig.description}
-                        </div>
+                        <div className={`font-semibold text-xs ${isSelected ? 'text-white' : 'text-white/80'}`}>{model.name}</div>
+                        <div className={`text-xs ${isSelected ? 'text-white/70' : 'text-white/60'}`}>{modelConfig.description}</div>
                       </div>
                       {isSelected && (
                         <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -194,9 +202,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                         </svg>
                       )}
                       {!isAvailable && (
-                        <span className="text-xs bg-white/20 text-white/70 px-2 py-1 rounded-full">
-                          Soon
-                        </span>
+                        <span className="text-xs bg-white/20 text-white/70 px-2 py-1 rounded-full">Soon</span>
                       )}
                     </button>
                   );
@@ -204,46 +210,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
               </div>
             )}
           </div>
-
-          {/* Thinking component - between model selector and generate button */}
-          {isLoading && (
-            <div className="flex-1 flex justify-center">
-              <button
-                type="button"
-                className="glass-button flex items-center px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/30 text-white"
-                onClick={() => setIsThinkingExpanded((v) => !v)}
-                aria-expanded={isThinkingExpanded}
-                style={{ minWidth: 100 }}
-              >
-                <LoadingSpinner className="h-4 w-4 mr-2 text-white" />
-                Thinking
-                <svg className={`h-3 w-3 ml-2 transition-transform duration-300 ${isThinkingExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {isThinkingExpanded && (
-                <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-80 max-w-xs glass-card border border-white/20 rounded-xl shadow-xl p-4 z-50 text-xs whitespace-pre-line text-white">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="font-semibold text-white">AI's Thought Process</span>
-                    <button onClick={() => setIsThinkingExpanded(false)} className="text-white/60 hover:text-white p-1 transition-colors">
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div style={{ maxHeight: 200, overflowY: 'auto' }}>{aiThoughtProcess || 'The AI is analyzing your prompt and preparing a response...'}</div>
-                  {/* Thinking Log typing effect */}
-                  {thinkingLog && (
-                    <div className="mt-4 border-t border-white/20 pt-3 text-white/80 font-mono">
-                      <span className="font-semibold text-white/90 block mb-1">Thinking Log</span>
-                      <span aria-live="polite">{typedLog}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Generate button - bottom right */}
           <button
             onClick={onSubmit}
