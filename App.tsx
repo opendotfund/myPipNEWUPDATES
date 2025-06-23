@@ -1231,7 +1231,7 @@ const App: React.FC = () => {
             <>
               {!hasConfirmedFirstPrompt ? (
                 // Simplified First Screen Layout
-                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center min-h-[calc(100vh-40rem)] space-y-8 -mt-16">
+                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center min-h-[calc(100vh-40rem)] space-y-8 -mt-16 first-prompt-container">
                   {/* Phone Preview - Tiny and Centered */}
                   <div className="w-[200px] flex justify-center">
                     <PhonePreview 
