@@ -100,13 +100,44 @@
       .first-prompt-container .w-\[400px\] {
         width: 100% !important;
         max-width: 100% !important;
-        padding: 0 0.5rem;
+        padding: 0 1rem;
         margin-bottom: 2rem;
       }
       
       .first-prompt-container .w-\[400px\] > div {
         width: 100% !important;
         max-width: 100% !important;
+      }
+      
+      /* Fix navbar text visibility on mobile */
+      header button,
+      header div {
+        color: white !important;
+      }
+      
+      header .text-emerald-300,
+      header .text-emerald-700,
+      header .text-blue-300,
+      header .text-blue-700,
+      header .text-gray-200,
+      header .text-neutral-700 {
+        color: white !important;
+      }
+      
+      /* Ensure blue buttons have white text */
+      header .bg-blue-600,
+      header .bg-blue-500 {
+        color: white !important;
+      }
+      
+      /* Ensure gray buttons have white text */
+      header .bg-gray-700 {
+        color: white !important;
+      }
+      
+      /* Ensure neutral buttons have white text */
+      header .bg-neutral-100 {
+        color: black !important;
       }
     }
   </style>
