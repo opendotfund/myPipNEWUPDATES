@@ -72,60 +72,9 @@
       overflow-y: auto;
     }
 
-    /* Mobile-only styles for first prompt page */
+    /* Fix navbar text visibility on mobile */
     @media (max-width: 768px) {
-      .first-prompt-container {
-        padding: 0;
-        margin: 0;
-        width: 100%;
-        min-height: 100vh !important;
-        justify-content: flex-start !important;
-        align-items: center !important;
-        space-y: 0 !important;
-        gap: 2rem !important;
-      }
-      
-      .first-prompt-container > div {
-        width: 100% !important;
-        max-width: 100% !important;
-        padding: 0 1rem;
-      }
-      
-      .first-prompt-container .w-\[200px\] {
-        width: 100% !important;
-        max-width: 200px !important;
-        margin: 2rem auto 0 auto;
-      }
-      
-      .first-prompt-container .w-\[400px\] {
-        width: 100% !important;
-        max-width: 100% !important;
-        padding: 0 0.5rem;
-        margin-bottom: 2rem;
-      }
-      
-      .first-prompt-container .w-\[400px\] > div {
-        width: 100% !important;
-        max-width: 100% !important;
-      }
-      
-      /* AGGRESSIVE header text fix for mobile */
-      header,
-      header *,
-      header button,
-      header div,
-      header span,
-      header .text-emerald-300,
-      header .text-emerald-700,
-      header .text-blue-300,
-      header .text-blue-700,
-      header .text-gray-200,
-      header .text-neutral-700,
-      header .bg-emerald-900\/50,
-      header .bg-blue-900\/50,
-      header .bg-blue-600,
-      header .bg-blue-500,
-      header .bg-gray-700 {
+      header * {
         color: white !important;
       }
       
@@ -133,11 +82,6 @@
       header .bg-neutral-100,
       header .bg-gray-200 {
         color: #374151 !important;
-      }
-      
-      /* Force white text on all header elements */
-      header svg {
-        color: white !important;
       }
     }
   </style>
