@@ -100,7 +100,7 @@
       .first-prompt-container .w-\[400px\] {
         width: 100% !important;
         max-width: 100% !important;
-        padding: 0 1rem;
+        padding: 0 1.5rem;
         margin-bottom: 2rem;
       }
       
@@ -109,35 +109,51 @@
         max-width: 100% !important;
       }
       
-      /* Fix navbar text visibility on mobile */
-      header button,
-      header div {
-        color: white !important;
+      /* Fix navbar text visibility on mobile - more specific selectors */
+      header .text-emerald-300 {
+        color: #6ee7b7 !important;
       }
       
-      header .text-emerald-300,
-      header .text-emerald-700,
-      header .text-blue-300,
-      header .text-blue-700,
-      header .text-gray-200,
+      header .text-emerald-700 {
+        color: #047857 !important;
+      }
+      
+      header .text-blue-300 {
+        color: #93c5fd !important;
+      }
+      
+      header .text-blue-700 {
+        color: #1d4ed8 !important;
+      }
+      
+      header .text-gray-200 {
+        color: #e5e7eb !important;
+      }
+      
       header .text-neutral-700 {
+        color: #374151 !important;
+      }
+      
+      /* Ensure button text is visible */
+      header button.bg-blue-600,
+      header button.bg-blue-500 {
         color: white !important;
       }
       
-      /* Ensure blue buttons have white text */
-      header .bg-blue-600,
-      header .bg-blue-500 {
+      header button.bg-gray-700 {
         color: white !important;
       }
       
-      /* Ensure gray buttons have white text */
-      header .bg-gray-700 {
-        color: white !important;
+      header button.bg-neutral-100 {
+        color: #374151 !important;
       }
       
-      /* Ensure neutral buttons have white text */
-      header .bg-neutral-100 {
-        color: black !important;
+      /* Fix text in badges and spans */
+      header .bg-emerald-900\/50 .text-emerald-300,
+      header .bg-emerald-100 .text-emerald-700,
+      header .bg-blue-900\/50 .text-blue-300,
+      header .bg-blue-100 .text-blue-700 {
+        color: inherit !important;
       }
     }
   </style>
