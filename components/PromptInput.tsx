@@ -13,6 +13,8 @@ interface PromptInputProps {
   onModelChange: (modelId: string) => void;
   isDisabled?: boolean;
   actionText?: string;
+  aiThoughtProcess?: string;
+  thinkingLog?: string;
 }
 
 export const PromptInput: React.FC<PromptInputProps> = ({
@@ -23,9 +25,13 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   selectedModel,
   onModelChange,
   isDisabled = false,
-  actionText = "Generate App"
+  actionText = "Generate App",
+  aiThoughtProcess = "",
+  thinkingLog = ""
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
+  const [typedLog, setTypedLog] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -48,6 +54,22 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Typing effect for thinking log
+  useEffect(() => {
+    if (isThinkingExpanded && thinkingLog) {
+      setTypedLog('');
+      let i = 0;
+      const interval = setInterval(() => {
+        setTypedLog(thinkingLog.slice(0, i + 1));
+        i++;
+        if (i >= thinkingLog.length) clearInterval(interval);
+      }, 24);
+      return () => clearInterval(interval);
+    } else {
+      setTypedLog('');
+    }
+  }, [isThinkingExpanded, thinkingLog]);
 
   const getModelConfig = (modelId: ModelId) => {
     switch (modelId) {
@@ -176,6 +198,41 @@ export const PromptInput: React.FC<PromptInputProps> = ({
               </div>
             )}
           </div>
+
+          {/* Thinking component - between model selector and generate button */}
+          {isLoading && (
+            <div className="flex-1 flex justify-center">
+              <button
+                type="button"
+                className="flex items-center px-3 py-1.5 bg-neutral-100 border border-blue-200 rounded-md text-blue-700 text-xs font-medium shadow-sm hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+                onClick={() => setIsThinkingExpanded((v) => !v)}
+                aria-expanded={isThinkingExpanded}
+                style={{ minWidth: 100 }}
+              >
+                <LoadingSpinner className="h-4 w-4 mr-2 text-blue-500" />
+                Thinking
+                <svg className={`h-3 w-3 ml-2 transition-transform ${isThinkingExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {isThinkingExpanded && (
+                <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-80 max-w-xs bg-white border border-blue-200 rounded-lg shadow-lg p-3 z-50 text-xs text-neutral-700 whitespace-pre-line">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-semibold text-blue-700">AI's Thought Process</span>
+                    <button onClick={() => setIsThinkingExpanded(false)} className="text-neutral-400 hover:text-neutral-700 p-1"><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                  </div>
+                  <div style={{ maxHeight: 200, overflowY: 'auto' }}>{aiThoughtProcess || 'The AI is analyzing your prompt and preparing a response...'}</div>
+                  {/* Thinking Log typing effect */}
+                  {thinkingLog && (
+                    <div className="mt-4 border-t pt-2 text-blue-900 font-mono">
+                      <span className="font-semibold text-blue-600 block mb-1">Thinking Log</span>
+                      <span aria-live="polite">{typedLog}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Generate button - bottom right */}
           <button

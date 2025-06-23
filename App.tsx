@@ -12,6 +12,9 @@ import { RefreshIcon } from './components/icons/RefreshIcon';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { EarlyBirdApiInput } from './components/EarlyBirdApiInput'; // Added
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
+import { useUserData } from './hooks/useUserData';
+import { useProjects, usePublicProjects, useSavedProjects } from './hooks/useProjects';
+import { AppleIcon } from './components/icons/AppleIcon';
 
 type AppView = 'main' | 'community' | 'myPips';
 
@@ -59,6 +62,17 @@ const App: React.FC = () => {
   const canSubmit = isEarlyBirdKeyApplied || freePromptsRemaining > 0; // Updated
 
   const { user } = useUser();
+  
+  // Database hooks with error handling
+  // const { user: dbUser, updateUserProfile } = useUserData(); // Removed unused variables
+  const { projects, createProject, updateProject, deleteProject, refreshProjects, remixProject } = useProjects();
+  const { projects: publicProjects, loadPublicProjects, likeProject, recordView } = usePublicProjects();
+  const { savedProjects, saveProject, unsaveProject, isProjectSaved } = useSavedProjects();
+
+  // Fallback data in case database is not set up
+  const fallbackProjects = projects || [];
+  const fallbackPublicProjects = publicProjects || [];
+  const fallbackSavedProjects = savedProjects || [];
 
   const [communitySearch, setCommunitySearch] = useState('');
   const [communityCategory, setCommunityCategory] = useState('All Categories');
@@ -69,32 +83,37 @@ const App: React.FC = () => {
   const [isHorizontal, setIsHorizontal] = useState(false);
 
   // Add new state for My Pips page
-  const [myPipsTab, setMyPipsTab] = useState<'recent' | 'public'>('recent');
-  const [selectedPips, setSelectedPips] = useState<Set<number>>(new Set());
-  const [editingPipId, setEditingPipId] = useState<number | null>(null);
+  const [myPipsTab, setMyPipsTab] = useState<'recent' | 'public' | 'saved'>('recent');
+  const [selectedPips, setSelectedPips] = useState<Set<string>>(new Set());
+  const [editingPipId, setEditingPipId] = useState<string | null>(null);
   const [editingPipName, setEditingPipName] = useState<string>('');
-
-  // Sample data for My Pips
-  const sampleMyPips = [
-    { id: 1, name: 'Todo List App', category: 'Productivity', description: 'A simple todo list app.', isPublic: false, lastModified: '2024-01-15' },
-    { id: 2, name: 'Study Buddy', category: 'Education', description: 'Collaborative study sessions.', isPublic: true, lastModified: '2024-01-14' },
-    { id: 3, name: 'Movie Night Planner', category: 'Entertainment', description: 'Plan and vote on movies with friends.', isPublic: false, lastModified: '2024-01-13' },
-    { id: 4, name: 'Habit Tracker', category: 'Productivity', description: 'Track your daily habits.', isPublic: true, lastModified: '2024-01-12' },
-    { id: 5, name: 'Language Learner', category: 'Education', description: 'Practice new languages.', isPublic: false, lastModified: '2024-01-11' },
-  ];
 
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [tempDisplayName, setTempDisplayName] = useState('');
   const [tempBio, setTempBio] = useState('');
-  const [tempPhoto, setTempPhoto] = useState<File | null>(null);
-  const [tempPhotoPreview, setTempPhotoPreview] = useState('');
+  const [isXcodeModalOpen, setIsXcodeModalOpen] = useState(false); // NEW
+  // Placeholder for AI thought process (replace with real value if available)
+  const [aiThoughtProcess, setAiThoughtProcess] = useState<string>("");
+  const [hasGenerated, setHasGenerated] = useState(false); // NEW
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false); // NEW
+  const [isSaving, setIsSaving] = useState(false); // NEW
+  const [proceedEnabled, setProceedEnabled] = useState(false); // NEW
+  const [thinkingLog, setThinkingLog] = useState(''); // NEW
+  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false); // NEW - Login prompt modal
 
   useEffect(() => {
     if (chatHistoryRef.current) {
       chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
     }
   }, [chatHistory]);
+
+  // Load public projects when community page is opened
+  useEffect(() => {
+    if (currentView === 'community') {
+      loadPublicProjects(communityCategory, communitySearch);
+    }
+  }, [currentView, communityCategory, communitySearch]);
 
   const handleApplyApiKey = useCallback(async (apiKey: string) => {
     setIsLoading(true);
@@ -165,7 +184,6 @@ const App: React.FC = () => {
           setError('Error with Early Bird access.');
         } else {
           setError('You have used all your free prompts.');
-          // Show subscription modal when user runs out of prompts
           setIsSubscriptionModalOpen(true);
         }
       } else {
@@ -178,17 +196,24 @@ const App: React.FC = () => {
     setGeneratedCode('// Generating Swift code...');
     setPreviewHtml('<div class="w-full h-full flex items-center justify-center text-neutral-500"><div class="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500"></div><p class="ml-3 text-neutral-600">Generating app & preview...</p></div>');
     setChatHistory([]);
-
+    setAiThoughtProcess('Analyzing your prompt and preparing a response...');
+    setThinkingLog(''); // Reset log
     try {
+      setTimeout(() => setAiThoughtProcess('Thinking about the best app structure...'), 1000);
+      setTimeout(() => setAiThoughtProcess('Designing UI and generating Swift code...'), 2000);
       const result = await generateAppCodeAndPreview(prompt);
       setGeneratedCode(result.swiftCode);
       setPreviewHtml(result.previewHtml);
+      setAiThoughtProcess('App generated!');
+      // Simulate a summary log (replace with real backend summary if available)
+      setThinkingLog('Generated a SwiftUI app based on your prompt. Used a list and add button for tasks. The design follows modern iOS guidelines.');
       if (!isEarlyBirdKeyApplied) {
         setFreePromptsRemaining(prev => Math.max(0, prev - 1));
       }
       setChatHistory([{ type: 'user', content: `App idea: ${prompt}` }, { type: 'ai', content: 'App generated successfully.' }]);
-      setPrompt(''); 
+      setPrompt('');
       setPreviewRefreshKey(prev => prev + 1);
+      setHasGenerated(true);
     } catch (err) {
       console.error(err);
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
@@ -196,6 +221,8 @@ const App: React.FC = () => {
       setPreviewHtml(`<div class="w-full h-full flex flex-col items-center justify-center text-red-600 p-4 text-center"><p class="font-semibold">Error Generating Preview</p><p class="text-sm mt-2">${errorMessage}</p></div>`);
       setGeneratedCode(`// Error: ${errorMessage}`);
       setPreviewRefreshKey(prev => prev + 1);
+      setAiThoughtProcess('');
+      setThinkingLog('');
     } finally {
       setIsLoading(false);
     }
@@ -279,21 +306,83 @@ const App: React.FC = () => {
     setPreviewRefreshKey(prev => prev + 1);
   };
 
-  // Dummy save handler
-  const handleSave = () => {
-    setError('Pip saved!');
-    setTimeout(() => setError(null), 2000);
+  // Save handler with database integration
+  const handleSave = async () => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+
+    if (!generatedCode || generatedCode === '// Code will appear here once generated...') {
+      setError('No code to save. Please generate an app first.');
+      return;
+    }
+
+    try {
+      const projectData = {
+        name: `Pip - ${new Date().toLocaleDateString()}`,
+        description: prompt || 'Generated app',
+        prompt: prompt,
+        generated_code: generatedCode,
+        preview_html: previewHtml,
+        is_public: false,
+        allow_remix: true,
+        category: 'General'
+      };
+
+      const newProject = await createProject(projectData);
+      if (newProject) {
+        setError('Pip saved successfully!');
+        setTimeout(() => setError(null), 2000);
+      } else {
+        setError('Failed to save Pip');
+      }
+    } catch (error) {
+      console.error('Error saving project:', error);
+      setError('Failed to save Pip');
+    }
   };
 
-  // Dummy share handler
-  const handleShare = () => {
-    setIsShareModalOpen(false);
-    setError(allowRemix ? 'Pip shared with remixing allowed!' : 'Pip shared (remixing not allowed)!');
-    setTimeout(() => setError(null), 2000);
+  // Share handler with database integration
+  const handleShare = async () => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+
+    if (!generatedCode || generatedCode === '// Code will appear here once generated...') {
+      setError('No code to share. Please generate an app first.');
+      return;
+    }
+
+    try {
+      const projectData = {
+        name: `Pip - ${new Date().toLocaleDateString()}`,
+        description: prompt || 'Generated app',
+        prompt: prompt,
+        generated_code: generatedCode,
+        preview_html: previewHtml,
+        is_public: true,
+        allow_remix: allowRemix,
+        category: 'General'
+      };
+
+      const newProject = await createProject(projectData);
+      if (newProject) {
+        setIsShareModalOpen(false);
+        setError(`Pip shared successfully! ${allowRemix ? '(Remixing allowed)' : '(Remixing not allowed)'}`);
+        setTimeout(() => setError(null), 3000);
+      } else {
+        setError('Failed to share Pip');
+      }
+    } catch (error) {
+      console.error('Error sharing project:', error);
+      setError('Failed to share Pip');
+    }
   };
 
   // My Pips handlers
-  const handleSelectPip = (pipId: number) => {
+  const handleSelectPip = (pipId: string) => {
     const newSelected = new Set(selectedPips);
     if (newSelected.has(pipId)) {
       newSelected.delete(pipId);
@@ -304,32 +393,59 @@ const App: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    const filteredPips = sampleMyPips.filter(pip => 
-      myPipsTab === 'recent' ? !pip.isPublic : pip.isPublic
+    const filteredPips = fallbackProjects.filter(project => 
+      myPipsTab === 'recent' ? !project.is_public : project.is_public
     );
     if (selectedPips.size === filteredPips.length) {
       setSelectedPips(new Set());
     } else {
-      setSelectedPips(new Set(filteredPips.map(pip => pip.id)));
+      setSelectedPips(new Set(filteredPips.map(project => project.id)));
     }
   };
 
-  const handleDeletePips = () => {
-    // Remove selected pips from the list
+  const handleDeletePips = async () => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+    
     const pipsToDelete = Array.from(selectedPips);
-    setError(`Deleted ${pipsToDelete.length} pip(s)`);
-    setTimeout(() => setError(null), 2000);
-    setSelectedPips(new Set());
+    try {
+      for (const projectId of pipsToDelete) {
+        await deleteProject(projectId);
+      }
+      setError(`Deleted ${pipsToDelete.length} pip(s)`);
+      setTimeout(() => setError(null), 2000);
+      setSelectedPips(new Set());
+    } catch (error) {
+      console.error('Error deleting projects:', error);
+      setError('Failed to delete some pips');
+    }
   };
 
-  const handleRenamePip = (pipId: number, newName: string) => {
-    setError(`Renamed pip to "${newName}"`);
-    setTimeout(() => setError(null), 2000);
-    setEditingPipId(null);
-    setEditingPipName('');
+  const handleRenamePip = async (pipId: string, newName: string) => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+    
+    try {
+      const updatedProject = await updateProject(pipId, { name: newName });
+      if (updatedProject) {
+        setError(`Renamed pip to "${newName}"`);
+        setTimeout(() => setError(null), 2000);
+        setEditingPipId(null);
+        setEditingPipName('');
+      } else {
+        setError('Failed to rename pip');
+      }
+    } catch (error) {
+      console.error('Error renaming project:', error);
+      setError('Failed to rename pip');
+    }
   };
 
-  const handleStartRename = (pipId: number, currentName: string) => {
+  const handleStartRename = (pipId: string, currentName: string) => {
     setEditingPipId(pipId);
     setEditingPipName(currentName);
   };
@@ -341,8 +457,7 @@ const App: React.FC = () => {
 
   const handleOpenAccountModal = () => {
     setTempDisplayName(user?.fullName || user?.username || '');
-    setTempBio(user?.publicMetadata?.bio || '');
-    setTempPhotoPreview(user?.imageUrl || '');
+    setTempBio((user?.publicMetadata?.bio as string) || '');
     setIsAccountModalOpen(true);
   };
 
@@ -353,12 +468,7 @@ const App: React.FC = () => {
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setTempPhoto(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setTempPhotoPreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      // Remove setTempPhoto and setTempPhotoPreview calls
     }
   };
 
@@ -366,20 +476,127 @@ const App: React.FC = () => {
     // Here you would typically save to your backend/database
     // For now, we'll just close the modal
     setIsAccountModalOpen(false);
-    setTempPhoto(null);
-    setTempPhotoPreview('');
+    // Remove setTempPhoto and setTempPhotoPreview calls
   };
 
   const handleCancelAccount = () => {
     setIsAccountModalOpen(false);
-    setTempPhoto(null);
-    setTempPhotoPreview('');
+    // Remove setTempPhoto and setTempPhotoPreview calls
+  };
+
+  // Simple fallback functions for when database is not available
+  const handleSaveProject = async (projectId: string) => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+    
+    try {
+      const success = await saveProject(projectId);
+      if (success) {
+        setError('Project saved to your account!');
+        setTimeout(() => setError(null), 2000);
+      } else {
+        setError('Project already saved');
+        setTimeout(() => setError(null), 2000);
+      }
+    } catch (error) {
+      console.error('Error saving project:', error);
+      setError('Database not set up yet. This feature will work once you set up the database.');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleLikeProject = async (projectId: string) => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+    
+    try {
+      const success = await likeProject(projectId);
+      if (success) {
+        setError('Project liked!');
+        setTimeout(() => setError(null), 2000);
+      }
+    } catch (error) {
+      console.error('Error liking project:', error);
+      setError('Database not set up yet. This feature will work once you set up the database.');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleRemixProject = async (projectId: string) => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+    
+    try {
+      const remixedProject = await remixProject(projectId);
+      if (remixedProject) {
+        setError('Project remixed! Check your "My Pips" page.');
+        setTimeout(() => setError(null), 3000);
+      } else {
+        setError('Failed to remix project');
+        setTimeout(() => setError(null), 2000);
+      }
+    } catch (error) {
+      console.error('Error remixing project:', error);
+      setError('Database not set up yet. This feature will work once you set up the database.');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // Insert after the header and before the main content (above 'Describe Your App')
+  // <div className="container mx-auto flex justify-end mt-4">...</div>
+
+  // Add this function inside the App component
+  const handleNewProject = () => {
+    console.log('+ button clicked!');
+    console.log('Current state:', { prompt, generatedCode, previewHtml });
+    
+    // Check if there is unsaved work
+    const hasUnsavedWork = prompt.trim() || (generatedCode && !generatedCode.startsWith('//')) || (previewHtml && !previewHtml.includes('App preview will appear here'));
+    console.log('Has unsaved work:', hasUnsavedWork);
+    
+    // For testing - always show modal
+    setIsNewProjectModalOpen(true);
+    
+    // Original logic (commented out for testing)
+    /*
+    if (hasUnsavedWork) {
+      setIsNewProjectModalOpen(true);
+    } else {
+      // Reset all relevant state for a new project
+      setPrompt('');
+      setGeneratedCode('// Code will appear here once generated...');
+      setPreviewHtml('<div class="w-full h-full flex items-center justify-center text-neutral-400 p-4 text-center"><p>App preview will appear here after you describe your app.</p></div>');
+      setChatHistory([]);
+      setAiThoughtProcess('');
+      setThinkingLog('');
+      setHasGenerated(false);
+    }
+    */
+  };
+
+  // Add a reset function to ensure all state is properly cleared
+  const resetAppState = () => {
+    setPrompt('');
+    setGeneratedCode('// Code will appear here once generated...');
+    setPreviewHtml('<div class="w-full h-full flex items-center justify-center text-neutral-400 p-4 text-center"><p>App preview will appear here after you describe your app.</p></div>');
+    setChatHistory([]);
+    setAiThoughtProcess('');
+    setThinkingLog('');
+    setHasGenerated(false);
+    setError(null);
+    setPreviewRefreshKey(prev => prev + 1);
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-white text-neutral-800 font-sans">
       {/* Hidden Sidebar - Hidden on mobile, hover on desktop */}
-      <div className={`sidebar-container fixed left-0 top-0 h-full transition-all duration-300 ease-in-out bg-blue-900 text-white z-30 group hidden md:block ${isSidebarOpen ? 'w-64' : 'w-16 hover:w-64'}`}>
+      <div className={`sidebar-container fixed left-0 top-0 h-full transition-all duration-300 ease-in-out bg-blue-900 text-white z-30 group hidden md:block ${isEditingProfile ? 'w-64' : isSidebarOpen ? 'w-64' : 'w-16 hover:w-64'}`}>
         <div className="flex flex-col h-full">
           {/* Logo/Header */}
           <div className="p-4 border-b border-blue-800">
@@ -459,7 +676,7 @@ const App: React.FC = () => {
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                   </svg>
-                  <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                  <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     {user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || 'My Account'}
                   </span>
                 </div>
@@ -470,7 +687,7 @@ const App: React.FC = () => {
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5l-5-5zM20 19h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/>
                     </svg>
-                    <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       Sign In
                     </span>
                   </div>
@@ -485,7 +702,7 @@ const App: React.FC = () => {
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                     </svg>
-                    <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="ml-3 text-sm text-white">
                       Done
                     </span>
                   </button>
@@ -496,7 +713,7 @@ const App: React.FC = () => {
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                     </svg>
-                    <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="ml-3 text-sm text-white">
                       Cancel
                     </span>
                   </button>
@@ -509,7 +726,7 @@ const App: React.FC = () => {
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                   </svg>
-                  <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                  <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     Edit Profile
                   </span>
                 </div>
@@ -521,7 +738,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   Settings
                 </span>
               </div>
@@ -536,7 +753,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H17c-.8 0-1.54.37-2.01 1l-1.7 2.26A6.003 6.003 0 0 0 8 16v6h2v-6c0-2.21 1.79-4 4-4s4 1.79 4 4v6h2zm-8-2v-6c0-1.1.9-2 2-2s2 .9 2 2v6h-4z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   Community
                 </span>
               </div>
@@ -547,7 +764,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   My Pips
                 </span>
               </div>
@@ -555,7 +772,7 @@ const App: React.FC = () => {
             
             {/* Configuration Section */}
             <div className="pt-4 border-t border-blue-800">
-              <div className="text-xs text-blue-300 mb-2 px-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+              <div className="text-xs text-blue-300 mb-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 Configuration
               </div>
               <div 
@@ -565,7 +782,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.29 12.29a1 1 0 0 0-1.42 0L15 16.17V4a1 1 0 0 0-2 0v12.17l-3.88-3.88a1 1 0 0 0-1.41 1.41l5.59 5.59a1 1 0 0 0 1.41 0l5.59-5.59a1 1 0 0 0 0-1.41z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   Supabase
                 </span>
               </div>
@@ -577,7 +794,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   StoreKit 2
                 </span>
               </div>
@@ -589,7 +806,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   Clerk
                 </span>
               </div>
@@ -601,7 +818,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   n8n
                 </span>
               </div>
@@ -614,7 +831,7 @@ const App: React.FC = () => {
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
-              <span className="ml-3 text-xs text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+              <span className="ml-3 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 Developer Tools
               </span>
             </div>
@@ -708,7 +925,7 @@ const App: React.FC = () => {
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5l-5-5zM20 19h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/>
                     </svg>
-                    <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       Sign In
                     </span>
                   </div>
@@ -723,7 +940,7 @@ const App: React.FC = () => {
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
                     </svg>
-                    <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="ml-3 text-sm text-white">
                       Done
                     </span>
                   </button>
@@ -734,7 +951,7 @@ const App: React.FC = () => {
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                     </svg>
-                    <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="ml-3 text-sm text-white">
                       Cancel
                     </span>
                   </button>
@@ -747,7 +964,7 @@ const App: React.FC = () => {
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                   </svg>
-                  <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                  <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     Edit Profile
                   </span>
                 </div>
@@ -759,7 +976,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   Settings
                 </span>
               </div>
@@ -774,7 +991,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H17c-.8 0-1.54.37-2.01 1l-1.7 2.26A6.003 6.003 0 0 0 8 16v6h2v-6c0-2.21 1.79-4 4-4s4 1.79 4 4v6h2zm-8-2v-6c0-1.1.9-2 2-2s2 .9 2 2v6h-4z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   Community
                 </span>
               </div>
@@ -785,7 +1002,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   My Pips
                 </span>
               </div>
@@ -793,7 +1010,7 @@ const App: React.FC = () => {
             
             {/* Configuration Section */}
             <div className="pt-4 border-t border-blue-800">
-              <div className="text-xs text-blue-300 mb-2 px-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+              <div className="text-xs text-blue-300 mb-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 Configuration
               </div>
               <div 
@@ -803,7 +1020,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.29 12.29a1 1 0 0 0-1.42 0L15 16.17V4a1 1 0 0 0-2 0v12.17l-3.88-3.88a1 1 0 0 0-1.41 1.41l5.59 5.59a1 1 0 0 0 1.41 0l5.59-5.59a1 1 0 0 0 0-1.41z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   Supabase
                 </span>
               </div>
@@ -815,7 +1032,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   StoreKit 2
                 </span>
               </div>
@@ -827,7 +1044,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   Clerk
                 </span>
               </div>
@@ -839,7 +1056,7 @@ const App: React.FC = () => {
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   n8n
                 </span>
               </div>
@@ -852,7 +1069,7 @@ const App: React.FC = () => {
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
-              <span className="ml-3 text-xs text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+              <span className="ml-3 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                 Developer Tools
               </span>
             </div>
@@ -915,6 +1132,19 @@ const App: React.FC = () => {
           </div>
         </header>
 
+        {/* + Button for New Project - Top Right */}
+        <div className="container mx-auto flex justify-end mt-4 px-4">
+          <button
+            className="h-10 w-10 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full text-2xl font-normal shadow transition-colors cursor-pointer leading-none select-none"
+            title="New Project"
+            aria-label="New Project"
+            onClick={handleNewProject}
+            style={{ lineHeight: '1', fontSize: '1.5rem' }}
+          >
+            +
+          </button>
+        </div>
+
         <main className={`flex-grow container mx-auto p-4 ${isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
           {currentView === 'main' ? (
             <>
@@ -966,10 +1196,9 @@ const App: React.FC = () => {
                     <button
                       title="App Store"
                       className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      onClick={() => setIsXcodeModalOpen(true)}
                     >
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M18.71,19.5C17.88,20.74 17,21.95 15.66,21.97C14.32,22 13.89,21.18 12.37,21.18C10.84,21.18 10.37,21.95 9.1,22C7.79,22.05 6.8,20.68 5.96,19.47C4.25,17 2.94,12.45 4.7,9.39C5.57,7.87 7.13,6.91 8.82,6.88C10.1,6.86 11.32,7.75 12.11,7.75C12.89,7.75 14.37,6.68 15.92,6.84C16.57,6.87 18.39,7.1 19.56,8.82C19.47,8.88 17.39,10.1 17.41,12.63C17.44,15.65 20.06,16.66 20.09,16.67C20.06,16.74 19.67,18.11 18.71,19.5M13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z"/>
-                      </svg>
+                      <AppleIcon className="h-5 w-5" />
                     </button>
                     
                     {/* Google Play Store Icon (Greyed Out) */}
@@ -1003,7 +1232,9 @@ const App: React.FC = () => {
                     selectedModel={selectedModel}
                     onModelChange={(modelId) => setSelectedModel(modelId as ModelId)}
                     isDisabled={!canSubmit || isLoading}
-                    actionText="Generate App"
+                    actionText={hasGenerated ? 'Refine App' : 'Generate App'}
+                    aiThoughtProcess={aiThoughtProcess}
+                    thinkingLog={thinkingLog} // NEW
                   />
                   
                   {chatHistory.length > 0 && (
@@ -1109,7 +1340,7 @@ const App: React.FC = () => {
                   </div>
                   {/* Filtered Project List */}
                   <div className="grid grid-cols-1 gap-4 md:gap-6 mb-6 md:mb-8 px-4 md:px-0">
-                    {sampleProjects
+                    {fallbackPublicProjects
                       .filter(p =>
                         (communityCategory === 'All Categories' || p.category === communityCategory) &&
                         (p.name.toLowerCase().includes(communitySearch.toLowerCase()) ||
@@ -1122,9 +1353,52 @@ const App: React.FC = () => {
                             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full self-start sm:self-auto sm:ml-2">{project.category}</span>
                           </div>
                           <p className="text-neutral-600 text-sm mt-2 sm:mt-0">{project.description}</p>
+                          <div className="flex items-center gap-4 mt-3 text-xs text-neutral-500">
+                            <span>❤️ {project.likes_count} likes</span>
+                            <span>👁️ {project.views_count} views</span>
+                            <span>🔄 {project.remix_count} remixes</span>
+                            <span>📅 {new Date(project.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex gap-2 mt-4">
+                            <SignedIn>
+                              <button
+                                onClick={async () => {
+                                  await handleLikeProject(project.id);
+                                }}
+                                className="flex items-center px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors"
+                              >
+                                ❤️ Like
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  await handleSaveProject(project.id);
+                                }}
+                                className="flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
+                              >
+                                💾 Save
+                              </button>
+                              {project.allow_remix && (
+                                <button
+                                  onClick={async () => {
+                                    await handleRemixProject(project.id);
+                                  }}
+                                  className="flex items-center px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded text-sm transition-colors"
+                                >
+                                  🔄 Remix
+                                </button>
+                              )}
+                            </SignedIn>
+                            <SignedOut>
+                              <SignInButton mode="modal">
+                                <button className="flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors">
+                                  Sign in to interact
+                                </button>
+                              </SignInButton>
+                            </SignedOut>
+                          </div>
                         </div>
                       ))}
-                    {sampleProjects.filter(p =>
+                    {fallbackPublicProjects.filter(p =>
                         (communityCategory === 'All Categories' || p.category === communityCategory) &&
                         (p.name.toLowerCase().includes(communitySearch.toLowerCase()) ||
                          p.description.toLowerCase().includes(communitySearch.toLowerCase()))
@@ -1183,6 +1457,16 @@ const App: React.FC = () => {
                         >
                           Public
                         </button>
+                        <button
+                          onClick={() => setMyPipsTab('saved')}
+                          className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-colors text-sm md:text-base ${
+                            myPipsTab === 'saved' 
+                              ? 'bg-white text-neutral-800 shadow-sm' 
+                              : 'text-neutral-600 hover:text-neutral-800'
+                          }`}
+                        >
+                          Saved
+                        </button>
                       </div>
                     </div>
                     
@@ -1192,8 +1476,8 @@ const App: React.FC = () => {
                         <label className="flex items-center">
                           <input
                             type="checkbox"
-                            checked={selectedPips.size === sampleMyPips.filter(pip => 
-                              myPipsTab === 'recent' ? !pip.isPublic : pip.isPublic
+                            checked={selectedPips.size === (myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
+                              myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
                             ).length && selectedPips.size > 0}
                             onChange={handleSelectAll}
                             className="mr-2"
@@ -1210,28 +1494,28 @@ const App: React.FC = () => {
                         )}
                       </div>
                       <div className="text-sm text-neutral-600 text-center sm:text-left">
-                        {sampleMyPips.filter(pip => 
-                          myPipsTab === 'recent' ? !pip.isPublic : pip.isPublic
-                        ).length} {myPipsTab === 'recent' ? 'recent' : 'public'} builds
+                        {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
+                          myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
+                        ).length} {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'saved'} builds
                       </div>
                     </div>
                     
                     {/* Pip List */}
                     <div className="space-y-3 md:space-y-4">
-                      {sampleMyPips
-                        .filter(pip => myPipsTab === 'recent' ? !pip.isPublic : pip.isPublic)
-                        .map(pip => (
-                          <div key={pip.id} className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                      {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects)
+                        .filter(project => myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true)
+                        .map(project => (
+                          <div key={project.id} className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 md:p-6 shadow-sm hover:shadow-md transition-shadow">
                             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
                               <div className="flex items-start gap-3 flex-1">
                                 <input
                                   type="checkbox"
-                                  checked={selectedPips.has(pip.id)}
-                                  onChange={() => handleSelectPip(pip.id)}
+                                  checked={selectedPips.has(project.id.toString())}
+                                  onChange={() => handleSelectPip(project.id.toString())}
                                   className="mt-1"
                                 />
                                 <div className="flex-1 min-w-0">
-                                  {editingPipId === pip.id ? (
+                                  {editingPipId === project.id.toString() ? (
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                       <input
                                         type="text"
@@ -1240,13 +1524,13 @@ const App: React.FC = () => {
                                         className="bg-white text-neutral-800 px-2 py-1 rounded border border-neutral-300 focus:outline-none focus:border-blue-400 text-sm"
                                         onKeyPress={(e) => {
                                           if (e.key === 'Enter') {
-                                            handleRenamePip(pip.id, editingPipName);
+                                            handleRenamePip(project.id.toString(), editingPipName);
                                           }
                                         }}
                                       />
                                       <div className="flex gap-2">
                                         <button
-                                          onClick={() => handleRenamePip(pip.id, editingPipName)}
+                                          onClick={() => handleRenamePip(project.id.toString(), editingPipName)}
                                           className="text-green-600 hover:text-green-700 text-sm"
                                         >
                                           ✓
@@ -1261,38 +1545,67 @@ const App: React.FC = () => {
                                     </div>
                                   ) : (
                                     <div className="flex items-start gap-2">
-                                      <span className="text-base md:text-lg font-semibold text-neutral-800 break-words">{pip.name}</span>
-                                      <button
-                                        onClick={() => handleStartRename(pip.id, pip.name)}
-                                        className="text-neutral-500 hover:text-neutral-700 text-sm flex-shrink-0 mt-1"
-                                      >
-                                        ✏️
-                                      </button>
+                                      <span className="text-base md:text-lg font-semibold text-neutral-800 break-words">{project.name}</span>
+                                      {myPipsTab !== 'saved' && (
+                                        <button
+                                          onClick={() => handleStartRename(project.id.toString(), project.name)}
+                                          className="text-neutral-500 hover:text-neutral-700 text-sm flex-shrink-0 mt-1"
+                                        >
+                                          ✏️
+                                        </button>
+                                      )}
                                     </div>
                                   )}
                                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
-                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full self-start">{pip.category}</span>
-                                    <span className="text-xs text-neutral-500">Last modified: {pip.lastModified}</span>
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full self-start">{project.category}</span>
+                                    <span className="text-xs text-neutral-500">Last modified: {new Date(project.updated_at).toLocaleDateString()}</span>
                                   </div>
-                                  <p className="text-neutral-600 text-sm mt-2">{pip.description}</p>
+                                  <p className="text-neutral-600 text-sm mt-2">{project.description}</p>
+                                  {myPipsTab === 'saved' && (
+                                    <div className="flex items-center gap-4 mt-3 text-xs text-neutral-500">
+                                      <span>❤️ {project.likes_count} likes</span>
+                                      <span>👁️ {project.views_count} views</span>
+                                      <span>🔄 {project.remix_count} remixes</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex flex-col sm:flex-row gap-2 lg:flex-shrink-0">
                                 <button className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors">
                                   Open
                                 </button>
-                                <button className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm transition-colors">
-                                  {pip.isPublic ? 'Unpublish' : 'Publish'}
-                                </button>
+                                {myPipsTab !== 'saved' && (
+                                  <button className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm transition-colors">
+                                    {project.is_public ? 'Unpublish' : 'Publish'}
+                                  </button>
+                                )}
+                                {myPipsTab === 'saved' && (
+                                  <button
+                                    onClick={async () => {
+                                      if (!user) {
+                                        setIsLoginPromptOpen(true);
+                                        return;
+                                      }
+                                      const success = await unsaveProject(project.id);
+                                      if (success) {
+                                        setError('Project removed from saved');
+                                        setTimeout(() => setError(null), 2000);
+                                      }
+                                    }}
+                                    className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors"
+                                  >
+                                    Remove
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
                         ))}
-                      {sampleMyPips.filter(pip => 
-                        myPipsTab === 'recent' ? !pip.isPublic : pip.isPublic
+                      {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
+                        myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
                       ).length === 0 && (
                         <div className="text-neutral-500 text-center py-8 md:py-12 text-base md:text-lg">
-                          No {myPipsTab === 'recent' ? 'recent' : 'public'} builds found.
+                          No {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'saved'} builds found.
                         </div>
                       )}
                     </div>
@@ -1399,6 +1712,35 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
+        {/* Xcode/Apple Modal */}
+        {isXcodeModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setIsXcodeModalOpen(false)}>
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-xs w-full relative" onClick={e => e.stopPropagation()}>
+              <button className="absolute top-2 right-2 text-neutral-400 hover:text-neutral-700" onClick={() => setIsXcodeModalOpen(false)}><svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+              <div className="flex flex-col items-center">
+                <AppleIcon className="h-10 w-10 mb-2 text-black" />
+                <h3 className="text-lg font-semibold mb-2 text-neutral-800">Open in Xcode</h3>
+                <p className="text-sm text-neutral-600 mb-4 text-center">Download your Swift code or open the Xcode download page to get started.</p>
+                <div className="flex flex-col gap-3 w-full">
+                  <button
+                    onClick={() => { setIsXcodeModalOpen(false); downloadSwiftCode(); }}
+                    className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+                  >
+                    Download Code
+                  </button>
+                  <a
+                    href="https://developer.apple.com/xcode/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full px-4 py-2 bg-neutral-100 hover:bg-neutral-200 text-blue-700 rounded-md font-medium text-center transition-colors"
+                  >
+                    Get Xcode
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Account Modal */}
@@ -1422,7 +1764,7 @@ const App: React.FC = () => {
               <div className="text-center">
                 <div className="relative inline-block">
                   <img 
-                    src={tempPhotoPreview || user?.imageUrl || '/default-avatar.png'} 
+                    src={user?.imageUrl || '/default-avatar.png'} 
                     alt="Profile" 
                     className="h-24 w-24 rounded-full object-cover border-4 border-gray-200"
                   />
@@ -1565,6 +1907,72 @@ const App: React.FC = () => {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isNewProjectModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-lg font-semibold mb-4">Start a New Project?</h2>
+            <p className="mb-6 text-neutral-700">Would you like to save your current project before starting a new one?</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold disabled:opacity-50"
+                onClick={async () => {
+                  setIsSaving(true);
+                  await handleSave();
+                  setIsSaving(false);
+                  setProceedEnabled(true);
+                  // Reset the app state after successful save
+                  resetAppState();
+                  setIsNewProjectModalOpen(false);
+                }}
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-md font-semibold disabled:opacity-50"
+                onClick={() => {
+                  setIsNewProjectModalOpen(false);
+                  resetAppState();
+                  setProceedEnabled(false);
+                }}
+                disabled={isSaving && !proceedEnabled}
+              >
+                {proceedEnabled ? 'Proceed' : 'Proceed without Saving'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Login Prompt Modal */}
+      {isLoginPromptOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold mb-2 text-neutral-800">Sign In Required</h2>
+              <p className="mb-6 text-neutral-600">Please sign in to save and share your Pips with the community.</p>
+              <div className="flex flex-col gap-3">
+                <SignInButton mode="modal">
+                  <button className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold transition-colors">
+                    Sign In
+                  </button>
+                </SignInButton>
+                <button
+                  onClick={() => setIsLoginPromptOpen(false)}
+                  className="w-full px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 rounded-md font-medium transition-colors"
+                >
+                  Maybe Later
+                </button>
+              </div>
             </div>
           </div>
         </div>
