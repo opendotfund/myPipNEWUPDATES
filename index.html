@@ -84,14 +84,39 @@
         color: #374151 !important;
       }
       
-      /* Fix sidebar text visibility on mobile */
+      /* Comprehensive fix for sidebar text visibility on mobile */
       .sidebar-container,
       .sidebar-container *,
       .sidebar-container button,
       .sidebar-container div,
       .sidebar-container span,
       .sidebar-container a,
-      .sidebar-container svg {
+      .sidebar-container svg,
+      .sidebar-container h1,
+      .sidebar-container h2,
+      .sidebar-container h3,
+      .sidebar-container h4,
+      .sidebar-container h5,
+      .sidebar-container h6,
+      .sidebar-container p,
+      .sidebar-container li,
+      .sidebar-container label {
+        color: white !important;
+      }
+      
+      /* Force white text on all elements with blue background */
+      [class*="bg-blue"] *,
+      [class*="bg-blue"] {
+        color: white !important;
+      }
+      
+      /* Override any conflicting text colors */
+      .text-gray-700,
+      .text-neutral-700,
+      .text-gray-800,
+      .text-neutral-800,
+      .text-gray-900,
+      .text-neutral-900 {
         color: white !important;
       }
     }
