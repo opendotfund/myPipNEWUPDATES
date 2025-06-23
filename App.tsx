@@ -612,10 +612,10 @@ const App: React.FC = () => {
   return (
     <div className={`flex flex-col min-h-screen font-sans transition-colors duration-300 ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-neutral-800'}`}>
       {/* Hidden Sidebar - Hidden on mobile, hover on desktop */}
-      <div className={`sidebar-container fixed left-0 top-0 h-full transition-all duration-300 ease-in-out bg-blue-900 text-white z-30 group hidden md:block ${isEditingProfile ? 'w-64' : isSidebarOpen ? 'w-64' : 'w-16 hover:w-64'}`}>
+      <div className={`sidebar-container fixed left-0 top-0 h-full transition-all duration-500 ease-in-out glass-card z-30 group hidden md:block ${isEditingProfile ? 'w-64' : isSidebarOpen ? 'w-64' : 'w-16 hover:w-64'}`}>
         <div className="flex flex-col h-full">
           {/* Logo/Header */}
-          <div className="p-4 border-b border-blue-800">
+          <div className="p-4 border-b border-white/20">
             <div className="flex items-center">
               {isEditingProfile ? (
                 <div className="flex items-center space-x-2">
@@ -623,7 +623,7 @@ const App: React.FC = () => {
                     <img 
                       src={tempAppLogo} 
                       alt="App Logo" 
-                      className="h-8 w-8 rounded hover:opacity-80 transition-opacity"
+                      className="h-8 w-8 rounded-lg hover:opacity-80 transition-all duration-300 hover:scale-105"
                     />
                     <input
                       type="file"
@@ -636,7 +636,7 @@ const App: React.FC = () => {
                     type="text"
                     value={tempAppName}
                     onChange={(e) => setTempAppName(e.target.value)}
-                    className="bg-blue-800 text-white text-sm font-semibold px-2 py-1 rounded border border-blue-600 focus:outline-none focus:border-blue-400"
+                    className="glass-input text-white text-sm font-semibold px-3 py-2 rounded-lg border border-white/20 focus:outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
                     placeholder="App Name"
                   />
                 </div>
@@ -644,7 +644,7 @@ const App: React.FC = () => {
                 <>
                   <SignedIn>
                     <div className="flex items-center">
-                      <div className="h-8 w-8 rounded-full overflow-hidden bg-blue-700 flex items-center justify-center flex-shrink-0">
+                      <div className="h-8 w-8 rounded-full overflow-hidden glass-button flex items-center justify-center flex-shrink-0">
                         {user?.imageUrl ? (
                           <img 
                             src={user.imageUrl} 
@@ -653,12 +653,12 @@ const App: React.FC = () => {
                             style={{ objectPosition: 'center' }}
                           />
                         ) : (
-                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                          <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                           </svg>
                         )}
                       </div>
-                      <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="nav-text ml-3 text-sm text-white">
                         {user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || appName}
                       </span>
                     </div>
@@ -668,9 +668,9 @@ const App: React.FC = () => {
                       <img 
                         src={appLogo} 
                         alt="App Logo" 
-                        className="h-8 w-8 rounded"
+                        className="h-8 w-8 rounded-lg"
                       />
-                      <span className="ml-3 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="nav-text ml-3 text-sm font-semibold text-white">
                         {appName}
                       </span>
                     </div>
@@ -687,165 +687,155 @@ const App: React.FC = () => {
               <SignedIn>
                 <div 
                   onClick={handleOpenAccountModal}
-                  className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer"
+                  className="nav-item glass-button flex items-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 group/item cursor-pointer"
                 >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                   </svg>
-                  <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <span className="nav-text ml-3 text-sm text-white">
                     {user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress || 'My Account'}
                   </span>
                 </div>
               </SignedIn>
               <SignedOut>
                 <SignInButton mode="modal">
-                  <div className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer">
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5l-5-5zM20 19h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/>
+                  <div className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 group/item cursor-pointer">
+                    <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                     </svg>
-                    <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="nav-text ml-3 text-sm text-white">
                       Sign In
                     </span>
                   </div>
                 </SignInButton>
               </SignedOut>
-              {isEditingProfile ? (
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={handleSaveProfile}
-                    className="flex items-center p-2 rounded bg-blue-600 hover:bg-blue-700 transition-colors cursor-pointer flex-1 shadow-sm hover:shadow-md"
-                  >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-                    </svg>
-                    <span className="ml-3 text-sm text-white">
-                      Done
-                    </span>
-                  </button>
-                  <button
-                    onClick={handleCancelProfile}
-                    className="flex items-center p-2 rounded bg-blue-800 hover:bg-blue-900 transition-colors cursor-pointer flex-1 shadow-sm hover:shadow-md"
-                  >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                    </svg>
-                    <span className="ml-3 text-sm text-white">
-                      Cancel
-                    </span>
-                  </button>
-                </div>
-              ) : (
-                <div 
-                  onClick={handleEditProfile}
-                  className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer"
-                >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                  </svg>
-                  <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    Edit Profile
-                  </span>
-                </div>
-              )}
+            </div>
+
+            {/* App Builder Section */}
+            <div className="pt-4 border-t border-white/20">
+              <div className="text-xs text-white/60 mb-2 px-3 nav-text">
+                App Builder
+              </div>
+              <div 
+                onClick={handleNewProject}
+                className="nav-item glass-button flex items-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 group/item cursor-pointer"
+              >
+                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                <span className="nav-text ml-3 text-sm text-white">
+                  New Project
+                </span>
+              </div>
+            </div>
+
+            {/* Account Section */}
+            <div className="pt-4 border-t border-white/20">
+              <div className="text-xs text-white/60 mb-2 px-3 nav-text">
+                Account
+              </div>
               <div 
                 onClick={handleOpenSettingsModal}
-                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer"
+                className="nav-item glass-button flex items-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 group/item cursor-pointer"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="nav-text ml-3 text-sm text-white">
                   Settings
                 </span>
               </div>
               <div
                 onClick={() => setCurrentView('affiliate')}
-                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer"
+                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 group/item cursor-pointer"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 14.93V17a1 1 0 11-2 0v-2a1 1 0 112 0v.07A8.001 8.001 0 014.07 13H5a1 1 0 110 2h-2a1 1 0 01-1-1v-2a1 1 0 112 0v.07A8.001 8.001 0 0111 4.07V5a1 1 0 112 0v2a1 1 0 11-2 0V6.93A8.001 8.001 0 0119.93 11H19a1 1 0 110-2h2a1 1 0 011 1v2a1 1 0 11-2 0v-.07A8.001 8.001 0 0113 19.93z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="nav-text ml-3 text-sm text-white">
                   Affiliate
                 </span>
               </div>
             </div>
 
             {/* Community Section */}
-            <div className="pt-4 border-t border-blue-800">
+            <div className="pt-4 border-t border-white/20">
+              <div className="text-xs text-white/60 mb-2 px-3 nav-text">
+                Community
+              </div>
               <div 
                 onClick={() => setCurrentView('community')}
-                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer"
+                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 group/item cursor-pointer"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H17c-.8 0-1.54.37-2.01 1l-1.7 2.26A6.003 6.003 0 0 0 8 16v6h2v-6c0-2.21 1.79-4 4-4s4 1.79 4 4v6h2zm-8-2v-6c0-1.1.9-2 2-2s2 .9 2 2v6h-4z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="nav-text ml-3 text-sm text-white">
                   Community
                 </span>
               </div>
               <div 
                 onClick={() => setCurrentView('myPips')}
-                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors group/item cursor-pointer"
+                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 group/item cursor-pointer"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="nav-text ml-3 text-sm text-white">
                   My Pips
                 </span>
               </div>
             </div>
             
             {/* Configuration Section */}
-            <div className="pt-4 border-t border-blue-800">
-              <div className="text-xs text-blue-300 mb-2 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="pt-4 border-t border-white/20">
+              <div className="text-xs text-white/60 mb-2 px-3 nav-text">
                 Configuration
               </div>
               <div 
                 onClick={() => openConfigModal('Supabase')}
-                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
+                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 cursor-pointer"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.29 12.29a1 1 0 0 0-1.42 0L15 16.17V4a1 1 0 0 0-2 0v12.17l-3.88-3.88a1 1 0 0 0-1.41 1.41l5.59 5.59a1 1 0 0 0 1.41 0l5.59-5.59a1 1 0 0 0 0-1.41z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="nav-text ml-3 text-sm text-white">
                   Supabase
                 </span>
               </div>
               
               <div 
                 onClick={() => openConfigModal('StoreKit 2')}
-                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
+                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 cursor-pointer"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="nav-text ml-3 text-sm text-white">
                   StoreKit 2
                 </span>
               </div>
               
               <div 
                 onClick={() => openConfigModal('Clerk')}
-                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
+                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 cursor-pointer"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="nav-text ml-3 text-sm text-white">
                   Clerk
                 </span>
               </div>
               
               <div 
                 onClick={() => openConfigModal('n8n')}
-                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
+                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 cursor-pointer"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                 </svg>
-                <span className="ml-3 text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <span className="nav-text ml-3 text-sm text-white">
                   n8n
                 </span>
               </div>
@@ -853,13 +843,13 @@ const App: React.FC = () => {
           </nav>
           
           {/* Footer */}
-          <div className="p-4 border-t border-blue-800">
+          <div className="p-4 border-t border-white/20">
             <div className="flex items-center">
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <svg className="h-4 w-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
-              <span className="ml-3 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                Developer Tools
+              <span className="nav-text ml-3 text-xs text-white/60">
+                myPip v1.0
               </span>
             </div>
           </div>
@@ -875,10 +865,10 @@ const App: React.FC = () => {
       )}
 
       {/* Mobile Sidebar */}
-      <div className={`sidebar-container fixed left-0 top-0 h-full w-64 bg-blue-900 text-white z-50 transform transition-transform duration-300 ease-in-out md:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className={`sidebar-container fixed left-0 top-0 h-full w-64 glass-card text-white z-50 transform transition-transform duration-300 ease-in-out md:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
           {/* Logo/Header */}
-          <div className="p-4 border-b border-blue-800">
+          <div className="p-4 border-b border-white/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 {isEditingProfile ? (
@@ -887,7 +877,7 @@ const App: React.FC = () => {
                       <img 
                         src={tempAppLogo} 
                         alt="App Logo" 
-                        className="h-8 w-8 rounded hover:opacity-80 transition-opacity"
+                        className="h-8 w-8 rounded-lg hover:opacity-80 transition-all duration-300 hover:scale-105"
                       />
                       <input
                         type="file"
@@ -900,7 +890,7 @@ const App: React.FC = () => {
                       type="text"
                       value={tempAppName}
                       onChange={(e) => setTempAppName(e.target.value)}
-                      className="bg-blue-800 text-white text-sm font-semibold px-2 py-1 rounded border border-blue-600 focus:outline-none focus:border-blue-400"
+                      className="glass-input text-white text-sm font-semibold px-3 py-2 rounded-lg border border-white/20 focus:outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
                       placeholder="App Name"
                     />
                   </div>
@@ -909,9 +899,9 @@ const App: React.FC = () => {
                     <img 
                       src={appLogo} 
                       alt="App Logo" 
-                      className="h-8 w-8 rounded"
+                      className="h-8 w-8 rounded-lg"
                     />
-                    <span className="ml-3 text-sm font-semibold">
+                    <span className="ml-3 text-sm font-semibold text-white">
                       {appName}
                     </span>
                   </div>
@@ -1117,41 +1107,41 @@ const App: React.FC = () => {
 
       {/* Main Content with left margin for sidebar */}
       <div className="ml-0 md:ml-16 flex flex-col min-h-screen">
-        <header className={`p-4 border-b sticky top-0 backdrop-blur-md z-20 transition-colors duration-300 ${isDarkMode ? 'bg-gray-800/80 border-gray-700' : 'bg-white/80 border-neutral-200'}`}>
+        <header className="glass-card p-4 sticky top-0 z-20 transition-all duration-300 m-4">
           <div className="container mx-auto flex items-center justify-between">
             <div className="flex items-center">
               <img 
                 src={isDarkMode ? '/robot-dark-logo.png' : appLogo} 
                 alt={`${appName} Logo`} 
-                className="h-14 w-36 rounded cursor-pointer md:cursor-default transition-all"
+                className="h-14 w-36 rounded-lg cursor-pointer md:cursor-default transition-all hover:scale-105"
                 onClick={() => setIsSidebarOpen(true)}
               />
             </div>
             <div className="flex items-center space-x-3 sm:space-x-4">
               {isEarlyBirdKeyApplied ? (
-                <div className={`text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full ${isDarkMode ? 'text-emerald-300 bg-emerald-900/50' : 'text-emerald-700 bg-emerald-100'}`}>
+                <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-green-400 to-blue-500 text-white">
                   Unlimited Access
                 </div>
               ) : (
-                <div className={`text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full ${isDarkMode ? 'text-blue-300 bg-blue-900/50' : 'text-blue-700 bg-blue-100'}`}>
+                <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white">
                   Prompts: {freePromptsRemaining}/{MAX_FREE_PROMPTS}
                 </div>
               )}
               <button
                 onClick={() => setIsSubscriptionModalOpen(true)}
-                className={`flex items-center px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                className="glass-button flex items-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-gradient-to-r from-purple-400 to-pink-500 text-white"
                 title="Get Unlimited Prompts & Support Us!"
               >
-                <SparklesIcon className="h-4 w-4 mr-1 sm:mr-2" />
+                <SparklesIcon className="h-4 w-4 mr-2" />
                 Get Unlimited
               </button>
               <SignedOut>
                 <SignInButton mode="modal">
                   <button
-                    className={`flex items-center px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'}`}
+                    className="glass-button flex items-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-white"
                     title="Sign in to your account"
                   >
-                    <svg className="h-4 w-4 mr-1 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     Sign In
@@ -1161,7 +1151,7 @@ const App: React.FC = () => {
               <SignedIn>
                 <div className="flex items-center space-x-2">
                   <UserButton afterSignOutUrl="/" />
-                  <span className={`text-xs sm:text-sm font-medium px-2 sm:px-3 py-1 rounded-full ${isDarkMode ? 'text-blue-300 bg-blue-900/50' : 'text-blue-700 bg-blue-100'}`}>
+                  <span className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 text-white">
                     {user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress}
                   </span>
                 </div>
@@ -1176,23 +1166,23 @@ const App: React.FC = () => {
             <div className="flex items-center space-x-3">
               {/* Dark Mode Toggle */}
               <button
-                className={`h-10 w-10 flex items-center justify-center rounded-full shadow transition-colors cursor-pointer ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-yellow-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+                className="glass-button h-12 w-12 flex items-center justify-center rounded-full transition-all duration-300"
                 title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 onClick={toggleDarkMode}
               >
                 {isDarkMode ? (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-6 w-6 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 ) : (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-6 w-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
                 )}
               </button>
               <button
-                className={`h-10 w-10 flex items-center justify-center rounded-full text-2xl font-normal shadow transition-colors cursor-pointer leading-none select-none ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                className="glass-button h-12 w-12 flex items-center justify-center rounded-full text-2xl font-normal transition-all duration-300 leading-none select-none bg-gradient-to-r from-blue-400 to-purple-500 text-white"
                 title="New Project"
                 aria-label="New Project"
                 onClick={handleNewProject}
@@ -1208,17 +1198,17 @@ const App: React.FC = () => {
         {!hasConfirmedFirstPrompt && (
           <div className="container mx-auto flex justify-end mt-4 px-4 relative z-10">
             <button
-              className={`h-10 w-10 flex items-center justify-center rounded-full shadow transition-colors cursor-pointer z-20 relative ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-yellow-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+              className="glass-button h-12 w-12 flex items-center justify-center rounded-full transition-all duration-300 z-20 relative"
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
               aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
               onClick={toggleDarkMode}
             >
               {isDarkMode ? (
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-6 w-6 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               ) : (
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-6 w-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
               )}
@@ -1231,20 +1221,22 @@ const App: React.FC = () => {
             <>
               {!hasConfirmedFirstPrompt ? (
                 // Simplified First Screen Layout
-                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center min-h-[calc(100vh-40rem)] space-y-8 -mt-16 first-prompt-container">
+                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center min-h-[calc(100vh-30rem)] space-y-6 -mt-4 first-prompt-container">
                   {/* Phone Preview - Tiny and Centered */}
                   <div className="w-[200px] flex justify-center">
-                    <PhonePreview 
-                      htmlContent={previewHtml} 
-                      onPreviewInteraction={handlePreviewInteraction}
-                      key={previewRefreshKey}
-                      size="tiny"
-                    />
+                    <div className="glass-card p-4">
+                      <PhonePreview 
+                        htmlContent={previewHtml} 
+                        onPreviewInteraction={handlePreviewInteraction}
+                        key={previewRefreshKey}
+                        size="tiny"
+                      />
+                    </div>
                   </div>
 
                   {/* Prompt Input - At Bottom */}
                   <div className="w-[400px] flex justify-center">
-                    <div className="transition-opacity duration-500 ease-in-out">
+                    <div className="glass-card p-6 w-full transition-opacity duration-500 ease-in-out">
                       <PromptInput
                         prompt={prompt}
                         setPrompt={setPrompt}
@@ -1262,13 +1254,13 @@ const App: React.FC = () => {
                     </div>
                     
                     {error && (
-                      <div className={`mt-3 p-3 border rounded-md text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? (isDarkMode ? 'bg-emerald-900/20 border-emerald-700 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-700') : (isDarkMode ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-red-100 border-red-300 text-red-700')}`}>
+                      <div className={`mt-3 glass-card p-4 text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
                         {error}
                       </div>
                     )}
 
                     {!canSubmit && !isEarlyBirdKeyApplied && (
-                      <div className={`mt-3 p-3 border rounded-md text-sm text-center ${isDarkMode ? 'bg-yellow-900/20 border-yellow-700 text-yellow-300' : 'bg-yellow-100 border-yellow-300 text-yellow-800'}`}>
+                      <div className="mt-3 glass-card p-4 text-sm text-center bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-400/30">
                         You've used all your free prompts. Enter an Early Bird Code for unlimited access or subscribe for unlimited prompts!
                       </div>
                     )}
@@ -1278,76 +1270,78 @@ const App: React.FC = () => {
                 // Full Layout (Existing)
                 <>
                   {/* Preview Section */}
-                  <div className={`${isHorizontal ? 'w-1/3' : 'flex flex-col items-center justify-start md:sticky md:top-28 h-full md:h-[calc(100vh-4rem)]'}`}>
-                    <div className="w-full flex justify-between items-center mb-0">
-                      <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-neutral-700'}`}>App Preview</h2>
-                      <div className="flex items-center gap-2">
-                        {/* Share Button */}
-                        <button
-                          onClick={() => setIsShareModalOpen(true)}
-                          title="Share Pip"
-                          className={`p-1.5 rounded-md transition-colors focus:outline-none focus:ring-2 ${isDarkMode ? 'bg-purple-900/50 hover:bg-purple-800/50 text-purple-300 focus:ring-purple-400' : 'bg-purple-100 hover:bg-purple-200 text-purple-600 focus:ring-purple-400'}`}
-                        >
-                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v2a4 4 0 004 4h8a4 4 0 004-4v-2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 6V4a4 4 0 00-8 0v2" /></svg>
-                        </button>
-                        {/* Refresh Button */}
-                        <button
-                          onClick={refreshPreview}
-                          title="Refresh Preview"
-                          className={`p-1.5 rounded-md transition-colors focus:outline-none focus:ring-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 focus:ring-blue-400' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-600 focus:ring-blue-400'}`}
-                        >
-                          <RefreshIcon className="h-5 w-5" />
-                        </button>
+                  <div className={`${isHorizontal ? 'w-1/3' : 'flex flex-col items-center justify-start md:sticky md:top-20 h-full md:h-[calc(100vh-6rem)]'}`}>
+                    <div className="glass-card p-4 w-full mb-4">
+                      <div className="w-full flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold text-white">App Preview</h2>
+                        <div className="flex items-center gap-2">
+                          {/* Share Button */}
+                          <button
+                            onClick={() => setIsShareModalOpen(true)}
+                            title="Share Pip"
+                            className="glass-button p-2 rounded-lg transition-all duration-300"
+                          >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v2a4 4 0 004 4h8a4 4 0 004-4v-2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 6V4a4 4 0 00-8 0v2" /></svg>
+                          </button>
+                          {/* Refresh Button */}
+                          <button
+                            onClick={refreshPreview}
+                            title="Refresh Preview"
+                            className="glass-button p-2 rounded-lg transition-all duration-300"
+                          >
+                            <RefreshIcon className="h-5 w-5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="w-full flex justify-end mb-1">
-                      <div className="flex flex-col gap-2">
-                        {/* Save Button */}
-                        <button
-                          onClick={handleSave}
-                          title="Save Pip"
-                          className={`p-1.5 rounded-md transition-colors focus:outline-none focus:ring-2 ${isDarkMode ? 'bg-blue-900/50 hover:bg-blue-800/50 text-blue-300 focus:ring-blue-400' : 'bg-blue-100 hover:bg-blue-200 text-blue-600 focus:ring-blue-400'}`}
-                        >
-                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                        </button>
-                        
-                        {/* GitHub Icon */}
-                        <button
-                          title="GitHub"
-                          className={`p-1.5 rounded-md transition-colors focus:outline-none focus:ring-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300 focus:ring-gray-400' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 focus:ring-gray-400'}`}
-                        >
-                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                          </svg>
-                        </button>
-                        
-                        {/* Apple Store Icon */}
-                        <button
-                          title="App Store"
-                          className={`p-1.5 rounded-md transition-colors focus:outline-none focus:ring-2 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-400' : 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-400'}`}
-                          onClick={() => setIsXcodeModalOpen(true)}
-                        >
-                          <AppleIcon className="h-5 w-5" />
-                        </button>
-                        
-                        {/* Google Play Store Icon (Greyed Out) */}
-                        <button
-                          title="Google Play Store"
-                          disabled
-                          className={`p-1.5 rounded-md cursor-not-allowed opacity-50 ${isDarkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
-                        >
-                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
-                          </svg>
-                        </button>
+                      <div className="w-full flex justify-end mb-4">
+                        <div className="flex flex-col gap-2">
+                          {/* Save Button */}
+                          <button
+                            onClick={handleSave}
+                            title="Save Pip"
+                            className="glass-button p-2 rounded-lg transition-all duration-300"
+                          >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          </button>
+                          
+                          {/* GitHub Icon */}
+                          <button
+                            title="GitHub"
+                            className="glass-button p-2 rounded-lg transition-all duration-300"
+                          >
+                            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                            </svg>
+                          </button>
+                          
+                          {/* Apple Store Icon */}
+                          <button
+                            title="App Store"
+                            className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-blue-400 to-purple-500"
+                            onClick={() => setIsXcodeModalOpen(true)}
+                          >
+                            <AppleIcon className="h-5 w-5" />
+                          </button>
+                          
+                          {/* Google Play Store Icon (Greyed Out) */}
+                          <button
+                            title="Google Play Store"
+                            disabled
+                            className="glass-button p-2 rounded-lg transition-all duration-300 opacity-50 cursor-not-allowed"
+                          >
+                            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
+                            </svg>
+                          </button>
+                        </div>
                       </div>
+                      <PhonePreview 
+                        htmlContent={previewHtml} 
+                        onPreviewInteraction={handlePreviewInteraction}
+                        key={previewRefreshKey} 
+                        className=""
+                      />
                     </div>
-                    <PhonePreview 
-                      htmlContent={previewHtml} 
-                      onPreviewInteraction={handlePreviewInteraction}
-                      key={previewRefreshKey} 
-                      className="-mt-16"
-                    />
                   </div>
 
                   {/* Code/Prompt Section */}
@@ -1426,12 +1420,12 @@ const App: React.FC = () => {
           ) : currentView === 'community' ? (
             <div className="col-span-1 md:col-span-2">
               {/* Community Page Content */}
-              <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-neutral-200'} border rounded-lg p-4 md:p-8 min-h-[600px] relative shadow-sm`}>
+              <div className="glass-card p-4 md:p-8 min-h-[600px] relative">
                 {/* Back Button */}
                 <div className="absolute left-4 md:left-8 top-4 md:top-8">
                   <button
                     onClick={() => setCurrentView('main')}
-                    className={`flex items-center px-3 md:px-4 py-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'} rounded-lg transition-colors shadow-sm text-sm md:text-base`}
+                    className="glass-button flex items-center px-3 md:px-4 py-2 text-white/80 hover:text-white rounded-lg transition-all duration-300 shadow-sm text-sm md:text-base"
                   >
                     <svg className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1441,8 +1435,8 @@ const App: React.FC = () => {
                   </button>
                 </div>
                 <div className="text-center pt-16 md:pt-0">
-                  <h1 className={`text-2xl md:text-3xl font-bold mb-4 ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'}`}>Community Pips</h1>
-                  <p className={`${isDarkMode ? 'text-gray-300' : 'text-neutral-600'} mb-6 md:mb-8 px-4 md:px-0`}>Discover and explore amazing pips created by the myPip community</p>
+                  <h1 className="text-2xl md:text-3xl font-bold mb-4 text-white">Community Pips</h1>
+                  <p className="text-white/80 mb-6 md:mb-8 px-4 md:px-0">Discover and explore amazing pips created by the myPip community</p>
                   {/* Search and Filter System */}
                   <div className="max-w-2xl mx-auto mb-6 md:mb-8 px-4 md:px-0">
                     <div className="flex flex-col gap-3 md:gap-4">
@@ -1450,14 +1444,14 @@ const App: React.FC = () => {
                         <input
                           type="text"
                           placeholder="Search projects..."
-                          className={`w-full px-3 md:px-4 py-2 md:py-3 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400' : 'bg-neutral-50 border-neutral-200 text-neutral-800 placeholder-neutral-500'} border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 text-sm md:text-base`}
+                          className="glass-input w-full px-3 md:px-4 py-2 md:py-3 text-white placeholder-white/50 text-sm md:text-base"
                           value={communitySearch}
                           onChange={e => setCommunitySearch(e.target.value)}
                         />
                       </div>
                       <div className="relative">
                         <select
-                          className={`appearance-none w-full px-3 md:px-4 py-2 md:py-3 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-neutral-50 border-neutral-200 text-neutral-800'} border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 pr-10 shadow-sm hover:${isDarkMode ? 'bg-gray-600' : 'bg-neutral-100'} transition-colors text-sm md:text-base`}
+                          className="glass-input appearance-none w-full px-3 md:px-4 py-2 md:py-3 text-white pr-10 shadow-sm transition-all duration-300 text-sm md:text-base"
                           value={communityCategory}
                           onChange={e => setCommunityCategory(e.target.value)}
                         >
@@ -1467,7 +1461,7 @@ const App: React.FC = () => {
                           <option>Entertainment</option>
                           <option>Education</option>
                         </select>
-                        <svg className={`w-4 h-4 md:w-5 md:h-5 ${isDarkMode ? 'text-gray-400' : 'text-neutral-500'} absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 md:w-5 md:h-5 text-white/70 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                       </div>
@@ -1482,13 +1476,13 @@ const App: React.FC = () => {
                          p.description.toLowerCase().includes(communitySearch.toLowerCase()))
                       )
                       .map(project => (
-                        <div key={project.id} className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-neutral-50 border-neutral-200'} border rounded-lg p-4 md:p-6 shadow-sm hover:shadow-md transition-shadow`}>
+                        <div key={project.id} className="glass-card p-4 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:mb-2">
-                            <span className={`text-base md:text-lg font-semibold ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'} flex-1`}>{project.name}</span>
-                            <span className={`text-xs ${isDarkMode ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700'} px-2 py-1 rounded-full self-start sm:self-auto sm:ml-2`}>{project.category}</span>
+                            <span className="text-base md:text-lg font-semibold text-white flex-1">{project.name}</span>
+                            <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-1 rounded-full self-start sm:self-auto sm:ml-2">{project.category}</span>
                           </div>
-                          <p className={`${isDarkMode ? 'text-gray-300' : 'text-neutral-600'} text-sm mt-2 sm:mt-0`}>{project.description}</p>
-                          <div className={`flex items-center gap-4 mt-3 text-xs ${isDarkMode ? 'text-gray-400' : 'text-neutral-500'}`}>
+                          <p className="text-white/80 text-sm mt-2 sm:mt-0">{project.description}</p>
+                          <div className="flex items-center gap-4 mt-3 text-xs text-white/60">
                             <span>❤️ {project.likes_count} likes</span>
                             <span>👁️ {project.views_count} views</span>
                             <span>🔄 {project.remix_count} remixes</span>
@@ -1500,7 +1494,7 @@ const App: React.FC = () => {
                                 onClick={async () => {
                                   await handleLikeProject(project.id);
                                 }}
-                                className="flex items-center px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors"
+                                className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
                               >
                                 ❤️ Like
                               </button>
@@ -1508,7 +1502,7 @@ const App: React.FC = () => {
                                 onClick={async () => {
                                   await handleSaveProject(project.id);
                                 }}
-                                className="flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
+                                className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300"
                               >
                                 💾 Save
                               </button>
@@ -1517,7 +1511,7 @@ const App: React.FC = () => {
                                   onClick={async () => {
                                     await handleRemixProject(project.id);
                                   }}
-                                  className="flex items-center px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded text-sm transition-colors"
+                                  className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
                                 >
                                   🔄 Remix
                                 </button>
@@ -1525,7 +1519,7 @@ const App: React.FC = () => {
                             </SignedIn>
                             <SignedOut>
                               <SignInButton mode="modal">
-                                <button className="flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors">
+                                <button className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
                                   Sign in to interact
                                 </button>
                               </SignInButton>
@@ -1538,7 +1532,7 @@ const App: React.FC = () => {
                         (p.name.toLowerCase().includes(communitySearch.toLowerCase()) ||
                          p.description.toLowerCase().includes(communitySearch.toLowerCase()))
                       ).length === 0 && (
-                        <div className={`${isDarkMode ? 'text-gray-400' : 'text-neutral-500'} text-center py-8 md:py-12 text-base md:text-lg`}>
+                        <div className="text-white/60 text-center py-8 md:py-12 text-base md:text-lg">
                           No projects found.
                         </div>
                     )}
@@ -1549,12 +1543,12 @@ const App: React.FC = () => {
           ) : currentView === 'myPips' ? (
             <div className="col-span-1 md:col-span-2">
               {/* My Pips Page Content */}
-              <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-neutral-200'} border rounded-lg p-4 md:p-8 min-h-[600px] relative shadow-sm`}>
+              <div className="glass-card p-4 md:p-8 min-h-[600px] relative">
                 {/* Back Button */}
                 <div className="absolute left-4 md:left-8 top-4 md:top-8">
                   <button
                     onClick={() => setCurrentView('main')}
-                    className={`flex items-center px-3 md:px-4 py-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'} rounded-lg transition-colors shadow-sm text-sm md:text-base`}
+                    className="glass-button flex items-center px-3 md:px-4 py-2 text-white/80 hover:text-white rounded-lg transition-all duration-300 shadow-sm text-sm md:text-base"
                   >
                     <svg className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1565,39 +1559,39 @@ const App: React.FC = () => {
                 </div>
                 
                 <div className="text-center pt-16 md:pt-0">
-                  <h1 className={`text-2xl md:text-3xl font-bold mb-4 ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'}`}>My Pips</h1>
-                  <p className={`${isDarkMode ? 'text-gray-300' : 'text-neutral-600'} mb-6 md:mb-8 px-4 md:px-0`}>Manage your created pips and share them with the community</p>
+                  <h1 className="text-2xl md:text-3xl font-bold mb-4 text-white">My Pips</h1>
+                  <p className="text-white/80 mb-6 md:mb-8 px-4 md:px-0">Manage your created pips and share them with the community</p>
                   
                   {/* Tabs */}
                   <div className="max-w-4xl mx-auto mb-6 md:mb-8 px-4 md:px-0">
                     <div className="flex justify-center mb-4 md:mb-6">
-                      <div className={`flex ${isDarkMode ? 'bg-gray-700' : 'bg-neutral-100'} rounded-lg p-1 w-full max-w-xs`}>
+                      <div className="glass-card flex rounded-lg p-1 w-full max-w-xs">
                         <button
                           onClick={() => setMyPipsTab('recent')}
-                          className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-colors text-sm md:text-base ${
+                          className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-all duration-300 text-sm md:text-base ${
                             myPipsTab === 'recent' 
-                              ? `${isDarkMode ? 'bg-gray-600 text-gray-100' : 'bg-white text-neutral-800'} shadow-sm` 
-                              : `${isDarkMode ? 'text-gray-300 hover:text-gray-100' : 'text-neutral-600 hover:text-neutral-800'}`
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' 
+                              : 'text-white/80 hover:text-white'
                           }`}
                         >
                           Recent
                         </button>
                         <button
                           onClick={() => setMyPipsTab('public')}
-                          className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-colors text-sm md:text-base ${
+                          className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-all duration-300 text-sm md:text-base ${
                             myPipsTab === 'public' 
-                              ? `${isDarkMode ? 'bg-gray-600 text-gray-100' : 'bg-white text-neutral-800'} shadow-sm` 
-                              : `${isDarkMode ? 'text-gray-300 hover:text-gray-100' : 'text-neutral-600 hover:text-neutral-800'}`
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' 
+                              : 'text-white/80 hover:text-white'
                           }`}
                         >
                           Public
                         </button>
                         <button
                           onClick={() => setMyPipsTab('saved')}
-                          className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-colors text-sm md:text-base ${
+                          className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-all duration-300 text-sm md:text-base ${
                             myPipsTab === 'saved' 
-                              ? `${isDarkMode ? 'bg-gray-600 text-gray-100' : 'bg-white text-neutral-800'} shadow-sm` 
-                              : `${isDarkMode ? 'text-gray-300 hover:text-gray-100' : 'text-neutral-600 hover:text-neutral-800'}`
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' 
+                              : 'text-white/80 hover:text-white'
                           }`}
                         >
                           Saved
@@ -1617,18 +1611,18 @@ const App: React.FC = () => {
                             onChange={handleSelectAll}
                             className="mr-2"
                           />
-                          <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-700'}`}>Select All</span>
+                          <span className="text-sm text-white/80">Select All</span>
                         </label>
                         {selectedPips.size > 0 && (
                           <button
                             onClick={handleDeletePips}
-                            className="px-3 md:px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm transition-colors self-start sm:self-auto"
+                            className="glass-button px-3 md:px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-md text-sm transition-all duration-300 self-start sm:self-auto"
                           >
                             Delete Selected ({selectedPips.size})
                           </button>
                         )}
                       </div>
-                      <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-neutral-600'} text-center sm:text-left`}>
+                      <div className="text-sm text-white/60 text-center sm:text-left">
                         {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
                           myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
                         ).length} {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'saved'} builds
@@ -1640,7 +1634,7 @@ const App: React.FC = () => {
                       {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects)
                         .filter(project => myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true)
                         .map(project => (
-                          <div key={project.id} className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-neutral-50 border-neutral-200'} border rounded-lg p-4 md:p-6 shadow-sm hover:shadow-md transition-shadow`}>
+                          <div key={project.id} className="glass-card p-4 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
                             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
                               <div className="flex items-start gap-3 flex-1">
                                 <input
@@ -1656,7 +1650,7 @@ const App: React.FC = () => {
                                         type="text"
                                         value={editingPipName}
                                         onChange={(e) => setEditingPipName(e.target.value)}
-                                        className={`${isDarkMode ? 'bg-gray-600 text-gray-200 border-gray-500' : 'bg-white text-neutral-800 border-neutral-300'} px-2 py-1 rounded border focus:outline-none focus:border-blue-400 text-sm`}
+                                        className="glass-input px-2 py-1 rounded text-white text-sm"
                                         onKeyPress={(e) => {
                                           if (e.key === 'Enter') {
                                             handleRenamePip(project.id.toString(), editingPipName);
@@ -1666,13 +1660,13 @@ const App: React.FC = () => {
                                       <div className="flex gap-2">
                                         <button
                                           onClick={() => handleRenamePip(project.id.toString(), editingPipName)}
-                                          className="text-green-600 hover:text-green-700 text-sm"
+                                          className="text-green-400 hover:text-green-300 text-sm transition-colors"
                                         >
                                           ✓
                                         </button>
                                         <button
                                           onClick={handleCancelRename}
-                                          className="text-red-600 hover:text-red-700 text-sm"
+                                          className="text-red-400 hover:text-red-300 text-sm transition-colors"
                                         >
                                           ✕
                                         </button>
@@ -1680,11 +1674,11 @@ const App: React.FC = () => {
                                     </div>
                                   ) : (
                                     <div className="flex items-start gap-2">
-                                      <span className={`text-base md:text-lg font-semibold ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'} break-words`}>{project.name}</span>
+                                      <span className="text-base md:text-lg font-semibold text-white break-words">{project.name}</span>
                                       {myPipsTab !== 'saved' && (
                                         <button
                                           onClick={() => handleStartRename(project.id.toString(), project.name)}
-                                          className={`${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-neutral-500 hover:text-neutral-700'} text-sm flex-shrink-0 mt-1`}
+                                          className="text-white/60 hover:text-white text-sm flex-shrink-0 mt-1 transition-colors"
                                         >
                                           ✏️
                                         </button>
@@ -1692,12 +1686,12 @@ const App: React.FC = () => {
                                     </div>
                                   )}
                                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
-                                    <span className={`text-xs ${isDarkMode ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700'} px-2 py-1 rounded-full self-start`}>{project.category}</span>
-                                    <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-neutral-500'}`}>Last modified: {new Date(project.updated_at).toLocaleDateString()}</span>
+                                    <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-1 rounded-full self-start">{project.category}</span>
+                                    <span className="text-xs text-white/60">Last modified: {new Date(project.updated_at).toLocaleDateString()}</span>
                                   </div>
-                                  <p className={`${isDarkMode ? 'text-gray-300' : 'text-neutral-600'} text-sm mt-2`}>{project.description}</p>
+                                  <p className="text-white/80 text-sm mt-2">{project.description}</p>
                                   {myPipsTab === 'saved' && (
-                                    <div className={`flex items-center gap-4 mt-3 text-xs ${isDarkMode ? 'text-gray-400' : 'text-neutral-500'}`}>
+                                    <div className="flex items-center gap-4 mt-3 text-xs text-white/60">
                                       <span>❤️ {project.likes_count} likes</span>
                                       <span>👁️ {project.views_count} views</span>
                                       <span>🔄 {project.remix_count} remixes</span>
@@ -1706,11 +1700,11 @@ const App: React.FC = () => {
                                 </div>
                               </div>
                               <div className="flex flex-col sm:flex-row gap-2 lg:flex-shrink-0">
-                                <button className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors">
+                                <button className="glass-button px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
                                   Open
                                 </button>
                                 {myPipsTab !== 'saved' && (
-                                  <button className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-sm transition-colors">
+                                  <button className="glass-button px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded text-sm transition-all duration-300">
                                     {project.is_public ? 'Unpublish' : 'Publish'}
                                   </button>
                                 )}
@@ -1727,7 +1721,7 @@ const App: React.FC = () => {
                                         setTimeout(() => setError(null), 2000);
                                       }
                                     }}
-                                    className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm transition-colors"
+                                    className="glass-button px-3 py-1 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
                                   >
                                     Remove
                                   </button>
@@ -1739,7 +1733,7 @@ const App: React.FC = () => {
                       {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
                         myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
                       ).length === 0 && (
-                        <div className="text-neutral-500 text-center py-8 md:py-12 text-base md:text-lg">
+                        <div className="text-white/60 text-center py-8 md:py-12 text-base md:text-lg">
                           No {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'saved'} builds found.
                         </div>
                       )}
@@ -1751,12 +1745,12 @@ const App: React.FC = () => {
           ) : currentView === 'affiliate' ? (
             <div className="col-span-1 md:col-span-2">
               {/* Affiliate Page Content */}
-              <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-neutral-200'} border rounded-lg p-4 md:p-8 min-h-[600px] relative shadow-sm`}>
+              <div className="glass-card p-4 md:p-8 min-h-[600px] relative">
                 {/* Back Button */}
                 <div className="absolute left-4 md:left-8 top-4 md:top-8">
                   <button
                     onClick={() => setCurrentView('main')}
-                    className={`flex items-center px-3 md:px-4 py-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'} rounded-lg transition-colors shadow-sm text-sm md:text-base`}
+                    className="glass-button flex items-center px-3 md:px-4 py-2 text-white/80 hover:text-white rounded-lg transition-all duration-300 shadow-sm text-sm md:text-base"
                   >
                     <svg className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1767,19 +1761,19 @@ const App: React.FC = () => {
                 </div>
                 
                 <div className="text-center pt-16 md:pt-0">
-                  <h1 className={`text-2xl md:text-3xl font-bold mb-4 ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'}`}>Affiliate Program</h1>
-                  <p className={`${isDarkMode ? 'text-gray-300' : 'text-neutral-600'} mb-6 md:mb-8 px-4 md:px-0`}>Earn money by referring users to myPip</p>
+                  <h1 className="text-2xl md:text-3xl font-bold mb-4 text-white">Affiliate Program</h1>
+                  <p className="text-white/80 mb-6 md:mb-8 px-4 md:px-0">Earn money by referring users to myPip</p>
                   
                   {/* Referral Link Section */}
                   <div className="max-w-2xl mx-auto mb-8 px-4 md:px-0">
-                    <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-neutral-50 border-neutral-200'} border rounded-lg p-4 md:p-6`}>
-                      <h2 className={`text-lg font-semibold mb-3 ${isDarkMode ? 'text-gray-200' : 'text-neutral-800'}`}>Your Referral Link</h2>
+                    <div className="glass-card p-4 md:p-6">
+                      <h2 className="text-lg font-semibold mb-3 text-white">Your Referral Link</h2>
                       <div className="flex flex-col sm:flex-row gap-3">
                         <input
                           type="text"
                           value="https://mypip.com/ref/your-unique-id"
                           readOnly
-                          className={`flex-1 px-3 py-2 ${isDarkMode ? 'bg-gray-600 text-gray-200 border-gray-500' : 'bg-white text-neutral-800 border-neutral-300'} border rounded-md text-sm`}
+                          className="glass-input flex-1 px-3 py-2 text-white text-sm"
                         />
                         <button
                           onClick={() => {
@@ -1787,7 +1781,7 @@ const App: React.FC = () => {
                             setError('Referral link copied to clipboard!');
                             setTimeout(() => setError(null), 2000);
                           }}
-                          className={`px-4 py-2 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-md text-sm font-medium transition-colors`}
+                          className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-md text-sm font-medium transition-all duration-300"
                         >
                           Copy Link
                         </button>
@@ -1797,57 +1791,57 @@ const App: React.FC = () => {
                   
                   {/* Commission Structure */}
                   <div className="max-w-4xl mx-auto mb-8 px-4 md:px-0">
-                    <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-gray-200' : 'text-neutral-800'}`}>Commission Structure</h2>
+                    <h2 className="text-lg font-semibold mb-4 text-white">Commission Structure</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-neutral-50 border-neutral-200'} border rounded-lg p-4 text-center`}>
-                        <div className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>10%</div>
-                        <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-600'}`}>First 10 referrals</div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
+                        <div className="text-2xl font-bold mb-2 text-blue-400">10%</div>
+                        <div className="text-sm text-white/80">First 10 referrals</div>
                       </div>
-                      <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-neutral-50 border-neutral-200'} border rounded-lg p-4 text-center`}>
-                        <div className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>15%</div>
-                        <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-600'}`}>11-25 referrals</div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
+                        <div className="text-2xl font-bold mb-2 text-purple-400">15%</div>
+                        <div className="text-sm text-white/80">11-25 referrals</div>
                       </div>
-                      <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-neutral-50 border-neutral-200'} border rounded-lg p-4 text-center`}>
-                        <div className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>25%</div>
-                        <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-600'}`}>26+ referrals</div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
+                        <div className="text-2xl font-bold mb-2 text-green-400">25%</div>
+                        <div className="text-sm text-white/80">26+ referrals</div>
                       </div>
                     </div>
                   </div>
                   
                   {/* Stats Section */}
                   <div className="max-w-2xl mx-auto mb-8 px-4 md:px-0">
-                    <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-gray-200' : 'text-neutral-800'}`}>Your Stats</h2>
+                    <h2 className="text-lg font-semibold mb-4 text-white">Your Stats</h2>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-neutral-50 border-neutral-200'} border rounded-lg p-4 text-center`}>
-                        <div className={`text-2xl font-bold mb-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>0</div>
-                        <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-600'}`}>Total Referrals</div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
+                        <div className="text-2xl font-bold mb-1 text-blue-400">0</div>
+                        <div className="text-sm text-white/80">Total Referrals</div>
                       </div>
-                      <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-neutral-50 border-neutral-200'} border rounded-lg p-4 text-center`}>
-                        <div className={`text-2xl font-bold mb-1 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`}>$0.00</div>
-                        <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-600'}`}>Total Earnings</div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
+                        <div className="text-2xl font-bold mb-1 text-green-400">$0.00</div>
+                        <div className="text-sm text-white/80">Total Earnings</div>
                       </div>
                     </div>
                   </div>
                   
                   {/* How It Works */}
                   <div className="max-w-2xl mx-auto px-4 md:px-0">
-                    <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-gray-200' : 'text-neutral-800'}`}>How It Works</h2>
-                    <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-neutral-50 border-neutral-200'} border rounded-lg p-4 md:p-6`}>
-                      <ol className={`space-y-3 text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-600'}`}>
+                    <h2 className="text-lg font-semibold mb-4 text-white">How It Works</h2>
+                    <div className="glass-card p-4 md:p-6">
+                      <ol className="space-y-3 text-sm text-white/80">
                         <li className="flex items-start">
-                          <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'}`}>1</span>
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white">1</span>
                           Share your referral link with friends, family, or on social media
                         </li>
                         <li className="flex items-start">
-                          <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'}`}>2</span>
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white">2</span>
                           When someone signs up using your link, they get a special discount
                         </li>
                         <li className="flex items-start">
-                          <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'}`}>3</span>
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white">3</span>
                           You earn a commission on their subscription payments
                         </li>
                         <li className="flex items-start">
-                          <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'}`}>4</span>
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white">4</span>
                           Payouts are processed monthly via PayPal or bank transfer
                         </li>
                       </ol>
@@ -1873,20 +1867,20 @@ const App: React.FC = () => {
         {/* Configuration Modal */}
         {isConfigModalOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="modal-overlay"
             onClick={() => setIsConfigModalOpen(false)}
           >
             <div
-              className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'} rounded-lg p-6 max-w-md w-full mx-4`}
+              className="modal-content"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-4">
-                <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'}`}>
+                <h2 className="text-xl font-semibold text-white">
                   Configure {configPlatform}
                 </h2>
                 <button
                   onClick={() => setIsConfigModalOpen(false)}
-                  className={`${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-neutral-500 hover:text-neutral-700'}`}
+                  className="text-white/70 hover:text-white transition-colors"
                 >
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1896,7 +1890,7 @@ const App: React.FC = () => {
               
               <div className="space-y-4">
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-neutral-700'}`}>
+                  <label className="block text-sm font-medium mb-2 text-white/80">
                     {configPlatform} API Key
                   </label>
                   <input
@@ -1904,22 +1898,21 @@ const App: React.FC = () => {
                     value={configApiKey}
                     onChange={(e) => setConfigApiKey(e.target.value)}
                     placeholder={`Enter your ${configPlatform} API key`}
-                    className={`w-full p-3 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'border-neutral-300 text-neutral-800'} border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                    className="glass-input w-full p-3 text-white placeholder-white/50"
                   />
                 </div>
-                
                 
                 <div className="flex justify-end space-x-3">
                   <button
                     onClick={() => setIsConfigModalOpen(false)}
-                    className="px-4 py-2 text-neutral-600 hover:text-neutral-800 font-medium"
+                    className="glass-button px-4 py-2 text-white/80 hover:text-white font-medium"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleConfigSubmit}
                     disabled={!configApiKey.trim()}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-neutral-300 text-white font-medium rounded-lg transition-colors"
+                    className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-medium rounded-lg transition-all duration-300"
                   >
                     Save API Key
                   </button>
@@ -1931,10 +1924,10 @@ const App: React.FC = () => {
 
         {/* Share Modal */}
         {isShareModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'} rounded-lg p-6 max-w-sm w-full mx-4 shadow-lg`}>
-              <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'}`}>Share Your Pip</h2>
-              <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-neutral-700'}`}>You are about to share your Pip with the myPip Community where it can be remixed and edited.</p>
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h2 className="text-lg font-semibold mb-4 text-white">Share Your Pip</h2>
+              <p className="mb-4 text-white/80">You are about to share your Pip with the myPip Community where it can be remixed and edited.</p>
               <label className="flex items-center mb-4">
                 <input
                   type="checkbox"
@@ -1942,16 +1935,16 @@ const App: React.FC = () => {
                   onChange={() => setAllowRemix(r => !r)}
                   className="mr-2"
                 />
-                <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-700'}`}>Do not allow remixing</span>
+                <span className="text-sm text-white/80">Do not allow remixing</span>
               </label>
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setIsShareModalOpen(false)}
-                  className={`px-4 py-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-700'} rounded-md`}
+                  className="glass-button px-4 py-2 text-white/80 hover:text-white"
                 >Cancel</button>
                 <button
                   onClick={handleShare}
-                  className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-md"
+                  className="glass-button px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                 >Share</button>
               </div>
             </div>
@@ -1959,17 +1952,21 @@ const App: React.FC = () => {
         )}
         {/* Xcode/Apple Modal */}
         {isXcodeModalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setIsXcodeModalOpen(false)}>
-            <div className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'} rounded-lg shadow-xl p-6 max-w-xs w-full relative`} onClick={e => e.stopPropagation()}>
-              <button className={`absolute top-2 right-2 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-neutral-400 hover:text-neutral-700'}`} onClick={() => setIsXcodeModalOpen(false)}><svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+          <div className="modal-overlay" onClick={() => setIsXcodeModalOpen(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <button className="absolute top-2 right-2 text-white/70 hover:text-white transition-colors" onClick={() => setIsXcodeModalOpen(false)}>
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
               <div className="flex flex-col items-center">
-                <AppleIcon className="h-10 w-10 mb-2 text-black" />
-                <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'}`}>Open in Xcode</h3>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-600'} mb-4 text-center`}>Download your Swift code or open the Xcode download page to get started.</p>
+                <AppleIcon className="h-10 w-10 mb-2 text-white" />
+                <h3 className="text-lg font-semibold mb-2 text-white">Open in Xcode</h3>
+                <p className="text-sm text-white/80 mb-4 text-center">Download your Swift code or open the Xcode download page to get started.</p>
                 <div className="flex flex-col gap-3 w-full">
                   <button
                     onClick={() => { setIsXcodeModalOpen(false); downloadSwiftCode(); }}
-                    className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+                    className="glass-button w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium transition-all duration-300"
                   >
                     Download Code
                   </button>
@@ -1977,7 +1974,7 @@ const App: React.FC = () => {
                     href="https://developer.apple.com/xcode/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`w-full px-4 py-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-blue-300' : 'bg-neutral-100 hover:bg-neutral-200 text-blue-700'} rounded-md font-medium text-center transition-colors`}
+                    className="glass-button w-full px-4 py-2 text-white/80 hover:text-white font-medium text-center transition-all duration-300"
                   >
                     Get Xcode
                   </a>
@@ -1990,13 +1987,13 @@ const App: React.FC = () => {
 
       {/* Account Modal */}
       {isAccountModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'} rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto`}>
-            <div className={`flex justify-between items-center p-6 ${isDarkMode ? 'border-gray-600' : 'border-b'}`}>
-              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Edit Profile</h2>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Edit Profile</h2>
               <button
                 onClick={handleCancelAccount}
-                className={`${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+                className="text-white/70 hover:text-white transition-colors"
               >
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2004,17 +2001,17 @@ const App: React.FC = () => {
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
+            <div className="space-y-6">
               {/* Profile Photo */}
               <div className="text-center">
                 <div className="relative inline-block">
                   <img 
                     src={user?.imageUrl || '/default-avatar.png'} 
                     alt="Profile" 
-                    className={`h-24 w-24 rounded-full object-cover border-4 ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}
+                    className="h-24 w-24 rounded-full object-cover border-4 border-white/20"
                   />
-                  <label className="absolute bottom-0 right-0 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 cursor-pointer transition-colors">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <label className="absolute bottom-0 right-0 glass-button rounded-full p-2 cursor-pointer transition-all duration-300 hover:scale-110">
+                    <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
@@ -2030,43 +2027,43 @@ const App: React.FC = () => {
 
               {/* Display Name */}
               <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <label className="block text-sm font-medium mb-2 text-white/80">
                   Display Name
                 </label>
                 <input
                   type="text"
                   value={tempDisplayName}
                   onChange={(e) => setTempDisplayName(e.target.value)}
-                  className={`w-full px-3 py-2 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'border-gray-300 text-gray-800'} border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  className="glass-input w-full px-3 py-2 text-white placeholder-white/50"
                   placeholder="Enter your display name"
                 />
               </div>
 
               {/* Bio */}
               <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <label className="block text-sm font-medium mb-2 text-white/80">
                   Bio
                 </label>
                 <textarea
                   value={tempBio}
                   onChange={(e) => setTempBio(e.target.value)}
                   rows={3}
-                  className={`w-full px-3 py-2 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'border-gray-300 text-gray-800'} border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  className="glass-input w-full px-3 py-2 text-white placeholder-white/50"
                   placeholder="Tell us about yourself..."
                 />
               </div>
             </div>
 
-            <div className={`flex justify-end space-x-3 p-6 ${isDarkMode ? 'border-gray-600' : 'border-t'}`}>
+            <div className="flex justify-end space-x-3 pt-6 border-t border-white/20">
               <button
                 onClick={handleCancelAccount}
-                className={`px-4 py-2 ${isDarkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-600 hover:text-gray-800'} transition-colors`}
+                className="glass-button px-4 py-2 text-white/80 hover:text-white transition-all duration-300"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveAccount}
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+                className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white transition-all duration-300"
               >
                 Save Changes
               </button>
@@ -2077,13 +2074,13 @@ const App: React.FC = () => {
 
       {/* Settings Modal */}
       {isSettingsModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'} rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto`}>
-            <div className={`flex justify-between items-center p-6 ${isDarkMode ? 'border-gray-600' : 'border-b'}`}>
-              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Settings</h2>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Settings</h2>
               <button
                 onClick={() => setIsSettingsModalOpen(false)}
-                className={`${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+                className="text-white/70 hover:text-white transition-colors"
               >
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -2091,64 +2088,64 @@ const App: React.FC = () => {
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
+            <div className="space-y-6">
               {/* Two-Factor Authentication */}
-              <div className={`border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} rounded-lg p-4`}>
+              <div className="glass-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`text-lg font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Two-Factor Authentication</h3>
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Add an extra layer of security to your account</p>
+                    <h3 className="text-lg font-medium text-white">Two-Factor Authentication</h3>
+                    <p className="text-sm text-white/60 mt-1">Add an extra layer of security to your account</p>
                   </div>
-                  <button className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors text-sm">
+                  <button className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-sm transition-all duration-300">
                     Enable 2FA
                   </button>
                 </div>
               </div>
 
               {/* Password Reset */}
-              <div className={`border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} rounded-lg p-4`}>
+              <div className="glass-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`text-lg font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Password</h3>
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Change your account password</p>
+                    <h3 className="text-lg font-medium text-white">Password</h3>
+                    <p className="text-sm text-white/60 mt-1">Change your account password</p>
                   </div>
-                  <button className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors text-sm">
+                  <button className="glass-button px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white text-sm transition-all duration-300">
                     Reset Password
                   </button>
                 </div>
               </div>
 
               {/* Email Preferences */}
-              <div className={`border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} rounded-lg p-4`}>
+              <div className="glass-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`text-lg font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Email Preferences</h3>
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Manage your email notifications</p>
+                    <h3 className="text-lg font-medium text-white">Email Preferences</h3>
+                    <p className="text-sm text-white/60 mt-1">Manage your email notifications</p>
                   </div>
-                  <button className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors text-sm">
+                  <button className="glass-button px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white text-sm transition-all duration-300">
                     Configure
                   </button>
                 </div>
               </div>
 
               {/* Privacy Settings */}
-              <div className={`border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} rounded-lg p-4`}>
+              <div className="glass-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className={`text-lg font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Privacy</h3>
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Control your privacy settings</p>
+                    <h3 className="text-lg font-medium text-white">Privacy</h3>
+                    <p className="text-sm text-white/60 mt-1">Control your privacy settings</p>
                   </div>
-                  <button className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors text-sm">
+                  <button className="glass-button px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white text-sm transition-all duration-300">
                     Manage
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className={`flex justify-end p-6 ${isDarkMode ? 'border-gray-600' : 'border-t'}`}>
+            <div className="flex justify-end pt-6 border-t border-white/20">
               <button
                 onClick={() => setIsSettingsModalOpen(false)}
-                className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-colors"
+                className="glass-button px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white transition-all duration-300"
               >
                 Close
               </button>
@@ -2157,13 +2154,13 @@ const App: React.FC = () => {
         </div>
       )}
       {isNewProjectModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'} rounded-lg shadow-xl max-w-md w-full p-6`}>
-            <h2 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'}`}>Start a New Project?</h2>
-            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-neutral-700'}`}>Would you like to save your current project before starting a new one?</p>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2 className="text-lg font-semibold mb-4 text-white">Start a New Project?</h2>
+            <p className="mb-6 text-white/80">Would you like to save your current project before starting a new one?</p>
             <div className="flex gap-3 justify-end">
               <button
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold disabled:opacity-50"
+                className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold disabled:opacity-50 transition-all duration-300"
                 onClick={async () => {
                   setIsSaving(true);
                   await handleSave();
@@ -2178,7 +2175,7 @@ const App: React.FC = () => {
                 {isSaving ? 'Saving...' : 'Save'}
               </button>
               <button
-                className={`px-4 py-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-800'} rounded-md font-semibold disabled:opacity-50`}
+                className="glass-button px-4 py-2 text-white/80 hover:text-white font-semibold disabled:opacity-50 transition-all duration-300"
                 onClick={() => {
                   setIsNewProjectModalOpen(false);
                   resetAppState();
@@ -2195,25 +2192,25 @@ const App: React.FC = () => {
 
       {/* Login Prompt Modal */}
       {isLoginPromptOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'} rounded-lg shadow-xl max-w-md w-full p-6`}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
-                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full glass-button mb-4">
+                <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-              <h2 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-gray-100' : 'text-neutral-800'}`}>Sign In Required</h2>
-              <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-neutral-600'}`}>Please sign in to save and share your Pips with the community.</p>
+              <h2 className="text-lg font-semibold mb-2 text-white">Sign In Required</h2>
+              <p className="mb-6 text-white/80">Please sign in to save and share your Pips with the community.</p>
               <div className="flex flex-col gap-3">
                 <SignInButton mode="modal">
-                  <button className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold transition-colors">
+                  <button className="glass-button w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold transition-all duration-300">
                     Sign In
                   </button>
                 </SignInButton>
                 <button
                   onClick={() => setIsLoginPromptOpen(false)}
-                  className={`w-full px-4 py-2 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-neutral-200 hover:bg-neutral-300 text-neutral-700'} rounded-md font-medium transition-colors`}
+                  className="glass-button w-full px-4 py-2 text-white/80 hover:text-white font-medium transition-all duration-300"
                 >
                   Maybe Later
                 </button>
@@ -2225,24 +2222,24 @@ const App: React.FC = () => {
 
       {/* Submission Success Modal */}
       {isSubmissionSuccessOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white'} rounded-lg shadow-xl max-w-md w-full p-6`}>
+        <div className="modal-overlay">
+          <div className="modal-content">
             <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full glass-button mb-4 bg-gradient-to-r from-green-400 to-blue-500">
+                <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold mb-3 text-neutral-800">Project Submitted Successfully!</h2>
-              <div className="mb-6 text-neutral-600 space-y-2">
+              <h2 className="text-xl font-semibold mb-3 text-white">Project Submitted Successfully!</h2>
+              <div className="mb-6 text-white/80 space-y-2">
                 <p>Your Pip has been submitted to the myPip community.</p>
                 <p className="text-sm">Once an admin approves it, your project will be featured in our community section and landing page.</p>
-                <p className="text-sm font-medium text-blue-600">You'll receive a notification when it's approved!</p>
+                <p className="text-sm font-medium text-blue-300">You'll receive a notification when it's approved!</p>
               </div>
               <div className="flex flex-col gap-3">
                 <button
                   onClick={() => setIsSubmissionSuccessOpen(false)}
-                  className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold transition-colors"
+                  className="glass-button w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold transition-all duration-300"
                 >
                   Continue Building
                 </button>
@@ -2251,7 +2248,7 @@ const App: React.FC = () => {
                     setIsSubmissionSuccessOpen(false);
                     setCurrentView('community');
                   }}
-                  className="w-full px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-700 rounded-md font-medium transition-colors"
+                  className="glass-button w-full px-4 py-2 text-white/80 hover:text-white font-medium transition-all duration-300"
                 >
                   View Community
                 </button>
