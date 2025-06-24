@@ -1,4 +1,6 @@
 // Railway deployment trigger - GitHub OAuth endpoints included
+// DEBUG: This should be the latest server with GitHub endpoints
+console.log('🚀 Server starting with GitHub OAuth endpoints...');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
