@@ -951,6 +951,32 @@
       .sidebar-container .bg-blue-800 * {
         color: #ffffff !important;
       }
+      
+      /* Specific fix for Configuration header text */
+      .sidebar-container .text-xs.text-blue-300 {
+        color: #1f2937 !important;
+      }
+      
+      /* Specific fix for all configuration items */
+      .sidebar-container .text-sm.text-white {
+        color: #1f2937 !important;
+      }
+      
+      /* Force all text in mobile sidebar to be black */
+      .sidebar-container nav *,
+      .sidebar-container nav div,
+      .sidebar-container nav span,
+      .sidebar-container nav svg {
+        color: #1f2937 !important;
+      }
+      
+      /* Exception for navigation items that should remain white */
+      .sidebar-container .nav-item,
+      .sidebar-container .nav-item *,
+      .sidebar-container .bg-blue-600,
+      .sidebar-container .bg-blue-600 * {
+        color: #ffffff !important;
+      }
     }
   </style>
 <script type="importmap">
