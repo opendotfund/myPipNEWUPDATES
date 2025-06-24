@@ -1,6 +1,9 @@
 // Railway deployment trigger - GitHub OAuth endpoints included
 // DEBUG: This should be the latest server with GitHub endpoints
 console.log('🚀 Server starting with GitHub OAuth endpoints...');
+console.log('📁 Current directory:', __dirname);
+console.log('📄 Server file loaded successfully');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -95,6 +98,20 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     version: '1.0.0',
     domain: process.env.PRODUCTION_DOMAIN || 'https://www.mypip.dev',
+  });
+});
+
+// Test endpoint to verify GitHub endpoints are available
+app.get('/api/test', (req, res) => {
+  res.status(200).json({
+    message: 'GitHub OAuth server is working!',
+    endpoints: {
+      github_callback: '/api/github/callback',
+      github_user: '/api/github/user',
+      github_repos: '/api/github/repos',
+      github_push: '/api/github/push'
+    },
+    timestamp: new Date().toISOString()
   });
 });
 
