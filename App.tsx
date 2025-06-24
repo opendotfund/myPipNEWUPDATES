@@ -1473,26 +1473,26 @@ const App: React.FC = () => {
               
               <div 
                 onClick={() => openConfigModal('Apple Connect')}
-                className="nav-item glass-button w-full text-left p-3 rounded-lg hover:bg-white/10 transition-all duration-300"
+                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
               >
-                <div className="flex items-center space-x-3">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  <span className="nav-text">Apple Connect</span>
-                </div>
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span className="ml-3 text-sm text-white">
+                  Apple Connect
+                </span>
               </div>
               
               <div 
                 onClick={() => openConfigModal('Google Play Store')}
-                className="nav-item glass-button w-full text-left p-3 rounded-lg hover:bg-white/10 transition-all duration-300"
+                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
               >
-                <div className="flex items-center space-x-3">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  <span className="nav-text">Google Play Store</span>
-                </div>
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <span className="ml-3 text-sm text-white">
+                  Google Play Store
+                </span>
               </div>
               
               <div 
@@ -1588,17 +1588,6 @@ const App: React.FC = () => {
                       Sign In
                     </button>
                   </SignInButton>
-                  <SignUpButton mode="modal">
-                    <button
-                      className="glass-button flex items-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-gradient-to-r from-green-400 to-blue-500 text-white"
-                      title="Sign up for a new account"
-                    >
-                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                      </svg>
-                      Sign Up
-                    </button>
-                  </SignUpButton>
                 </div>
               </SignedOut>
               <SignedIn>
