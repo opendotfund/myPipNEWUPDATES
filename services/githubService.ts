@@ -2,9 +2,9 @@ import { simulateGitHubAuth } from './githubProxy';
 
 // GitHub OAuth and API Service
 const GITHUB_CLIENT_ID = 'Ov23liiDXv1qIPEGgOg4';
-const GITHUB_REDIRECT_URI = 'https://www.mypip.dev/auth/github/callback';
+const GITHUB_REDIRECT_URI = 'https://mypipnewupdates-production.up.railway.app/api/github/callback';
 const GITHUB_API_BASE = 'https://api.github.com';
-const BACKEND_API_BASE = 'https://www.mypip.dev/api';
+const BACKEND_API_BASE = 'https://mypipnewupdates-production.up.railway.app/api';
 
 export interface GitHubUser {
   id: number;
