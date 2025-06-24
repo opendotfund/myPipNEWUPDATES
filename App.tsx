@@ -11,11 +11,11 @@ import { SubscriptionModal } from './components/SubscriptionModal';
 import { RefreshIcon } from './components/icons/RefreshIcon';
 import { SparklesIcon } from './components/icons/SparklesIcon';
 import { EarlyBirdApiInput } from './components/EarlyBirdApiInput'; // Added
-import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
+import { SignInButton, SignedIn, SignedOut, UserButton, useUser, SignUpButton } from '@clerk/clerk-react';
 import { useUserData } from './hooks/useUserData';
 import { useProjects, usePublicProjects, useSavedProjects } from './hooks/useProjects';
 import { AppleIcon } from './components/icons/AppleIcon';
-import { convertSwiftToFlutter, convertSwiftToReact } from './services/conversionService';
+import { convertSwiftToFlutter, convertSwiftToReact, convertFlutterToSwift, convertReactToSwift } from './services/conversionService';
 
 type AppView = 'main' | 'community' | 'myPips' | 'affiliate';
 
@@ -116,7 +116,9 @@ const App: React.FC = () => {
   const [projectName, setProjectName] = useState('');
   const [tempProjectName, setTempProjectName] = useState('');
   const [isAndroidConversionModalOpen, setIsAndroidConversionModalOpen] = useState(false);
+  const [isIOSConversionModalOpen, setIsIOSConversionModalOpen] = useState(false);
   const [conversionType, setConversionType] = useState<'flutter' | 'react' | null>(null);
+  const [conversionDirection, setConversionDirection] = useState<'to-android' | 'to-ios' | null>(null);
   const [isConverting, setIsConverting] = useState(false);
   const [convertedCode, setConvertedCode] = useState('');
   const [currentCodeType, setCurrentCodeType] = useState<'swift' | 'flutter' | 'react'>('swift');
@@ -665,6 +667,7 @@ const App: React.FC = () => {
 
   const handleConvertToFlutter = async () => {
     setConversionType('flutter');
+    setConversionDirection('to-android');
     setIsConverting(true);
     setIsAndroidConversionModalOpen(false);
 
@@ -688,6 +691,7 @@ const App: React.FC = () => {
 
   const handleConvertToReact = async () => {
     setConversionType('react');
+    setConversionDirection('to-android');
     setIsConverting(true);
     setIsAndroidConversionModalOpen(false);
 
@@ -712,12 +716,76 @@ const App: React.FC = () => {
   const handleCancelConversion = () => {
     setIsAndroidConversionModalOpen(false);
     setConversionType(null);
+    setConversionDirection(null);
   };
 
   const handleSaveIOSVersion = () => {
     setIsAndroidConversionModalOpen(false);
     setConversionType(null);
     // Keep the current Swift code
+  };
+
+  const handleIOSConversion = () => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+
+    if (!canSubmit) {
+      setError('You need a prompt available to convert to iOS.');
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
+
+    // Only show iOS conversion modal if current code is React or Flutter
+    if (currentCodeType === 'react' || currentCodeType === 'flutter') {
+      setIsIOSConversionModalOpen(true);
+    } else {
+      // If already Swift, just open the Xcode modal
+      setIsXcodeModalOpen(true);
+    }
+  };
+
+  const handleConvertToSwift = async () => {
+    setConversionDirection('to-ios');
+    setIsConverting(true);
+    setIsIOSConversionModalOpen(false);
+
+    try {
+      let result;
+      if (currentCodeType === 'flutter') {
+        // Convert Flutter to Swift
+        result = await convertFlutterToSwift(convertedCode);
+        setGeneratedCode(result.swiftCode);
+      } else if (currentCodeType === 'react') {
+        // Convert React Native to Swift
+        result = await convertReactToSwift(convertedCode);
+        setGeneratedCode(result.swiftCode);
+      }
+      
+      setCurrentCodeType('swift');
+      setError('Successfully converted to Swift!');
+      setTimeout(() => setError(null), 2000);
+      
+      if (!isEarlyBirdKeyApplied) {
+        setFreePromptsRemaining(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error converting to Swift:', error);
+      setError('Failed to convert to Swift. Please try again.');
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  const handleCancelIOSConversion = () => {
+    setIsIOSConversionModalOpen(false);
+    setConversionDirection(null);
+  };
+
+  const handleSaveCurrentVersion = () => {
+    setIsIOSConversionModalOpen(false);
+    // Keep the current code type
   };
 
   return (
@@ -1248,17 +1316,30 @@ const App: React.FC = () => {
                 Get Unlimited
               </button>
               <SignedOut>
-                <SignInButton mode="modal">
-                  <button
-                    className="glass-button flex items-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-white"
-                    title="Sign in to your account"
-                  >
-                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Sign In
-                  </button>
-                </SignInButton>
+                <div className="flex items-center space-x-2">
+                  <SignInButton mode="modal">
+                    <button
+                      className="glass-button flex items-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-white"
+                      title="Sign in to your account"
+                    >
+                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Sign In
+                    </button>
+                  </SignInButton>
+                  <SignUpButton mode="modal">
+                    <button
+                      className="glass-button flex items-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-gradient-to-r from-green-400 to-blue-500 text-white"
+                      title="Sign up for a new account"
+                    >
+                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      </svg>
+                      Sign Up
+                    </button>
+                  </SignUpButton>
+                </div>
               </SignedOut>
               <SignedIn>
                 <div className="flex items-center space-x-2">
@@ -1497,7 +1578,7 @@ const App: React.FC = () => {
                         <button
                           title="App Store"
                           className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-blue-400 to-purple-500"
-                          onClick={() => setIsXcodeModalOpen(true)}
+                          onClick={handleIOSConversion}
                         >
                           <AppleIcon className="h-5 w-5" />
                         </button>
@@ -2546,12 +2627,95 @@ const App: React.FC = () => {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
               </div>
               <h2 className="text-xl font-semibold mb-3 text-white">
-                Converting to {conversionType === 'flutter' ? 'Flutter' : 'React Native'}...
+                {conversionDirection === 'to-android' 
+                  ? `Converting to ${conversionType === 'flutter' ? 'Flutter' : 'React Native'}...`
+                  : 'Converting to SwiftUI...'
+                }
               </h2>
               <p className="text-white/80">
-                Please wait while we convert your Swift code to {conversionType === 'flutter' ? 'Flutter' : 'React Native'}.
-                This may take a few moments.
+                {conversionDirection === 'to-android'
+                  ? `Please wait while we convert your Swift code to ${conversionType === 'flutter' ? 'Flutter' : 'React Native'}. This may take a few moments.`
+                  : 'Please wait while we convert your code to SwiftUI. This may take a few moments.'
+                }
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* iOS Conversion Modal */}
+      {isIOSConversionModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Convert to iOS</h2>
+              <button
+                onClick={handleCancelIOSConversion}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full glass-button mb-4 bg-gradient-to-r from-blue-400 to-purple-500">
+                  <AppleIcon className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-lg font-medium text-white mb-2">Convert Your {currentCodeType === 'flutter' ? 'Flutter' : 'React Native'} App to iOS</h3>
+                <p className="text-white/80 mb-4">
+                  You're about to convert your {currentCodeType === 'flutter' ? 'Flutter' : 'React Native'} code to SwiftUI. This process will cost 1 prompt.
+                </p>
+                <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 mb-6">
+                  <p className="text-yellow-300 text-sm">
+                    <strong>Warning:</strong> This conversion process costs 1 prompt from your available prompts.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleConvertToSwift}
+                  disabled={isConverting}
+                  className="w-full glass-button p-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white transition-all duration-300 disabled:opacity-50"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <h4 className="font-semibold">
+                        {isConverting ? 'Converting...' : `Convert to SwiftUI`}
+                      </h4>
+                      <p className="text-sm opacity-80">
+                        {currentCodeType === 'flutter' 
+                          ? 'Convert Flutter code to native iOS SwiftUI' 
+                          : 'Convert React Native code to native iOS SwiftUI'
+                        }
+                      </p>
+                    </div>
+                    {isConverting ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                    ) : (
+                      <AppleIcon className="h-6 w-6" />
+                    )}
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-6 border-t border-white/20">
+              <button
+                onClick={handleSaveCurrentVersion}
+                className="glass-button px-4 py-2 text-white/80 hover:text-white transition-all duration-300"
+              >
+                Keep {currentCodeType === 'flutter' ? 'Flutter' : 'React Native'} Version
+              </button>
+              <button
+                onClick={handleCancelIOSConversion}
+                className="glass-button px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white transition-all duration-300"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

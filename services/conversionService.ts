@@ -118,7 +118,7 @@ const callGeminiApi = async (structuredContents: Content[]): Promise<any> => {
   }
 };
 
-const parseConversionResponse = (responseText: string, type: 'flutter' | 'react'): string => {
+const parseConversionResponse = (responseText: string, type: 'flutter' | 'react' | 'swift'): string => {
   let jsonStr = responseText.trim();
     
   const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
@@ -129,7 +129,7 @@ const parseConversionResponse = (responseText: string, type: 'flutter' | 'react'
 
   try {
     const parsedData = JSON.parse(jsonStr);
-    const codeKey = type === 'flutter' ? 'flutterCode' : 'reactCode';
+    const codeKey = type === 'flutter' ? 'flutterCode' : type === 'react' ? 'reactCode' : 'swiftCode';
     
     if (!parsedData[codeKey]) {
       console.error(`Parsed data missing ${codeKey}`, parsedData);
@@ -169,4 +169,90 @@ export const convertSwiftToReact = async (swiftCode: string): Promise<{ reactCod
   const reactCode = parseConversionResponse(response, 'react');
   
   return { reactCode };
+};
+
+const constructFlutterToSwiftConversionPrompt = (flutterCode: string): Content[] => {
+  const systemInstruction = `
+You are an expert mobile app developer specializing in converting Flutter/Dart code to iOS SwiftUI code.
+
+The following Flutter code needs to be converted to SwiftUI:
+
+\`\`\`dart
+${flutterCode}
+\`\`\`
+
+Please convert this Flutter code to equivalent SwiftUI code. The SwiftUI code should:
+
+1. Maintain the same functionality and UI layout as the original Flutter code
+2. Use SwiftUI components and styling
+3. Include proper state management (@State, @Binding, @ObservedObject as needed)
+4. Handle user interactions and data flow
+5. Be complete and runnable SwiftUI code
+6. Include necessary imports
+7. Follow SwiftUI best practices and conventions
+
+Return your response as a single JSON object with the following structure:
+{
+  "swiftCode": "COMPLETE_SWIFTUI_CODE_HERE"
+}
+
+Ensure the swiftCode is a valid, properly escaped string within the JSON structure.
+If the Flutter code is complex, break it down into appropriate SwiftUI views and maintain the same user experience.
+`;
+  return [{ role: "user", parts: [{ text: systemInstruction }] }];
+};
+
+const constructReactToSwiftConversionPrompt = (reactCode: string): Content[] => {
+  const systemInstruction = `
+You are an expert mobile app developer specializing in converting React Native code to iOS SwiftUI code.
+
+The following React Native code needs to be converted to SwiftUI:
+
+\`\`\`jsx
+${reactCode}
+\`\`\`
+
+Please convert this React Native code to equivalent SwiftUI code. The SwiftUI code should:
+
+1. Maintain the same functionality and UI layout as the original React Native code
+2. Use SwiftUI components and styling
+3. Include proper state management (@State, @Binding, @ObservedObject as needed)
+4. Handle user interactions and data flow
+5. Be complete and runnable SwiftUI code
+6. Include necessary imports
+7. Follow SwiftUI best practices and conventions
+
+Return your response as a single JSON object with the following structure:
+{
+  "swiftCode": "COMPLETE_SWIFTUI_CODE_HERE"
+}
+
+Ensure the swiftCode is a valid, properly escaped string within the JSON structure.
+If the React Native code is complex, break it down into appropriate SwiftUI views and maintain the same user experience.
+`;
+  return [{ role: "user", parts: [{ text: systemInstruction }] }];
+};
+
+export const convertFlutterToSwift = async (flutterCode: string): Promise<{ swiftCode: string }> => {
+  if (!flutterCode || flutterCode.trim() === '') {
+    throw new Error('No Flutter code provided for conversion');
+  }
+
+  const prompt = constructFlutterToSwiftConversionPrompt(flutterCode);
+  const response = await callGeminiApi(prompt);
+  const swiftCode = parseConversionResponse(response, 'swift');
+  
+  return { swiftCode };
+};
+
+export const convertReactToSwift = async (reactCode: string): Promise<{ swiftCode: string }> => {
+  if (!reactCode || reactCode.trim() === '') {
+    throw new Error('No React Native code provided for conversion');
+  }
+
+  const prompt = constructReactToSwiftConversionPrompt(reactCode);
+  const response = await callGeminiApi(prompt);
+  const swiftCode = parseConversionResponse(response, 'swift');
+  
+  return { swiftCode };
 }; 
