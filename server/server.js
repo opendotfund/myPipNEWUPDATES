@@ -1,8 +1,16 @@
 // Railway deployment trigger - GitHub OAuth endpoints included
 // DEBUG: This should be the latest server with GitHub endpoints
+// FORCE DEPLOYMENT: Adding timestamp to ensure latest code is deployed
 console.log('🚀 Server starting with GitHub OAuth endpoints...');
 console.log('📁 Current directory:', __dirname);
 console.log('📄 Server file loaded successfully');
+console.log('🕐 Deployment timestamp:', new Date().toISOString());
+console.log('🔧 GitHub endpoints should be available at:');
+console.log('   - POST /api/github/callback');
+console.log('   - GET /api/github/user');
+console.log('   - GET /api/github/repos');
+console.log('   - POST /api/github/repos');
+console.log('   - POST /api/github/push');
 
 const express = require('express');
 const cors = require('cors');

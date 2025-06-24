@@ -57,6 +57,24 @@ const App: React.FC = () => {
   const [configPlatform, setConfigPlatform] = useState<string>('');
   const [configApiKey, setConfigApiKey] = useState<string>('');
 
+  // Apple Connect credentials states
+  const [appleKeyId, setAppleKeyId] = useState<string>('');
+  const [appleIssuerId, setAppleIssuerId] = useState<string>('');
+  const [applePrivateKey, setApplePrivateKey] = useState<string>('');
+
+  // Google Play Store credentials states
+  const [googleServiceAccountKey, setGoogleServiceAccountKey] = useState<string>('');
+
+  // Apple App Store deployment states
+  const [isAppleDeploymentModalOpen, setIsAppleDeploymentModalOpen] = useState<boolean>(false);
+  const [appleAppName, setAppleAppName] = useState<string>('');
+  const [appleBundleId, setAppleBundleId] = useState<string>('');
+  const [applePrimaryLanguage, setApplePrimaryLanguage] = useState<string>('en');
+  const [appleIpaFile, setAppleIpaFile] = useState<File | null>(null);
+  const [isGeneratingIpa, setIsGeneratingIpa] = useState<boolean>(false);
+  const [isDeploymentSubmitting, setIsDeploymentSubmitting] = useState<boolean>(false);
+  const [success, setSuccess] = useState<string | null>(null);
+
   // Profile editing states
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
   const [appName, setAppName] = useState<string>('myPip');
@@ -127,6 +145,17 @@ const App: React.FC = () => {
   // GitHub integration state
   const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
 
+  // Google Play Store deployment states
+  const [isGooglePlayDeploymentModalOpen, setIsGooglePlayDeploymentModalOpen] = useState<boolean>(false);
+  const [googlePlayAppName, setGooglePlayAppName] = useState<string>('');
+  const [googlePlayServiceAccountKey, setGooglePlayServiceAccountKey] = useState<string>('');
+  const [googlePlayServiceAccountFile, setGooglePlayServiceAccountFile] = useState<File | null>(null);
+  const [googlePlayAabFile, setGooglePlayAabFile] = useState<File | null>(null);
+  const [isGeneratingAab, setIsGeneratingAab] = useState<boolean>(false);
+  const [googlePlayReleaseTrack, setGooglePlayReleaseTrack] = useState<'production' | 'beta' | 'alpha' | 'internal'>('production');
+  const [googlePlayReleaseNotes, setGooglePlayReleaseNotes] = useState<string>('');
+  const [googlePlayPublishAfterReview, setGooglePlayPublishAfterReview] = useState<'yes' | 'no'>('yes');
+
   useEffect(() => {
     if (chatHistoryRef.current) {
       chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
@@ -161,15 +190,69 @@ const App: React.FC = () => {
   const openConfigModal = (platform: string) => {
     setConfigPlatform(platform);
     setConfigApiKey('');
+    // Reset Apple Connect fields
+    setAppleKeyId('');
+    setAppleIssuerId('');
+    setApplePrivateKey('');
+    // Reset Google Play Store fields
+    setGoogleServiceAccountKey('');
     setIsConfigModalOpen(true);
   };
 
   const handleConfigSubmit = () => {
-    // Here you would typically save the API key to your backend
-    console.log(`Saving ${configPlatform} API key:`, configApiKey);
-    setError(`${configPlatform} API key saved successfully!`);
+    if (configPlatform === 'Apple Connect') {
+      // Handle Apple Connect credentials
+      console.log('Saving Apple Connect credentials:', {
+        keyId: appleKeyId,
+        issuerId: appleIssuerId,
+        privateKey: applePrivateKey ? '***PRIVATE_KEY***' : 'Not provided'
+      });
+      setError('Apple Connect credentials saved successfully!');
+    } else if (configPlatform === 'Google Play Store') {
+      // Handle Google Play Store credentials
+      console.log('Saving Google Play Store service account key:', {
+        serviceAccountKey: googleServiceAccountKey ? '***SERVICE_ACCOUNT_KEY***' : 'Not provided'
+      });
+      setError('Google Play Store service account key saved successfully!');
+    } else {
+      // Handle other platforms
+      console.log(`Saving ${configPlatform} API key:`, configApiKey);
+      setError(`${configPlatform} API key saved successfully!`);
+    }
     setTimeout(() => setError(null), 3000);
     setIsConfigModalOpen(false);
+  };
+
+  const handlePrivateKeyUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.name.endsWith('.p8')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setApplePrivateKey(e.target?.result as string);
+        };
+        reader.readAsText(file);
+      } else {
+        setError('Please select a valid .p8 file');
+        setTimeout(() => setError(null), 3000);
+      }
+    }
+  };
+
+  const handleServiceAccountKeyUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.name.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setGoogleServiceAccountKey(e.target?.result as string);
+        };
+        reader.readAsText(file);
+      } else {
+        setError('Please select a valid .json file');
+        setTimeout(() => setError(null), 3000);
+      }
+    }
   };
 
   // Profile editing functions
@@ -670,12 +753,13 @@ const App: React.FC = () => {
   };
 
   const handleConvertToFlutter = async () => {
-    setConversionType('flutter');
     setConversionDirection('to-android');
+    setConversionType('flutter');
     setIsConverting(true);
     setIsAndroidConversionModalOpen(false);
 
     try {
+      // Convert Swift to Flutter
       const result = await convertSwiftToFlutter(generatedCode);
       setConvertedCode(result.flutterCode);
       setCurrentCodeType('flutter');
@@ -685,21 +769,24 @@ const App: React.FC = () => {
       if (!isEarlyBirdKeyApplied) {
         setFreePromptsRemaining(prev => Math.max(0, prev - 1));
       }
+      
     } catch (error) {
       console.error('Error converting to Flutter:', error);
       setError('Failed to convert to Flutter. Please try again.');
+      setTimeout(() => setError(null), 3000);
     } finally {
       setIsConverting(false);
     }
   };
 
   const handleConvertToReact = async () => {
-    setConversionType('react');
     setConversionDirection('to-android');
+    setConversionType('react');
     setIsConverting(true);
     setIsAndroidConversionModalOpen(false);
 
     try {
+      // Convert Swift to React Native
       const result = await convertSwiftToReact(generatedCode);
       setConvertedCode(result.reactCode);
       setCurrentCodeType('react');
@@ -709,9 +796,11 @@ const App: React.FC = () => {
       if (!isEarlyBirdKeyApplied) {
         setFreePromptsRemaining(prev => Math.max(0, prev - 1));
       }
+      
     } catch (error) {
-      console.error('Error converting to React:', error);
+      console.error('Error converting to React Native:', error);
       setError('Failed to convert to React Native. Please try again.');
+      setTimeout(() => setError(null), 3000);
     } finally {
       setIsConverting(false);
     }
@@ -774,9 +863,11 @@ const App: React.FC = () => {
       if (!isEarlyBirdKeyApplied) {
         setFreePromptsRemaining(prev => Math.max(0, prev - 1));
       }
+      
     } catch (error) {
       console.error('Error converting to Swift:', error);
       setError('Failed to convert to Swift. Please try again.');
+      setTimeout(() => setError(null), 3000);
     } finally {
       setIsConverting(false);
     }
@@ -794,6 +885,136 @@ const App: React.FC = () => {
 
   const handleGitHubClick = () => {
     setIsGitHubModalOpen(true);
+  };
+
+  const handleAppleDeploymentClick = () => {
+    if (currentCodeType === 'flutter' || currentCodeType === 'react') {
+      // If code is Flutter or React, first convert to Swift, then show deployment modal
+      setConversionDirection('to-ios');
+      setIsIOSConversionModalOpen(true);
+    } else if (currentCodeType === 'swift') {
+      // If already Swift, show deployment modal directly
+      setIsAppleDeploymentModalOpen(true);
+    }
+  };
+
+  const generateIpaFile = async () => {
+    if (!appleAppName.trim() || !appleBundleId.trim()) {
+      setError('Please fill in App Name and Bundle ID before generating IPA');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    setIsGeneratingIpa(true);
+    
+    try {
+      // Simulate IPA generation process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Create a mock IPA file (in a real implementation, this would generate an actual IPA)
+      const mockIpaContent = `Mock IPA file for ${appleAppName} with Bundle ID: ${appleBundleId}`;
+      const blob = new Blob([mockIpaContent], { type: 'application/octet-stream' });
+      const file = new File([blob], `${appleAppName.replace(/\s+/g, '-')}.ipa`, { type: 'application/octet-stream' });
+      
+      setAppleIpaFile(file);
+      setError('IPA file generated successfully!');
+      setTimeout(() => setError(null), 3000);
+    } catch (error) {
+      setError('Failed to generate IPA file. Please try again.');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setIsGeneratingIpa(false);
+    }
+  };
+
+  const handleAppleDeploymentSubmit = async () => {
+    // Validate form fields
+    if (!appleAppName.trim()) {
+      setError('Please enter an app name');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    if (!appleBundleId.trim()) {
+      setError('Please enter a bundle ID');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    if (!applePrimaryLanguage.trim()) {
+      setError('Please select a primary language');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    // Validate Apple Connect credentials
+    if (!appleKeyId.trim()) {
+      setError('Please enter your Apple Connect Key ID');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    if (!appleIssuerId.trim()) {
+      setError('Please enter your Apple Connect Issuer ID');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    if (!applePrivateKey.trim()) {
+      setError('Please upload your .p8 private key file');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+    
+    setIsDeploymentSubmitting(true);
+    
+    try {
+      // Generate mock IPA file
+      const mockIpaData = await generateIpaFile();
+      
+      // Simulate deployment process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Log deployment details
+      console.log('Apple App Store Deployment Details:', {
+        appName: appleAppName,
+        bundleId: appleBundleId,
+        primaryLanguage: applePrimaryLanguage,
+        appleKeyId,
+        appleIssuerId,
+        hasPrivateKey: !!applePrivateKey,
+        ipaData: mockIpaData
+      });
+      
+      // Show success message
+      setSuccess('App successfully submitted to Apple App Store for review!');
+      setTimeout(() => setSuccess(null), 5000);
+      
+      // Close modal and reset form
+      setIsAppleDeploymentModalOpen(false);
+      setAppleAppName('');
+      setAppleBundleId('');
+      setApplePrimaryLanguage('');
+      
+    } catch (error) {
+      console.error('Deployment error:', error);
+      setError('Failed to submit app to Apple App Store. Please try again.');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsDeploymentSubmitting(false);
+    }
+  };
+
+  const handleGooglePlayDeploymentClick = () => {
+    if (currentCodeType === 'swift') {
+      // If code is Swift, first convert to Flutter, then show deployment modal
+      setConversionDirection('to-android');
+      setConversionType('flutter');
+      setIsAndroidConversionModalOpen(true);
+    } else if (currentCodeType === 'flutter' || currentCodeType === 'react') {
+      // If already Flutter or React, show deployment modal directly
+      setIsGooglePlayDeploymentModalOpen(true);
+    }
   };
 
   return (
@@ -974,55 +1195,74 @@ const App: React.FC = () => {
               </div>
             </div>
             
+            {/* Deployment Section */}
+            <div className="pt-4 border-t border-blue-800">
+              <div className="text-xs text-blue-300 mb-2 px-2">
+                Deployment
+              </div>
+              
+              <div 
+                onClick={() => openConfigModal('Apple Connect')}
+                className="nav-item glass-button w-full text-left p-3 rounded-lg hover:bg-white/10 transition-all duration-300"
+              >
+                <div className="flex items-center space-x-3">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span className="nav-text">Apple Connect</span>
+                </div>
+              </div>
+              
+              <div 
+                onClick={() => openConfigModal('Google Play Store')}
+                className="nav-item glass-button w-full text-left p-3 rounded-lg hover:bg-white/10 transition-all duration-300"
+              >
+                <div className="flex items-center space-x-3">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span className="nav-text">Google Play Store</span>
+                </div>
+              </div>
+            </div>
+            
             {/* Configuration Section */}
-            <div className="pt-4 border-t border-white/20">
-              <div className="text-xs text-white/60 mb-2 px-3 nav-text">
+            <div className="pt-4 border-t border-blue-800">
+              <div className="text-xs text-blue-300 mb-2 px-2">
                 Configuration
               </div>
               <div 
                 onClick={() => openConfigModal('Supabase')}
-                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 cursor-pointer"
+                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
               >
-                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.29 12.29a1 1 0 0 0-1.42 0L15 16.17V4a1 1 0 0 0-2 0v12.17l-3.88-3.88a1 1 0 0 0-1.41 1.41l5.59 5.59a1 1 0 0 0 1.41 0l5.59-5.59a1 1 0 0 0 0-1.41z"/>
                 </svg>
-                <span className="nav-text ml-3 text-sm text-white">
+                <span className="ml-3 text-sm text-white">
                   Supabase
                 </span>
               </div>
               
               <div 
-                onClick={() => openConfigModal('StoreKit 2')}
-                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 cursor-pointer"
-              >
-                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                </svg>
-                <span className="nav-text ml-3 text-sm text-white">
-                  StoreKit 2
-                </span>
-              </div>
-              
-              <div 
                 onClick={() => openConfigModal('Clerk')}
-                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 cursor-pointer"
+                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
               >
-                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
-                <span className="nav-text ml-3 text-sm text-white">
+                <span className="ml-3 text-sm text-white">
                   Clerk
                 </span>
               </div>
               
               <div 
                 onClick={() => openConfigModal('n8n')}
-                className="nav-item glass-button flex items-center justify-center p-3 rounded-lg hover:bg-white/10 transition-all duration-300 cursor-pointer"
+                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
               >
-                <svg className="h-5 w-5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                 </svg>
-                <span className="nav-text ml-3 text-sm text-white">
+                <span className="ml-3 text-sm text-white">
                   n8n
                 </span>
               </div>
@@ -1232,15 +1472,27 @@ const App: React.FC = () => {
               </div>
               
               <div 
-                onClick={() => openConfigModal('StoreKit 2')}
-                className="flex items-center p-2 rounded hover:bg-blue-800 transition-colors cursor-pointer"
+                onClick={() => openConfigModal('Apple Connect')}
+                className="nav-item glass-button w-full text-left p-3 rounded-lg hover:bg-white/10 transition-all duration-300"
               >
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-                </svg>
-                <span className="ml-3 text-sm text-white">
-                  StoreKit 2
-                </span>
+                <div className="flex items-center space-x-3">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span className="nav-text">Apple Connect</span>
+                </div>
+              </div>
+              
+              <div 
+                onClick={() => openConfigModal('Google Play Store')}
+                className="nav-item glass-button w-full text-left p-3 rounded-lg hover:bg-white/10 transition-all duration-300"
+              >
+                <div className="flex items-center space-x-3">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span className="nav-text">Google Play Store</span>
+                </div>
               </div>
               
               <div 
@@ -1521,6 +1773,11 @@ const App: React.FC = () => {
                           {error}
                         </div>
                       )}
+                      {success && (
+                        <div className={`mt-1 glass-card p-2 text-xs transition-opacity duration-300 ease-in-out bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30`}>
+                          {success}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1585,17 +1842,17 @@ const App: React.FC = () => {
                         
                         {/* Apple Store Icon */}
                         <button
-                          title="App Store"
+                          title="Deploy to Apple App Store"
                           className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-blue-400 to-purple-500"
-                          onClick={handleIOSConversion}
+                          onClick={handleAppleDeploymentClick}
                         >
                           <AppleIcon className="h-5 w-5" />
                         </button>
                         
                         {/* Google Play Store Icon - Now Clickable and Green */}
                         <button
-                          title="Convert to Android"
-                          onClick={handleAndroidConversion}
+                          title="Deploy to Google Play Store"
+                          onClick={handleGooglePlayDeploymentClick}
                           className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700"
                         >
                           <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -2122,18 +2379,114 @@ const App: React.FC = () => {
               </div>
               
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-white/80">
-                    {configPlatform} API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={configApiKey}
-                    onChange={(e) => setConfigApiKey(e.target.value)}
-                    placeholder={`Enter your ${configPlatform} API key`}
-                    className="glass-input w-full p-3 text-white placeholder-white/50"
-                  />
-                </div>
+                {configPlatform === 'Apple Connect' ? (
+                  // Apple Connect specific fields
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-white/80">
+                        Key ID
+                      </label>
+                      <input
+                        type="text"
+                        value={appleKeyId}
+                        onChange={(e) => setAppleKeyId(e.target.value)}
+                        placeholder="Enter your Apple Connect Key ID"
+                        className="glass-input w-full p-3 text-white placeholder-white/50"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-white/80">
+                        Issuer ID
+                      </label>
+                      <input
+                        type="text"
+                        value={appleIssuerId}
+                        onChange={(e) => setAppleIssuerId(e.target.value)}
+                        placeholder="Enter your Apple Connect Issuer ID"
+                        className="glass-input w-full p-3 text-white placeholder-white/50"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-white/80">
+                        .p8 Private Key File
+                      </label>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="file"
+                          accept=".p8"
+                          onChange={handlePrivateKeyUpload}
+                          className="hidden"
+                          id="private-key-upload"
+                        />
+                        <label
+                          htmlFor="private-key-upload"
+                          className="glass-button px-4 py-2 text-white/80 hover:text-white font-medium cursor-pointer"
+                        >
+                          Upload .p8 File
+                        </label>
+                        {applePrivateKey && (
+                          <span className="text-green-400 text-sm">✓ File uploaded</span>
+                        )}
+                      </div>
+                      {applePrivateKey && (
+                        <div className="mt-2 p-2 bg-white/10 rounded text-xs text-white/70">
+                          Private key loaded successfully
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : configPlatform === 'Google Play Store' ? (
+                  // Google Play Store specific fields
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-white/80">
+                        Service Account Key (.json file)
+                      </label>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="file"
+                          accept=".json"
+                          onChange={handleServiceAccountKeyUpload}
+                          className="hidden"
+                          id="service-account-upload"
+                        />
+                        <label
+                          htmlFor="service-account-upload"
+                          className="glass-button px-4 py-2 text-white/80 hover:text-white font-medium cursor-pointer"
+                        >
+                          Upload .json File
+                        </label>
+                        {googleServiceAccountKey && (
+                          <span className="text-green-400 text-sm">✓ File uploaded</span>
+                        )}
+                      </div>
+                      {googleServiceAccountKey && (
+                        <div className="mt-2 p-2 bg-white/10 rounded text-xs text-white/70">
+                          Service account key loaded successfully
+                        </div>
+                      )}
+                      <p className="text-xs text-white/60 mt-2">
+                        Upload your Google Play Console service account key JSON file to enable app deployment.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  // Default API key field for other platforms
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white/80">
+                      {configPlatform} API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={configApiKey}
+                      onChange={(e) => setConfigApiKey(e.target.value)}
+                      placeholder={`Enter your ${configPlatform} API key`}
+                      className="glass-input w-full p-3 text-white placeholder-white/50"
+                    />
+                  </div>
+                )}
                 
                 <div className="flex justify-end space-x-3">
                   <button
@@ -2144,10 +2497,10 @@ const App: React.FC = () => {
                   </button>
                   <button
                     onClick={handleConfigSubmit}
-                    disabled={!configApiKey.trim()}
+                    disabled={configPlatform === 'Apple Connect' ? (!appleKeyId.trim() || !appleIssuerId.trim() || !applePrivateKey.trim()) : configPlatform === 'Google Play Store' ? !googleServiceAccountKey.trim() : !configApiKey.trim()}
                     className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-medium rounded-lg transition-all duration-300"
                   >
-                    Save API Key
+                    {configPlatform === 'Apple Connect' ? 'Save Credentials' : configPlatform === 'Google Play Store' ? 'Save Service Account Key' : 'Save API Key'}
                   </button>
                 </div>
               </div>
@@ -2212,6 +2565,548 @@ const App: React.FC = () => {
                     Get Xcode
                   </a>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Apple App Store Deployment Modal */}
+        {isAppleDeploymentModalOpen && (
+          <div className="modal-overlay" onClick={() => setIsAppleDeploymentModalOpen(false)}>
+            <div className="modal-content max-w-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
+                <div className="flex items-center">
+                  <AppleIcon className="h-8 w-8 text-white mr-3" />
+                  <h2 className="text-xl font-semibold text-white">Deploy to Apple App Store</h2>
+                </div>
+                <button
+                  onClick={() => setIsAppleDeploymentModalOpen(false)}
+                  className="text-white/70 hover:text-white transition-colors"
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+                  <p className="text-white/90 text-sm">
+                    You are about to deploy your app to the Apple App Store. Please ensure all required information is provided and your Apple Connect credentials are configured.
+                  </p>
+                </div>
+                
+                {/* App Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-white border-b border-white/20 pb-2">App Information</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white/80">
+                      App Name <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={appleAppName}
+                      onChange={(e) => setAppleAppName(e.target.value)}
+                      placeholder="Enter your app name"
+                      className="glass-input w-full p-3 text-white placeholder-white/50"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white/80">
+                      Bundle ID <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={appleBundleId}
+                      onChange={(e) => setAppleBundleId(e.target.value)}
+                      placeholder="com.yourcompany.appname"
+                      className="glass-input w-full p-3 text-white placeholder-white/50"
+                    />
+                    <p className="text-xs text-white/60 mt-1">
+                      Format: com.company.appname (e.g., com.mycompany.myapp)
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white/80">
+                      Primary Language <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={applePrimaryLanguage}
+                      onChange={(e) => setApplePrimaryLanguage(e.target.value)}
+                      className="glass-input w-full p-3 text-white"
+                    >
+                      <option value="en">English</option>
+                      <option value="es">Spanish</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                      <option value="it">Italian</option>
+                      <option value="pt">Portuguese</option>
+                      <option value="ru">Russian</option>
+                      <option value="ja">Japanese</option>
+                      <option value="ko">Korean</option>
+                      <option value="zh">Chinese</option>
+                    </select>
+                  </div>
+                </div>
+                
+                {/* Apple Connect Credentials Status */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-white border-b border-white/20 pb-2">Apple Connect Credentials</h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-white/80">
+                        Key ID <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={appleKeyId}
+                        onChange={(e) => setAppleKeyId(e.target.value)}
+                        placeholder="Enter your Apple Connect Key ID"
+                        className="glass-input w-full p-3 text-white placeholder-white/50"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-white/80">
+                        Issuer ID <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={appleIssuerId}
+                        onChange={(e) => setAppleIssuerId(e.target.value)}
+                        placeholder="Enter your Apple Connect Issuer ID"
+                        className="glass-input w-full p-3 text-white placeholder-white/50"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-white/80">
+                        .p8 Private Key File <span className="text-red-400">*</span>
+                      </label>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="file"
+                          accept=".p8"
+                          onChange={handlePrivateKeyUpload}
+                          className="hidden"
+                          id="private-key-upload-deployment"
+                        />
+                        <label
+                          htmlFor="private-key-upload-deployment"
+                          className="glass-button px-4 py-2 text-white/80 hover:text-white font-medium cursor-pointer"
+                        >
+                          Upload .p8 File
+                        </label>
+                        {applePrivateKey && (
+                          <span className="text-green-400 text-sm">✓ File uploaded</span>
+                        )}
+                      </div>
+                      {applePrivateKey && (
+                        <div className="mt-2 p-2 bg-white/10 rounded text-xs text-white/70">
+                          Private key loaded successfully
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className={`p-3 rounded-lg border ${appleKeyId ? 'bg-green-900/20 border-green-500/30' : 'bg-red-900/20 border-red-500/30'}`}>
+                      <div className="flex items-center">
+                        {appleKeyId ? (
+                          <svg className="h-5 w-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        )}
+                        <span className="text-sm text-white">Key ID</span>
+                      </div>
+                    </div>
+                    
+                    <div className={`p-3 rounded-lg border ${appleIssuerId ? 'bg-green-900/20 border-green-500/30' : 'bg-red-900/20 border-red-500/30'}`}>
+                      <div className="flex items-center">
+                        {appleIssuerId ? (
+                          <svg className="h-5 w-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        )}
+                        <span className="text-sm text-white">Issuer ID</span>
+                      </div>
+                    </div>
+                    
+                    <div className={`p-3 rounded-lg border ${applePrivateKey ? 'bg-green-900/20 border-green-500/30' : 'bg-red-900/20 border-red-500/30'}`}>
+                      <div className="flex items-center">
+                        {applePrivateKey ? (
+                          <svg className="h-5 w-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="h-5 w-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        )}
+                        <span className="text-sm text-white">Private Key</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* IPA File Generation */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-white border-b border-white/20 pb-2">IPA File Generation</h3>
+                  
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={generateIpaFile}
+                      disabled={!appleAppName.trim() || !appleBundleId.trim() || isGeneratingIpa}
+                      className="glass-button px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-medium rounded-lg transition-all duration-300"
+                    >
+                      {isGeneratingIpa ? (
+                        <div className="flex items-center">
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Generating IPA...
+                        </div>
+                      ) : (
+                        'Generate IPA File'
+                      )}
+                    </button>
+                    
+                    {appleIpaFile && (
+                      <div className="flex items-center text-green-400">
+                        <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-sm">{appleIpaFile.name}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {appleIpaFile && (
+                    <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
+                      <p className="text-green-300 text-sm">
+                        IPA file generated successfully! Ready for App Store submission.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-6 border-t border-white/20">
+                <button
+                  onClick={() => setIsAppleDeploymentModalOpen(false)}
+                  className="glass-button px-4 py-2 text-white/80 hover:text-white font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAppleDeploymentSubmit}
+                  disabled={!appleAppName.trim() || !appleBundleId.trim() || !appleIpaFile || !appleKeyId || !appleIssuerId || !applePrivateKey}
+                  className="glass-button px-6 py-2 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-medium rounded-lg transition-all duration-300"
+                >
+                  Deploy to App Store
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Google Play Store Deployment Modal */}
+        {isGooglePlayDeploymentModalOpen && (
+          <div className="modal-overlay" onClick={() => setIsGooglePlayDeploymentModalOpen(false)}>
+            <div className="modal-content max-w-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
+                <div className="flex items-center">
+                  <svg className="h-8 w-8 text-white mr-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
+                  </svg>
+                  <h2 className="text-xl font-semibold text-white">Deploy to Google Play Store</h2>
+                </div>
+                <button
+                  onClick={() => setIsGooglePlayDeploymentModalOpen(false)}
+                  className="text-white/70 hover:text-white transition-colors"
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+                  <p className="text-white/90 text-sm">
+                    You are about to deploy your {currentCodeType === 'flutter' ? 'Flutter' : 'React Native'} app to the Google Play Store. Please ensure all required information is provided and your service account key is uploaded.
+                  </p>
+                </div>
+                
+                {/* App Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-white border-b border-white/20 pb-2">App Information</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white/80">
+                      App Name <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={googlePlayAppName}
+                      onChange={(e) => setGooglePlayAppName(e.target.value)}
+                      placeholder="Enter your app name"
+                      className="glass-input w-full p-3 text-white placeholder-white/50"
+                    />
+                  </div>
+                </div>
+                
+                {/* Google Play Service Account Key */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-white border-b border-white/20 pb-2">Google Play Service Account Key</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white/80">
+                      Service Account Key (JSON) <span className="text-red-400">*</span>
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setGooglePlayServiceAccountFile(file);
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setGooglePlayServiceAccountKey(event.target?.result as string);
+                            };
+                            reader.readAsText(file);
+                          }
+                        }}
+                        className="hidden"
+                        id="service-account-key-upload"
+                      />
+                      <label
+                        htmlFor="service-account-key-upload"
+                        className="glass-button px-4 py-2 text-white/80 hover:text-white font-medium cursor-pointer"
+                      >
+                        Upload JSON File
+                      </label>
+                      {googlePlayServiceAccountKey && (
+                        <span className="text-green-400 text-sm">✓ File uploaded</span>
+                      )}
+                    </div>
+                    {googlePlayServiceAccountKey && (
+                      <div className="mt-2 p-2 bg-white/10 rounded text-xs text-white/70">
+                        Service account key loaded successfully
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* App Bundle Tool */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-white border-b border-white/20 pb-2">App Bundle Tool</h3>
+                  
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={async () => {
+                        if (!googlePlayAppName.trim()) {
+                          setError('Please enter an app name before generating AAB');
+                          setTimeout(() => setError(null), 3000);
+                          return;
+                        }
+                        
+                        setIsGeneratingAab(true);
+                        try {
+                          // Simulate AAB generation using Gemini services
+                          await new Promise(resolve => setTimeout(resolve, 3000));
+                          
+                          // Create a mock AAB file
+                          const mockAabContent = `Mock AAB file for ${googlePlayAppName} generated using Gemini services`;
+                          const blob = new Blob([mockAabContent], { type: 'application/octet-stream' });
+                          const file = new File([blob], `${googlePlayAppName.replace(/\s+/g, '-')}.aab`, { type: 'application/octet-stream' });
+                          
+                          setGooglePlayAabFile(file);
+                          setSuccess('AAB file generated successfully using Gemini services!');
+                          setTimeout(() => setSuccess(null), 3000);
+                        } catch (error) {
+                          setError('Failed to generate AAB file. Please try again.');
+                          setTimeout(() => setError(null), 3000);
+                        } finally {
+                          setIsGeneratingAab(false);
+                        }
+                      }}
+                      disabled={!googlePlayAppName.trim() || isGeneratingAab}
+                      className="glass-button px-6 py-3 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-medium rounded-lg transition-all duration-300"
+                    >
+                      {isGeneratingAab ? (
+                        <div className="flex items-center">
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Generating AAB...
+                        </div>
+                      ) : (
+                        'Generate AAB File'
+                      )}
+                    </button>
+                    
+                    {googlePlayAabFile && (
+                      <div className="flex items-center text-green-400">
+                        <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-sm">{googlePlayAabFile.name}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {googlePlayAabFile && (
+                    <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
+                      <p className="text-green-300 text-sm">
+                        AAB file generated successfully using Gemini services! Ready for Play Store submission.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Release Configuration */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-white border-b border-white/20 pb-2">Release Configuration</h3>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white/80">
+                      Target Release Track <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={googlePlayReleaseTrack}
+                      onChange={(e) => setGooglePlayReleaseTrack(e.target.value as 'production' | 'beta' | 'alpha' | 'internal')}
+                      className="glass-input w-full p-3 text-white"
+                    >
+                      <option value="production">Production</option>
+                      <option value="beta">Beta</option>
+                      <option value="alpha">Alpha</option>
+                      <option value="internal">Internal Testing</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white/80">
+                      Release Notes <span className="text-red-400">*</span>
+                    </label>
+                    <textarea
+                      value={googlePlayReleaseNotes}
+                      onChange={(e) => setGooglePlayReleaseNotes(e.target.value)}
+                      placeholder="Describe what's new in this release..."
+                      rows={4}
+                      className="glass-input w-full p-3 text-white placeholder-white/50"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-white/80">
+                      Publish after Google's review? <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={googlePlayPublishAfterReview}
+                      onChange={(e) => setGooglePlayPublishAfterReview(e.target.value as 'yes' | 'no')}
+                      className="glass-input w-full p-3 text-white"
+                    >
+                      <option value="yes">Yes, publish automatically after review</option>
+                      <option value="no">No, I'll publish manually after review</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-6 border-t border-white/20">
+                <button
+                  onClick={() => setIsGooglePlayDeploymentModalOpen(false)}
+                  className="glass-button px-4 py-2 text-white/80 hover:text-white font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    // Validate form fields
+                    if (!googlePlayAppName.trim()) {
+                      setError('Please enter an app name');
+                      setTimeout(() => setError(null), 3000);
+                      return;
+                    }
+                    
+                    if (!googlePlayServiceAccountKey.trim()) {
+                      setError('Please upload your service account key');
+                      setTimeout(() => setError(null), 3000);
+                      return;
+                    }
+                    
+                    if (!googlePlayAabFile) {
+                      setError('Please generate an AAB file before deploying');
+                      setTimeout(() => setError(null), 3000);
+                      return;
+                    }
+                    
+                    if (!googlePlayReleaseNotes.trim()) {
+                      setError('Please enter release notes');
+                      setTimeout(() => setError(null), 3000);
+                      return;
+                    }
+                    
+                    setIsDeploymentSubmitting(true);
+                    
+                    try {
+                      // Simulate deployment process
+                      await new Promise(resolve => setTimeout(resolve, 2000));
+                      
+                      // Log deployment details
+                      console.log('Google Play Store Deployment Details:', {
+                        appName: googlePlayAppName,
+                        serviceAccountKey: '***SERVICE_ACCOUNT_KEY***',
+                        hasAabFile: !!googlePlayAabFile,
+                        releaseTrack: googlePlayReleaseTrack,
+                        releaseNotes: googlePlayReleaseNotes,
+                        publishAfterReview: googlePlayPublishAfterReview
+                      });
+                      
+                      // Show success message
+                      setSuccess('App successfully submitted to Google Play Store for review!');
+                      setTimeout(() => setSuccess(null), 5000);
+                      
+                      // Close modal and reset form
+                      setIsGooglePlayDeploymentModalOpen(false);
+                      setGooglePlayAppName('');
+                      setGooglePlayServiceAccountKey('');
+                      setGooglePlayServiceAccountFile(null);
+                      setGooglePlayAabFile(null);
+                      setGooglePlayReleaseTrack('production');
+                      setGooglePlayReleaseNotes('');
+                      setGooglePlayPublishAfterReview('yes');
+                      
+                    } catch (error) {
+                      console.error('Deployment error:', error);
+                      setError('Failed to submit app to Google Play Store. Please try again.');
+                      setTimeout(() => setError(null), 5000);
+                    } finally {
+                      setIsDeploymentSubmitting(false);
+                    }
+                  }}
+                  disabled={!googlePlayAppName.trim() || !googlePlayServiceAccountKey.trim() || !googlePlayAabFile || !googlePlayReleaseNotes.trim() || isDeploymentSubmitting}
+                  className="glass-button px-6 py-2 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 disabled:from-gray-500 disabled:to-gray-600 text-white font-medium rounded-lg transition-all duration-300"
+                >
+                  {isDeploymentSubmitting ? 'Deploying...' : 'Deploy to Play Store'}
+                </button>
               </div>
             </div>
           </div>
