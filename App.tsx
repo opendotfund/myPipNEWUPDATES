@@ -15,6 +15,7 @@ import { SignInButton, SignedIn, SignedOut, UserButton, useUser } from '@clerk/c
 import { useUserData } from './hooks/useUserData';
 import { useProjects, usePublicProjects, useSavedProjects } from './hooks/useProjects';
 import { AppleIcon } from './components/icons/AppleIcon';
+import { convertSwiftToFlutter, convertSwiftToReact } from './services/conversionService';
 
 type AppView = 'main' | 'community' | 'myPips' | 'affiliate';
 
@@ -109,6 +110,16 @@ const App: React.FC = () => {
   const [isSubmissionSuccessOpen, setIsSubmissionSuccessOpen] = useState(false); // NEW - Submission success modal
   const [isDarkMode, setIsDarkMode] = useState(false); // NEW - Dark mode toggle
   const [hasConfirmedFirstPrompt, setHasConfirmedFirstPrompt] = useState(false); // NEW - Track first prompt confirmation
+
+  // NEW: Project naming and Android conversion states
+  const [isProjectNameModalOpen, setIsProjectNameModalOpen] = useState(false);
+  const [projectName, setProjectName] = useState('');
+  const [tempProjectName, setTempProjectName] = useState('');
+  const [isAndroidConversionModalOpen, setIsAndroidConversionModalOpen] = useState(false);
+  const [conversionType, setConversionType] = useState<'flutter' | 'react' | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
+  const [convertedCode, setConvertedCode] = useState('');
+  const [currentCodeType, setCurrentCodeType] = useState<'swift' | 'flutter' | 'react'>('swift');
 
   useEffect(() => {
     if (chatHistoryRef.current) {
@@ -327,29 +338,9 @@ const App: React.FC = () => {
       return;
     }
 
-    try {
-      const projectData = {
-        name: `Pip - ${new Date().toLocaleDateString()}`,
-        description: prompt || 'Generated app',
-        prompt: prompt,
-        generated_code: generatedCode,
-        preview_html: previewHtml,
-        is_public: false,
-        allow_remix: true,
-        category: 'General'
-      };
-
-      const newProject = await createProject(projectData);
-      if (newProject) {
-        setError('Pip saved successfully!');
-        setTimeout(() => setError(null), 2000);
-      } else {
-        setError('Failed to save Pip');
-      }
-    } catch (error) {
-      console.error('Error saving project:', error);
-      setError('Failed to save Pip');
-    }
+    // Open project naming modal instead of directly saving
+    setTempProjectName(projectName || `Pip - ${new Date().toLocaleDateString()}`);
+    setIsProjectNameModalOpen(true);
   };
 
   // Share handler with database integration
@@ -612,6 +603,121 @@ const App: React.FC = () => {
   const toggleDarkMode = () => {
     console.log('Dark mode toggle clicked, current state:', isDarkMode);
     setIsDarkMode(prev => !prev);
+  };
+
+  // NEW: Project naming handlers
+  const handleSaveProjectWithName = async () => {
+    if (!tempProjectName.trim()) {
+      setError('Project name cannot be empty.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const projectData = {
+        name: tempProjectName.trim(),
+        description: prompt || 'Generated app',
+        prompt: prompt,
+        generated_code: generatedCode,
+        preview_html: previewHtml,
+        is_public: false,
+        allow_remix: true,
+        category: 'General'
+      };
+
+      const newProject = await createProject(projectData);
+      if (newProject) {
+        setProjectName(tempProjectName.trim());
+        setError('Pip saved successfully!');
+        setTimeout(() => setError(null), 2000);
+        setIsProjectNameModalOpen(false);
+      } else {
+        setError('Failed to save Pip');
+      }
+    } catch (error) {
+      console.error('Error saving project:', error);
+      setError('Failed to save Pip');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelProjectName = () => {
+    setIsProjectNameModalOpen(false);
+    setTempProjectName('');
+  };
+
+  // NEW: Android conversion handlers
+  const handleAndroidConversion = () => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+
+    if (!canSubmit) {
+      setError('You need a prompt available to convert to Android.');
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
+
+    setIsAndroidConversionModalOpen(true);
+  };
+
+  const handleConvertToFlutter = async () => {
+    setConversionType('flutter');
+    setIsConverting(true);
+    setIsAndroidConversionModalOpen(false);
+
+    try {
+      const result = await convertSwiftToFlutter(generatedCode);
+      setConvertedCode(result.flutterCode);
+      setCurrentCodeType('flutter');
+      setError('Successfully converted to Flutter!');
+      setTimeout(() => setError(null), 2000);
+      
+      if (!isEarlyBirdKeyApplied) {
+        setFreePromptsRemaining(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error converting to Flutter:', error);
+      setError('Failed to convert to Flutter. Please try again.');
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  const handleConvertToReact = async () => {
+    setConversionType('react');
+    setIsConverting(true);
+    setIsAndroidConversionModalOpen(false);
+
+    try {
+      const result = await convertSwiftToReact(generatedCode);
+      setConvertedCode(result.reactCode);
+      setCurrentCodeType('react');
+      setError('Successfully converted to React Native!');
+      setTimeout(() => setError(null), 2000);
+      
+      if (!isEarlyBirdKeyApplied) {
+        setFreePromptsRemaining(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error converting to React:', error);
+      setError('Failed to convert to React Native. Please try again.');
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  const handleCancelConversion = () => {
+    setIsAndroidConversionModalOpen(false);
+    setConversionType(null);
+  };
+
+  const handleSaveIOSVersion = () => {
+    setIsAndroidConversionModalOpen(false);
+    setConversionType(null);
+    // Keep the current Swift code
   };
 
   return (
@@ -1333,7 +1439,9 @@ const App: React.FC = () => {
                   <div className="flex flex-col items-center justify-start">
                     <div className="glass-card p-4 w-full">
                       <div className="w-full flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-white">App Preview</h2>
+                        <h2 className="text-xl font-semibold text-white">
+                          {projectName ? `${projectName} Preview` : 'App Preview'}
+                        </h2>
                         <div className="flex items-center gap-2">
                           {/* Share Button */}
                           <button
@@ -1394,11 +1502,11 @@ const App: React.FC = () => {
                           <AppleIcon className="h-5 w-5" />
                         </button>
                         
-                        {/* Google Play Store Icon (Greyed Out) */}
+                        {/* Google Play Store Icon - Now Clickable and Green */}
                         <button
-                          title="Google Play Store"
-                          disabled
-                          className="glass-button p-2 rounded-lg transition-all duration-300 opacity-50 cursor-not-allowed"
+                          title="Convert to Android"
+                          onClick={handleAndroidConversion}
+                          className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700"
                         >
                           <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
@@ -1413,7 +1521,12 @@ const App: React.FC = () => {
                     <div className="mt-2">
                        <div className="flex justify-between items-center mb-3">
                           <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-neutral-700'}`}>
-                              {currentView === 'main' ? 'Generated iOS Code (SwiftUI)' : 'Updated iOS Code (SwiftUI)'}
+                              {currentCodeType === 'swift' 
+                                ? (currentView === 'main' ? 'Generated iOS Code (SwiftUI)' : 'Updated iOS Code (SwiftUI)')
+                                : currentCodeType === 'flutter'
+                                ? 'Generated Android Code (Flutter)'
+                                : 'Generated Android Code (React Native)'
+                              }
                           </h2>
                           <button
                               onClick={downloadSwiftCode}
@@ -1424,7 +1537,7 @@ const App: React.FC = () => {
                               Download Code
                           </button>
                        </div>
-                      <CodeDisplay code={generatedCode} isDarkMode={isDarkMode} />
+                      <CodeDisplay code={currentCodeType === 'swift' ? generatedCode : convertedCode} isDarkMode={isDarkMode} />
                     </div>
 
                     {!canSubmit && currentView === 'main' && !isEarlyBirdKeyApplied && (
@@ -2283,6 +2396,162 @@ const App: React.FC = () => {
                   View Community
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Name Modal */}
+      {isProjectNameModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Name Your Project</h2>
+              <button
+                onClick={handleCancelProjectName}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">
+                  Project Name
+                </label>
+                <input
+                  type="text"
+                  value={tempProjectName}
+                  onChange={(e) => setTempProjectName(e.target.value)}
+                  placeholder="Enter a name for your project..."
+                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-6 border-t border-white/20">
+              <button
+                onClick={handleCancelProjectName}
+                className="glass-button px-4 py-2 text-white/80 hover:text-white transition-all duration-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveProjectWithName}
+                disabled={!tempProjectName.trim() || isSaving}
+                className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white transition-all duration-300 disabled:opacity-50"
+              >
+                {isSaving ? 'Saving...' : 'Save Project'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Android Conversion Modal */}
+      {isAndroidConversionModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Convert to Android</h2>
+              <button
+                onClick={handleCancelConversion}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full glass-button mb-4 bg-gradient-to-r from-green-400 to-green-600">
+                  <svg className="h-8 w-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-white mb-2">Convert Your iOS App to Android</h3>
+                <p className="text-white/80 mb-4">
+                  You're about to convert your Swift code to Android-compatible code. This process will cost 1 prompt.
+                </p>
+                <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 mb-6">
+                  <p className="text-yellow-300 text-sm">
+                    <strong>Warning:</strong> This conversion process costs 1 prompt from your available prompts.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleConvertToFlutter}
+                  className="w-full glass-button p-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white transition-all duration-300"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <h4 className="font-semibold">Convert to Flutter</h4>
+                      <p className="text-sm opacity-80">Cross-platform mobile development with Dart</p>
+                    </div>
+                    <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  </div>
+                </button>
+
+                <button
+                  onClick={handleConvertToReact}
+                  className="w-full glass-button p-4 bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white transition-all duration-300"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <h4 className="font-semibold">Convert to React Native</h4>
+                      <p className="text-sm opacity-80">Cross-platform development with JavaScript/React</p>
+                    </div>
+                    <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5V19C21 19.55 20.55 20 20 20H4C3.45 20 3 19.55 3 19V5C3 4.45 3.45 4 4 4H7ZM9 3V4H15V3H9ZM5 6V18H19V6H5Z"/>
+                    </svg>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-6 border-t border-white/20">
+              <button
+                onClick={handleSaveIOSVersion}
+                className="glass-button px-4 py-2 text-white/80 hover:text-white transition-all duration-300"
+              >
+                Keep iOS Version
+              </button>
+              <button
+                onClick={handleCancelConversion}
+                className="glass-button px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white transition-all duration-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conversion Loading Modal */}
+      {isConverting && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full glass-button mb-4 bg-gradient-to-r from-green-400 to-green-600">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+              </div>
+              <h2 className="text-xl font-semibold mb-3 text-white">
+                Converting to {conversionType === 'flutter' ? 'Flutter' : 'React Native'}...
+              </h2>
+              <p className="text-white/80">
+                Please wait while we convert your Swift code to {conversionType === 'flutter' ? 'Flutter' : 'React Native'}.
+                This may take a few moments.
+              </p>
             </div>
           </div>
         </div>
