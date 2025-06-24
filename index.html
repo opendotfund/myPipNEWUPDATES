@@ -591,15 +591,22 @@
     /* Ensure proper flexbox ordering on mobile */
     @media (max-width: 1024px) {
       .refine-app-container > div:nth-child(1) {
-        order: 2; /* Left section (changelog, thinking, prompt) comes second */
+        order: 1; /* Left section (changelog, thinking, prompt) comes first */
+        width: 100% !important; /* Force full width on mobile */
+        max-width: 100% !important; /* Remove max-width constraint on mobile */
+        min-width: 100% !important; /* Ensure minimum width is full */
       }
       
       .refine-app-container > div:nth-child(2) {
-        order: 1; /* Middle section (preview) comes first */
+        order: 2; /* Middle section (preview) comes second */
+        width: 100% !important; /* Force full width on mobile */
+        max-width: 100% !important; /* Remove max-width constraint on mobile */
       }
       
       .refine-app-container > div:nth-child(3) {
         order: 3; /* Right section (code) comes third */
+        width: 100% !important; /* Force full width on mobile */
+        max-width: 100% !important; /* Remove max-width constraint on mobile */
       }
     }
 
@@ -621,6 +628,31 @@
       max-width: none;
       margin: 0;
       padding: 0;
+    }
+
+    /* Mobile-specific fixes for refine app sections */
+    @media (max-width: 1024px) {
+      .refine-app-container {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      
+      .refine-app-container > div {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      
+      /* Ensure the left section content stretches properly */
+      .refine-app-container > div:first-child .glass-card,
+      .refine-app-container > div:first-child .glass-input,
+      .refine-app-container > div:first-child > div {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
     }
 
     /* Ensure icons are properly centered in collapsed sidebar */
@@ -877,6 +909,48 @@
     .dark .text-sm.text-gray-500,
     .dark .text-sm.text-neutral-500 {
       color: #d1d5db !important;
+    }
+
+    /* Mobile navbar configuration text improvements */
+    @media (max-width: 768px) {
+      /* Make configuration text black in both light and dark modes on mobile */
+      .sidebar-container .text-blue-300,
+      .sidebar-container .text-white\/60,
+      .sidebar-container .text-white {
+        color: #1f2937 !important;
+      }
+      
+      /* Ensure configuration section text is black on mobile */
+      .sidebar-container .text-xs.text-blue-300,
+      .sidebar-container .text-xs.text-white\/60,
+      .sidebar-container .text-xs.text-white {
+        color: #1f2937 !important;
+      }
+      
+      /* Make configuration items text black on mobile */
+      .sidebar-container .text-sm.text-white {
+        color: #1f2937 !important;
+      }
+      
+      /* Ensure SVG icons in configuration section are also black on mobile */
+      .sidebar-container svg {
+        color: #1f2937 !important;
+      }
+      
+      /* Override any conflicting text colors in mobile sidebar */
+      .sidebar-container * {
+        color: #1f2937 !important;
+      }
+      
+      /* Exception for elements that should remain white */
+      .sidebar-container .glass-button,
+      .sidebar-container .glass-button *,
+      .sidebar-container .bg-blue-600,
+      .sidebar-container .bg-blue-600 *,
+      .sidebar-container .bg-blue-800,
+      .sidebar-container .bg-blue-800 * {
+        color: #ffffff !important;
+      }
     }
   </style>
 <script type="importmap">

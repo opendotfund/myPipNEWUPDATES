@@ -1273,7 +1273,7 @@ const App: React.FC = () => {
                 // Full Layout (Existing) - Improved for Refine App
                 <div className="col-span-1 md:col-span-2 refine-app-container">
                   {/* Left Section - Change Logs, Thinking, and Prompt */}
-                  <div className="flex flex-col space-y-4 order-2 md:order-1">
+                  <div className="flex flex-col space-y-4">
                     {/* Change Logs and AI Thinking */}
                     <div className="space-y-4">
                       {chatHistory.length > 0 && (
