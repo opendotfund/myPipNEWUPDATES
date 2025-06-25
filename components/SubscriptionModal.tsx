@@ -232,9 +232,14 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               </div>
 
               <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl mb-4 border border-white/30">
+                <p className="text-xs text-white font-semibold mb-1">
+                  <span className="text-yellow-300">Unlimited Usage:</span> No limits on app morphs, build credits, or remixes.
+                </p>
+                <p className="text-xs text-white mb-1">
+                  <span className="font-semibold text-blue-200">Best for Teams:</span> Unlimited remixing enables seamless collaboration and rapid iteration for organizations.
+                </p>
                 <p className="text-xs text-white">
-                  <strong className="text-yellow-300">Pricing Model:</strong> US$199 base enterprise monthly credits + US$0.01 per prompt after included credits. 
-                  Perfect for high-volume users who want to pay only for what they use.
+                  <span className="font-semibold text-amber-300">Exclusive:</span> Only Unlimited plans unlock advanced organization efficiency features for team productivity.
                 </p>
               </div>
 
@@ -247,13 +252,6 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                 </button>
               </div>
             </div>
-          </div>
-          
-          <div className={`text-center text-sm ${isDarkMode ? 'text-gray-400 border-gray-600' : 'text-neutral-500 border-neutral-200'} mt-6 pt-4 border-t`}>
-            <p>For any questions regarding subscriptions or support, please contact us at:</p>
-            <a href={`mailto:${contactEmail}`} className={`font-medium ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}>
-              {contactEmail}
-            </a>
           </div>
         </div>
       </div>
