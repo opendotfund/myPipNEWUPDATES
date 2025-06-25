@@ -1564,7 +1564,7 @@ const App: React.FC = () => {
                 </div>
               ) : (
                 <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white">
-                  Prompts: {freePromptsRemaining}/{MAX_FREE_PROMPTS}
+                  Credits: {freePromptsRemaining}/{MAX_FREE_PROMPTS}
                 </div>
               )}
               <button
