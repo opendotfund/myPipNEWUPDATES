@@ -1553,7 +1553,7 @@ const App: React.FC = () => {
               <img 
                 src={isDarkMode ? '/robot-dark-logo.png' : appLogo} 
                 alt={`${appName} Logo`} 
-                className="h-14 w-36 rounded-lg cursor-pointer md:cursor-default transition-all hover:scale-105"
+                className="hidden md:block h-14 w-36 rounded-lg cursor-pointer md:cursor-default transition-all hover:scale-105"
                 onClick={() => setIsSidebarOpen(true)}
               />
             </div>
