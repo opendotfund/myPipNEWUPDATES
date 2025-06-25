@@ -38,7 +38,59 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false);
   const [typedLog, setTypedLog] = useState('');
+  const [typingExample, setTypingExample] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [exampleIndex, setExampleIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Example prompts for typing animation
+  const examplePrompts = [
+    "a travel planning app to help me organize my upcoming trips",
+    "An AI video generation app that pulls from my n8n workflow",
+    "A fitness tracking app with social features and progress charts"
+  ];
+
+  // Typing animation effect for example prompts
+  useEffect(() => {
+    // Only run animation if user hasn't started typing and it's the first prompt (not hasGenerated)
+    if (!hasGenerated && prompt === '' && !isLoading && !isDisabled) {
+      const currentExample = examplePrompts[exampleIndex];
+      let charIndex = 0;
+      setIsTyping(true);
+      setTypingExample('');
+
+      // Type out the example
+      const typeInterval = setInterval(() => {
+        if (charIndex < currentExample.length) {
+          setTypingExample(currentExample.slice(0, charIndex + 1));
+          charIndex++;
+        } else {
+          clearInterval(typeInterval);
+          // Wait before deleting
+          setTimeout(() => {
+            // Delete the example
+            const deleteInterval = setInterval(() => {
+              if (charIndex > 0) {
+                setTypingExample(currentExample.slice(0, charIndex - 1));
+                charIndex--;
+              } else {
+                clearInterval(deleteInterval);
+                // Move to next example
+                setTimeout(() => {
+                  setExampleIndex((prev) => (prev + 1) % examplePrompts.length);
+                  setIsTyping(false);
+                }, 500); // Wait 0.5 seconds before starting next example
+              }
+            }, 30); // Delete speed (faster)
+          }, 1000); // Wait 1 second after typing before deleting
+        }
+      }, 60); // Type speed (faster)
+
+      return () => {
+        clearInterval(typeInterval);
+      };
+    }
+  }, [exampleIndex, hasGenerated, prompt, isLoading, isDisabled]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -46,6 +98,16 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       if (!isLoading && !isDisabled) {
         onSubmit();
       }
+    }
+  };
+
+  const handleTextareaFocus = () => {
+    // Stop the animation and clear any typing example text
+    setIsTyping(false);
+    setTypingExample('');
+    // Ensure the prompt is empty when user starts typing
+    if (prompt === '') {
+      setPrompt('');
     }
   };
 
@@ -92,16 +154,16 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           bgColor: 'bg-gradient-to-r from-orange-500 to-red-500',
           borderColor: 'border-orange-400',
           textColor: 'text-white',
-          icon: '🧠',
-          description: 'Coming Soon'
+          icon: '🍎',
+          description: 'iOS Apps (DeepSeek v3 + Claude + o4 mini)'
         };
       case ModelId.CHATGPT:
         return {
           bgColor: 'bg-gradient-to-r from-green-500 to-emerald-600',
           borderColor: 'border-green-400',
           textColor: 'text-white',
-          icon: '💬',
-          description: 'Coming Soon'
+          icon: '🤖',
+          description: 'Android Apps (Claude + o4 mini + Gemini)'
         };
       default:
         return {
@@ -121,10 +183,11 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     <div className="space-y-3">
       <div className="relative">
         <textarea
-          value={prompt}
+          value={isTyping && !hasGenerated && prompt === '' ? typingExample : prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={hasGenerated ? "e.g., Change the background to green, add a paperclip icon for file uploads, make the text larger..." : "e.g., A simple todo list app with a button to add tasks..."}
+          onFocus={handleTextareaFocus}
+          placeholder={isTyping && !hasGenerated && prompt === '' ? "" : hasGenerated ? "e.g., Change the background to green, add a paperclip icon for file uploads, make the text larger..." : "e.g., A simple todo list app with a button to add tasks..."}
           className="glass-input w-full p-4 rounded-xl focus:ring-2 focus:ring-white/30 focus:border-white/40 transition-all duration-300 placeholder-white/50 min-h-[120px] resize-none disabled:opacity-70 disabled:cursor-not-allowed text-white"
           rows={5}
           disabled={isLoading || isDisabled}

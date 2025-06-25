@@ -1568,7 +1568,10 @@ const App: React.FC = () => {
                 </div>
               )}
               <button
-                onClick={() => setIsSubscriptionModalOpen(true)}
+                onClick={() => {
+                  console.log('Get Unlimited button clicked');
+                  setIsSubscriptionModalOpen(true);
+                }}
                 className="glass-button flex items-center px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-gradient-to-r from-purple-400 to-pink-500 text-white"
                 title="Get Unlimited Prompts & Support Us!"
               >

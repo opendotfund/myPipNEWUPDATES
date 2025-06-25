@@ -14,8 +14,8 @@ export const EARLY_BIRD_CODE = 'EARLYBIRD2024';
 
 export const AI_MODELS: ModelOption[] = [
   { id: ModelId.GEMINI_FLASH, name: 'Gemini 2.5 Flash', available: true },
-  { id: ModelId.CLAUDE, name: 'Claude (Coming Soon)', available: false },
-  { id: ModelId.CHATGPT, name: 'ChatGPT (Coming Soon)', available: false },
+  { id: ModelId.CLAUDE, name: 'DeepSeek v3 + Custom LangChain', available: false },
+  { id: ModelId.CHATGPT, name: 'Claude + Custom LangChain', available: false },
 ];
 
 export const GEMINI_MODEL_NAME = ModelId.GEMINI_FLASH;
