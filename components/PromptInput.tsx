@@ -42,6 +42,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [isTyping, setIsTyping] = useState(false);
   const [exampleIndex, setExampleIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   // Example prompts for typing animation
   const examplePrompts = [
@@ -52,8 +53,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
   // Typing animation effect for example prompts
   useEffect(() => {
-    // Only run animation if user hasn't started typing and it's the first prompt (not hasGenerated)
-    if (!hasGenerated && prompt === '' && !isLoading && !isDisabled) {
+    if (!hasGenerated && prompt === '' && !isLoading && !isDisabled && !isFocused) {
       const currentExample = examplePrompts[exampleIndex];
       let charIndex = 0;
       setIsTyping(true);
@@ -90,7 +90,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
         clearInterval(typeInterval);
       };
     }
-  }, [exampleIndex, hasGenerated, prompt, isLoading, isDisabled]);
+  }, [exampleIndex, hasGenerated, prompt, isLoading, isDisabled, isFocused]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -102,13 +102,16 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   };
 
   const handleTextareaFocus = () => {
-    // Stop the animation and clear any typing example text
     setIsTyping(false);
     setTypingExample('');
-    // Ensure the prompt is empty when user starts typing
+    setIsFocused(true);
     if (prompt === '') {
       setPrompt('');
     }
+  };
+
+  const handleTextareaBlur = () => {
+    setIsFocused(false);
   };
 
   // Close dropdown when clicking outside
@@ -187,6 +190,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={handleTextareaFocus}
+          onBlur={handleTextareaBlur}
           placeholder={isTyping && !hasGenerated && prompt === '' ? "" : hasGenerated ? "e.g., Change the background to green, add a paperclip icon for file uploads, make the text larger..." : "e.g., A simple todo list app with a button to add tasks..."}
           className="glass-input w-full p-4 rounded-xl focus:ring-2 focus:ring-white/30 focus:border-white/40 transition-all duration-300 placeholder-white/50 min-h-[120px] resize-none disabled:opacity-70 disabled:cursor-not-allowed text-white"
           rows={5}
