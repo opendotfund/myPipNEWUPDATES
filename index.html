@@ -978,6 +978,37 @@
         color: #ffffff !important;
       }
     }
+
+    @media (min-width: 768px) {
+      .sidebar-container:not(:hover) .nav-text,
+      .sidebar-container:not(:hover) .ml-3,
+      .sidebar-container:not(:hover) .sidebar-label,
+      .sidebar-container:not(:hover) span,
+      .sidebar-container:not(:hover) .text-xs,
+      .sidebar-container:not(:hover) .text-blue-300,
+      .sidebar-container:not(:hover) .text-white,
+      .sidebar-container:not(:hover) .text-white\/60,
+      .sidebar-container:not(:hover) .text-sm,
+      .sidebar-container:not(:hover) label,
+      .sidebar-container:not(:hover) div[role="separator"],
+      .sidebar-container:not(:hover) .section-header {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition: opacity 0.3s;
+      }
+      
+      /* Hide all borders when collapsed */
+      .sidebar-container:not(:hover) .border-b,
+      .sidebar-container:not(:hover) .border-t,
+      .sidebar-container:not(:hover) .border,
+      .sidebar-container:not(:hover) .border-white\/20,
+      .sidebar-container:not(:hover) .border-blue-800,
+      .sidebar-container:not(:hover) [class*="border-"] {
+        border-color: transparent !important;
+        border-width: 0 !important;
+        transition: all 0.3s;
+      }
+    }
   </style>
 <script type="importmap">
 {
