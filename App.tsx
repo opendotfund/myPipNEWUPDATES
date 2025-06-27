@@ -156,6 +156,15 @@ const App: React.FC = () => {
   const [googlePlayReleaseNotes, setGooglePlayReleaseNotes] = useState<string>('');
   const [googlePlayPublishAfterReview, setGooglePlayPublishAfterReview] = useState<'yes' | 'no'>('yes');
 
+  // Beta notification state
+  const [showBetaNotification, setShowBetaNotification] = useState(true);
+
+  // V2 Waitlist popup state
+  const [showV2WaitlistPopup, setShowV2WaitlistPopup] = useState(false);
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [isJoiningWaitlist, setIsJoiningWaitlist] = useState(false);
+  const [hasSeenV2Popup, setHasSeenV2Popup] = useState(false);
+
   useEffect(() => {
     if (chatHistoryRef.current) {
       chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
@@ -168,6 +177,19 @@ const App: React.FC = () => {
       loadPublicProjects(communityCategory, communitySearch);
     }
   }, [currentView, communityCategory, communitySearch]);
+
+  // Show V2 waitlist popup when user first logs in
+  useEffect(() => {
+    if (user && !hasSeenV2Popup) {
+      // Small delay to ensure the app is fully loaded
+      const timer = setTimeout(() => {
+        setShowV2WaitlistPopup(true);
+        setHasSeenV2Popup(true);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user, hasSeenV2Popup]);
 
   const handleApplyApiKey = useCallback(async (apiKey: string) => {
     setIsLoading(true);
@@ -186,6 +208,35 @@ const App: React.FC = () => {
     
     setIsLoading(false);
   }, []);
+
+  const handleJoinWaitlist = async () => {
+    if (!waitlistEmail.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+    
+    setIsJoiningWaitlist(true);
+    setError(null);
+    
+    try {
+      // Simulate API call to join waitlist
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setError('Successfully joined the waitlist! You\'ll receive a 7-day trial of myPip Pro when V2 launches.');
+      setTimeout(() => setError(null), 5000);
+      setShowV2WaitlistPopup(false);
+      setWaitlistEmail('');
+    } catch (err) {
+      setError('Failed to join waitlist. Please try again.');
+    } finally {
+      setIsJoiningWaitlist(false);
+    }
+  };
+
+  const handleCheckoutV1 = () => {
+    setShowV2WaitlistPopup(false);
+    setIsSubscriptionModalOpen(true);
+  };
 
   const openConfigModal = (platform: string) => {
     setConfigPlatform(platform);
@@ -1919,6 +1970,49 @@ const App: React.FC = () => {
                 <div className="text-center pt-16 md:pt-0">
                   <h1 className="text-2xl md:text-3xl font-bold mb-4 text-white">Community Pips</h1>
                   <p className="text-white/80 mb-6 md:mb-8 px-4 md:px-0">Discover and explore amazing pips created by the myPip community</p>
+                  
+                  {/* Beta V1 Launch Notification */}
+                  {showBetaNotification && (
+                    <div className="max-w-2xl mx-auto mb-6 md:mb-8 px-4 md:px-0">
+                      <div className="glass-card p-4 md:p-6 border border-white/20 backdrop-blur-xl bg-white/10 rounded-2xl shadow-2xl relative overflow-hidden">
+                        {/* Liquid glass effect */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl"></div>
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-2xl"></div>
+                        
+                        {/* Content */}
+                        <div className="relative z-10">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-white mb-1">Beta V1 Launch Notice</h3>
+                                <p className="text-sm text-white/80">During beta V1 launch and until further notice</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setShowBetaNotification(false)}
+                              className="text-white/60 hover:text-white transition-colors p-1"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                            <p className="text-sm text-white/90 leading-relaxed">
+                              Only <span className="font-semibold text-blue-300">admin-approved shared pips</span> will be highlighted in the community section. 
+                              This ensures quality and maintains a curated experience during our beta phase.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Search and Filter System */}
                   <div className="max-w-2xl mx-auto mb-6 md:mb-8 px-4 md:px-0">
                     <div className="flex flex-col gap-3 md:gap-4">
@@ -2276,17 +2370,29 @@ const App: React.FC = () => {
                     <h2 className="text-lg font-semibold mb-4 text-white">Commission Structure</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
-                        <div className="text-2xl font-bold mb-2 text-blue-400">10%</div>
-                        <div className="text-sm text-white/80">First 10 referrals</div>
+                        <div className="text-2xl font-bold mb-2 text-blue-400">5%</div>
+                        <div className="text-sm text-white/80">Default Commission</div>
+                        <div className="text-xs text-white/60 mt-1">Available to all users</div>
                       </div>
-                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
-                        <div className="text-2xl font-bold mb-2 text-purple-400">15%</div>
-                        <div className="text-sm text-white/80">11-25 referrals</div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 opacity-50 cursor-not-allowed">
+                        <div className="text-2xl font-bold mb-2 text-gray-400">10%</div>
+                        <div className="text-sm text-white/60">10+ Referrals</div>
+                        <div className="text-xs text-white/40 mt-1">myPip Subscribers Only</div>
                       </div>
-                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
-                        <div className="text-2xl font-bold mb-2 text-green-400">25%</div>
-                        <div className="text-sm text-white/80">26+ referrals</div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 opacity-50 cursor-not-allowed">
+                        <div className="text-2xl font-bold mb-2 text-gray-400">15%</div>
+                        <div className="text-sm text-white/60">100+ Referrals</div>
+                        <div className="text-xs text-white/40 mt-1">myPip Subscribers Only</div>
                       </div>
+                    </div>
+                    <div className="mt-4 text-center">
+                      <p className="text-sm text-white/60 mb-2">Want higher commissions?</p>
+                      <button 
+                        onClick={() => setIsSubscriptionModalOpen(true)}
+                        className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-md text-sm font-medium transition-all duration-300"
+                      >
+                        Upgrade Plan
+                      </button>
                     </div>
                   </div>
                   
@@ -3611,6 +3717,90 @@ const App: React.FC = () => {
                 className="glass-button px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white transition-all duration-300"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* V2 Waitlist Popup */}
+      {showV2WaitlistPopup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card max-w-md w-full p-6 md:p-8 border border-white/20 backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl relative overflow-hidden">
+            {/* Liquid glass effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-bl from-transparent via-white/3 to-transparent rounded-3xl"></div>
+            
+            {/* Content */}
+            <div className="relative z-10">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">myPip V2 is Coming!</h2>
+                <p className="text-white/80 text-sm">Get ready for the future of AI app development</p>
+              </div>
+
+              {/* Message */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/20">
+                <p className="text-white/90 text-sm leading-relaxed mb-3">
+                  <span className="font-semibold text-blue-300">myPip V2</span> is about to go live with our revolutionary 
+                  <span className="font-semibold text-purple-300"> Agentic Framework</span>!
+                </p>
+                <p className="text-white/90 text-sm leading-relaxed">
+                  Join the waitlist and get a <span className="font-semibold text-green-300">7-day trial of myPip Pro</span> upon launch.
+                </p>
+              </div>
+
+              {/* Email Input */}
+              <div className="mb-6">
+                <label className="block text-white/80 text-sm font-medium mb-2">Email Address</label>
+                <input
+                  type="email"
+                  value={waitlistEmail}
+                  onChange={(e) => setWaitlistEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className="glass-input w-full px-4 py-3 text-white placeholder-white/50 rounded-xl border border-white/20 focus:border-white/40 transition-all duration-300"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="space-y-3">
+                <button
+                  onClick={handleJoinWaitlist}
+                  disabled={isJoiningWaitlist}
+                  className="w-full glass-button px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isJoiningWaitlist ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Joining Waitlist...
+                    </div>
+                  ) : (
+                    'Join Waitlist'
+                  )}
+                </button>
+                
+                <button
+                  onClick={handleCheckoutV1}
+                  className="w-full glass-button px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl border border-white/20 transition-all duration-300"
+                >
+                  Check out myPip V1
+                </button>
+              </div>
+
+              {/* Close button */}
+              <button
+                onClick={() => setShowV2WaitlistPopup(false)}
+                className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors p-2"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
           </div>
