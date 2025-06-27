@@ -97,11 +97,11 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* myPip Pro - Left */}
+            {/* myPip Basic - Left */}
             <div className={`${isDarkMode ? 'bg-gradient-to-br from-gray-700 to-gray-800 border-gray-600' : 'backdrop-blur-xl bg-gradient-to-br from-blue-50 to-cyan-100 border border-blue-200 shadow-2xl'} p-6 rounded-2xl border transition-all duration-300`}>
               <div className="text-center mb-4">
-                <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-blue-800'} mb-2`}>myPip Pro</h3>
-                <p className={`text-3xl font-bold ${isDarkMode ? 'text-gray-300' : 'text-blue-700'} mb-1`}>$31.00</p>
+                <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-blue-800'} mb-2`}>myPip Basic</h3>
+                <p className={`text-3xl font-bold ${isDarkMode ? 'text-gray-300' : 'text-blue-700'} mb-1`}>$19.99</p>
                 <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-blue-600'} mb-4`}>billed every month</p>
                 <div className={`${isDarkMode ? 'bg-gray-600' : 'bg-blue-200/80'} p-2 rounded-md mb-4`}>
                   <p className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-blue-800'} font-medium`}>Best for casual creators and hobbyists</p>
@@ -134,12 +134,12 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/61780121-1aa0-418d-a300-67e81fe60513')}
                   className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
-                  Buy myPip Pro
+                  Buy myPip Basic
                 </button>
               </div>
             </div>
 
-            {/* myPip Enterprise - Middle */}
+            {/* myPip Pro - Middle */}
             <div className={`${isDarkMode ? 'bg-gradient-to-br from-blue-900 to-indigo-900 border-blue-700' : 'backdrop-blur-xl bg-white/60 border border-white/40 shadow-2xl'} p-6 rounded-2xl border transition-all duration-300 relative`}>
               {/* Most Popular Badge */}
               <div className={`absolute -top-3 left-1/2 transform -translate-x-1/2 ${isDarkMode ? 'bg-yellow-500' : 'bg-gradient-to-r from-yellow-400 to-orange-500'} text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg`}>
@@ -147,8 +147,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               </div>
               
               <div className="text-center mb-4">
-                <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-blue-300' : 'text-blue-700'} mb-2`}>myPip Enterprise</h3>
-                <p className={`text-3xl font-bold ${isDarkMode ? 'text-blue-200' : 'text-blue-600'} mb-1`}>$62.50</p>
+                <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-blue-300' : 'text-blue-700'} mb-2`}>myPip Pro</h3>
+                <p className={`text-3xl font-bold ${isDarkMode ? 'text-blue-200' : 'text-blue-600'} mb-1`}>$33.99</p>
                 <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-neutral-600'} mb-4`}>billed every month</p>
                 <div className={`${isDarkMode ? 'bg-blue-800' : 'bg-blue-100/80'} p-2 rounded-md mb-4`}>
                   <p className={`text-xs ${isDarkMode ? 'text-blue-200' : 'text-blue-800'} font-medium`}>Best for committed builders shipping production-ready apps</p>
@@ -181,15 +181,15 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/3bbb65ba-61db-47e1-8d6d-09bf008233f5')}
                   className="w-full flex items-center justify-center px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
-                  Buy myPip Enterprise
+                  Buy myPip Pro
                 </button>
               </div>
 
-              {/* Enterprise Plus Section */}
+              {/* Pro Plus Section */}
               <div className={`${isDarkMode ? 'bg-slate-800' : 'backdrop-blur-xl bg-white/40 border border-white/30'} p-3 rounded-xl mb-2 mt-2 border border-dashed ${isDarkMode ? 'border-slate-600' : 'border-slate-300'}`}> 
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-semibold text-yellow-400">Enterprise Plus</span>
-                  <span className="text-sm font-bold text-yellow-400">$77.00</span>
+                  <span className="text-sm font-semibold text-yellow-400">Pro Plus</span>
+                  <span className="text-sm font-bold text-yellow-400">$39.99</span>
                 </div>
                 <p className="text-xs text-gray-300 mb-1">Base monthly + $0.01 per prompt</p>
                 <p className="text-xs text-gray-400 mb-2">Perfect for high-volume users who want to pay only for what they use.</p>
@@ -197,7 +197,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/5aba50ab-154a-4d32-a978-97e928a0c893')}
                   className="w-full flex items-center justify-center px-3 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 text-xs"
                 >
-                  Buy Enterprise Plus
+                  Buy Pro Plus
                 </button>
               </div>
             </div>
@@ -206,8 +206,9 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             <div className={`${isDarkMode ? 'bg-gradient-to-br from-blue-600 via-purple-600 to-amber-500 border-blue-400' : 'backdrop-blur-xl bg-gradient-to-br from-blue-400 via-indigo-500 to-amber-400 border border-white/40 shadow-2xl'} p-6 rounded-2xl border transition-all duration-300`}> 
               <div className="text-center mb-4">
                 <h3 className="text-xl font-semibold text-white mb-2">Unlimited</h3>
-                <p className="text-3xl font-bold text-white mb-1">$199.00</p>
-                <p className="text-sm text-white/90 mb-4">base monthly + $0.01 per prompt</p>
+                <p className="text-3xl font-bold text-white mb-1">$199.99</p>
+                <p className="text-sm text-white/90 mb-2">billed every month</p>
+                <p className="text-xs text-white/80 mb-4">Up to 25 users, then $10 per user</p>
               </div>
               
               <div className="space-y-3 mb-6">
