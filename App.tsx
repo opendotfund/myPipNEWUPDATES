@@ -732,7 +732,7 @@ const App: React.FC = () => {
   const resetAppState = () => {
     setPrompt('');
     setGeneratedCode('// Code will appear here once generated...');
-    setPreviewHtml('<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"><h3 class="text-lg font-semibold text-neutral-800 mb-3">Ready to build!</h3><p class="text-neutral-600">Describe your app idea below to see it come to life with interactive previews.</p></div></div>');
+    setPreviewHtml('<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"></div></div>');
     setChatHistory([]);
     setAiThoughtProcess('');
     setThinkingLog('');
@@ -3522,23 +3522,24 @@ const App: React.FC = () => {
         </div>
       )}
       {isNewProjectModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
-            {/* X Button */}
-            <button
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 focus:outline-none"
-              onClick={() => setIsNewProjectModalOpen(false)}
-              aria-label="Close"
-            >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <h2 className="text-lg font-semibold mb-4">Start a New Project?</h2>
-            <p className="mb-6 text-neutral-700">Would you like to save your current project before starting a new one?</p>
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="flex justify-between items-center mb-6 border-b border-white/20 pb-4">
+              <h2 className="text-xl font-semibold text-white">Start a New Project?</h2>
+              <button
+                className="text-white/70 hover:text-white transition-colors"
+                onClick={() => setIsNewProjectModalOpen(false)}
+                aria-label="Close"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="mb-6 text-white/80">Would you like to save your current project before starting a new one?</p>
             <div className="flex gap-3 justify-end">
               <button
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold disabled:opacity-50"
+                className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold transition-all duration-300 disabled:opacity-50"
                 onClick={async () => {
                   setIsSaving(true);
                   await handleSave();
@@ -3553,7 +3554,7 @@ const App: React.FC = () => {
                 {isSaving ? 'Saving...' : 'Save'}
               </button>
               <button
-                className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-md font-semibold disabled:opacity-50"
+                className="glass-button px-4 py-2 text-white/80 hover:text-white font-medium transition-all duration-300 disabled:opacity-50"
                 onClick={() => {
                   setIsNewProjectModalOpen(false);
                   resetAppState();
