@@ -36,7 +36,6 @@ const App: React.FC = () => {
   const [previewHtml, setPreviewHtml] = useState<string>(
     '<div class="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-br from-blue-50 to-indigo-100">' +
     '<div class="max-w-xs">' +
-    '<p class="text-neutral-600 text-sm">Describe your app idea below to see it come to life.</p>' +
     '</div></div>'
   );
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -160,7 +159,11 @@ const App: React.FC = () => {
   const [showBetaNotification, setShowBetaNotification] = useState(true);
 
   // V2 Waitlist popup state
-  const [showV2WaitlistPopup, setShowV2WaitlistPopup] = useState(false);
+  const [showV2WaitlistPopup, setShowV2WaitlistPopup] = useState<boolean>(() => {
+    // Check if user has seen the popup before
+    const hasSeenPopup = localStorage.getItem('hasSeenV2WaitlistPopup');
+    return !hasSeenPopup; // Show popup if user hasn't seen it
+  });
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [isJoiningWaitlist, setIsJoiningWaitlist] = useState(false);
   const [hasSeenV2Popup, setHasSeenV2Popup] = useState(false);
@@ -353,10 +356,10 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setGeneratedCode('// Generating Swift code...');
-    setPreviewHtml(`<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}"><div class="max-w-xs"><div class="animate-spin rounded-full h-12 w-12 border-b-2 ${isDarkMode ? 'border-blue-400' : 'border-blue-500'} mx-auto mb-4"></div><h3 class="text-lg font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'} mb-2">Generating Your App</h3><p class="${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm">Creating SwiftUI code and interactive preview...</p></div></div>`);
+    setPreviewHtml(`<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}"><div class="max-w-xs"><div class="animate-spin rounded-full h-12 w-12 border-b-2 ${isDarkMode ? 'border-blue-400' : 'border-blue-500'} mx-auto mb-4"></div></div></div>`);
     setChatHistory([]);
     setAiThoughtProcess('Analyzing your prompt and preparing a response...');
-    setThinkingLog(''); // Reset log
+    setThinkingLog('');
     try {
       setTimeout(() => setAiThoughtProcess('Thinking about the best app structure...'), 1000);
       setTimeout(() => setAiThoughtProcess('Designing UI and generating Swift code...'), 2000);
@@ -1125,9 +1128,9 @@ const App: React.FC = () => {
                   <SignedOut>
                     <div className="flex items-center">
                       <img 
-                        src={appLogo} 
-                        alt="App Logo" 
-                        className="h-8 w-8 rounded-lg"
+                        src="/plus-orb.png" 
+                        alt="Profile" 
+                        className="h-12 w-12 rounded-lg object-cover"
                       />
                       <span className="nav-text ml-3 text-sm font-semibold text-white">
                         {appName}
@@ -1660,31 +1663,81 @@ const App: React.FC = () => {
         {hasConfirmedFirstPrompt && (
           <div className="container mx-auto flex justify-end mt-4 px-4">
             <div className="flex items-center space-x-3">
+              {/* GitHub Button */}
+              <button
+                className="glass-button h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300"
+                title="Open in GitHub"
+                aria-label="Open in GitHub"
+                onClick={handleGitHubClick}
+              >
+                <GithubIcon className="h-4 w-4" />
+              </button>
+              
+              {/* Apple Button */}
+              <button
+                className="glass-button h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300"
+                title="Deploy to Apple App Store"
+                aria-label="Deploy to Apple App Store"
+                onClick={handleAppleDeploymentClick}
+              >
+                <AppleIcon className="h-4 w-4" />
+              </button>
+              
+              {/* Google Play Button */}
+              <button
+                className="glass-button h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300"
+                title="Deploy to Google Play Store"
+                aria-label="Deploy to Google Play Store"
+                onClick={handleGooglePlayDeploymentClick}
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z" />
+                </svg>
+              </button>
+              
+              {/* Save Button */}
+              <button
+                className="glass-button h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300"
+                title="Save Project"
+                aria-label="Save Project"
+                onClick={handleSave}
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                </svg>
+              </button>
+              
               {/* Dark Mode Toggle */}
               <button
-                className="glass-button h-12 w-12 flex items-center justify-center rounded-full transition-all duration-300"
+                className="glass-button h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300"
                 title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 onClick={toggleDarkMode}
               >
                 {isDarkMode ? (
-                  <svg className="h-6 w-6 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 ) : (
-                  <svg className="h-6 w-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                   </svg>
                 )}
               </button>
+              
               <button
-                className="glass-button h-12 w-12 flex items-center justify-center rounded-full text-2xl font-normal transition-all duration-300 leading-none select-none bg-gradient-to-r from-blue-400 to-purple-500 text-white"
+                className="glass-button flex items-center justify-center rounded-full transition-all duration-300"
                 title="New Project"
                 aria-label="New Project"
                 onClick={handleNewProject}
-                style={{ lineHeight: '1', fontSize: '1.5rem' }}
+                style={{ background: 'none', boxShadow: 'none', padding: 0, border: 'none' }}
               >
-                +
+                <img
+                  src="/plus-orb.png"
+                  alt="New Project"
+                  className="h-8 w-8 object-contain select-none pointer-events-none"
+                  draggable="false"
+                />
               </button>
             </div>
           </div>
@@ -1694,17 +1747,17 @@ const App: React.FC = () => {
         {!hasConfirmedFirstPrompt && (
           <div className="container mx-auto flex justify-end mt-4 px-4 relative z-10">
             <button
-              className="glass-button h-12 w-12 flex items-center justify-center rounded-full transition-all duration-300 z-20 relative"
+              className="glass-button h-8 w-8 flex items-center justify-center rounded-full transition-all duration-300 z-20 relative"
               title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
               aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
               onClick={toggleDarkMode}
             >
               {isDarkMode ? (
-                <svg className="h-6 w-6 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               ) : (
-                <svg className="h-6 w-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                 </svg>
               )}
@@ -1795,21 +1848,70 @@ const App: React.FC = () => {
                     {/* Refinement Prompt Box - At Bottom */}
                     <div className="mt-auto">
                       <h2 className={`text-xl font-semibold mb-3 ${isDarkMode ? 'text-gray-200' : 'text-neutral-700'}`}>Refine Your App</h2>
-                      <PromptInput
-                        prompt={prompt}
-                        setPrompt={setPrompt}
-                        onSubmit={handleSubmit}
-                        isLoading={isLoading}
-                        selectedModel={selectedModel}
-                        onModelChange={(modelId) => setSelectedModel(modelId as ModelId)}
-                        isDisabled={!canSubmit || isLoading}
-                        actionText="Refine App"
-                        aiThoughtProcess={aiThoughtProcess}
-                        thinkingLog={thinkingLog}
-                        isDarkMode={isDarkMode}
-                        hasGenerated={hasGenerated}
-                        fullWidth={true}
-                      />
+                      
+                      {/* Chat-like AI Thinking Display */}
+                      {aiThoughtProcess && (
+                        <div className={`mb-4 p-4 rounded-xl border ${isDarkMode ? 'bg-purple-900/20 border-purple-700/50' : 'bg-purple-50 border-purple-200'} shadow-sm`}>
+                          <div className="flex items-start space-x-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-purple-600' : 'bg-purple-500'}`}>
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className={`text-sm font-medium ${isDarkMode ? 'text-purple-200' : 'text-purple-700'} mb-1`}>
+                                AI Thinking Process
+                              </div>
+                              <div className={`text-sm ${isDarkMode ? 'text-purple-100' : 'text-purple-600'} leading-relaxed`}>
+                                {aiThoughtProcess.split('\n').map((step, index) => (
+                                  <div key={index} className="mb-2 last:mb-0">
+                                    {step.trim() && (
+                                      <div className="flex items-start">
+                                        <span className={`inline-block w-2 h-2 rounded-full mt-2 mr-2 flex-shrink-0 ${isDarkMode ? 'bg-purple-400' : 'bg-purple-500'}`}></span>
+                                        <span>{step.trim()}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Chat-like Input */}
+                      <div className={`rounded-xl border ${isDarkMode ? 'bg-gray-800/50 border-gray-600' : 'bg-white border-gray-200'} shadow-sm overflow-hidden`}>
+                        <div className="flex items-end space-x-3 p-4">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-blue-600' : 'bg-blue-500'}`}>
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <textarea
+                              value={prompt}
+                              onChange={(e) => setPrompt(e.target.value)}
+                              placeholder="Describe how you'd like to refine your app..."
+                              className={`w-full resize-none border-0 bg-transparent ${isDarkMode ? 'text-white placeholder-white/50' : 'text-gray-900 placeholder-gray-500'} focus:outline-none focus:ring-0 text-sm leading-relaxed`}
+                              rows={3}
+                              disabled={!canSubmit || isLoading}
+                            />
+                          </div>
+                          <button
+                            onClick={handleSubmit}
+                            disabled={!canSubmit || isLoading}
+                            className={`p-2 rounded-lg transition-all duration-300 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            {isLoading ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                      </div>
                       
                       {error && (
                         <div className={`mt-3 p-3 border rounded-md text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? (isDarkMode ? 'bg-emerald-900/20 border-emerald-700 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-700') : (isDarkMode ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-red-100 border-red-300 text-red-700')}`}>
@@ -2480,6 +2582,26 @@ const App: React.FC = () => {
                 {configPlatform === 'Apple Connect' ? (
                   // Apple Connect specific fields
                   <>
+                    {/* Learn About Apple Connect Link */}
+                    <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <svg className="h-5 w-5 text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-white/90 text-sm">Need help setting up Apple Connect?</span>
+                        </div>
+                        <a
+                          href="https://developer.apple.com/documentation/appstoreconnectapi"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="glass-button px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-xs font-medium rounded-lg transition-all duration-300"
+                        >
+                          Learn More
+                        </a>
+                      </div>
+                    </div>
+                    
                     <div>
                       <label className="block text-sm font-medium mb-2 text-white/80">
                         Key ID
@@ -2538,6 +2660,26 @@ const App: React.FC = () => {
                 ) : configPlatform === 'Google Play Store' ? (
                   // Google Play Store specific fields
                   <>
+                    {/* Learn About Google Play Store API Link */}
+                    <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <svg className="h-5 w-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-white/90 text-sm">Need help setting up Google Play Store API?</span>
+                        </div>
+                        <a
+                          href="https://developers.google.com/android-publisher/getting_started"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="glass-button px-3 py-1.5 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white text-xs font-medium rounded-lg transition-all duration-300"
+                        >
+                          Learn More
+                        </a>
+                      </div>
+                    </div>
+                    
                     <div>
                       <label className="block text-sm font-medium mb-2 text-white/80">
                         Service Account Key (.json file)
@@ -3380,13 +3522,23 @@ const App: React.FC = () => {
         </div>
       )}
       {isNewProjectModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h2 className="text-lg font-semibold mb-4 text-white">Start a New Project?</h2>
-            <p className="mb-6 text-white/80">Would you like to save your current project before starting a new one?</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
+            {/* X Button */}
+            <button
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 focus:outline-none"
+              onClick={() => setIsNewProjectModalOpen(false)}
+              aria-label="Close"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h2 className="text-lg font-semibold mb-4">Start a New Project?</h2>
+            <p className="mb-6 text-neutral-700">Would you like to save your current project before starting a new one?</p>
             <div className="flex gap-3 justify-end">
               <button
-                className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold disabled:opacity-50 transition-all duration-300"
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md font-semibold disabled:opacity-50"
                 onClick={async () => {
                   setIsSaving(true);
                   await handleSave();
@@ -3401,7 +3553,7 @@ const App: React.FC = () => {
                 {isSaving ? 'Saving...' : 'Save'}
               </button>
               <button
-                className="glass-button px-4 py-2 text-white/80 hover:text-white font-semibold disabled:opacity-50 transition-all duration-300"
+                className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-md font-semibold disabled:opacity-50"
                 onClick={() => {
                   setIsNewProjectModalOpen(false);
                   resetAppState();
