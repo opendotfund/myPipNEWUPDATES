@@ -1130,7 +1130,7 @@ const App: React.FC = () => {
                       <img 
                         src="/plus-orb.png" 
                         alt="Profile" 
-                        className="h-12 w-12 rounded-lg object-cover"
+                        className="h-16 w-16 rounded-lg object-cover"
                       />
                       <span className="nav-text ml-3 text-sm font-semibold text-white">
                         {appName}
@@ -1388,7 +1388,7 @@ const App: React.FC = () => {
                       <img 
                         src="/plus-orb.png" 
                         alt="Profile" 
-                        className="h-8 w-8 rounded-lg object-cover"
+                        className="h-16 w-16 rounded-lg object-cover"
                       />
                     </SignedOut>
                     <span className="ml-3 text-sm font-semibold text-white">
