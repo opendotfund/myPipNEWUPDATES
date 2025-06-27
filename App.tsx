@@ -1377,11 +1377,20 @@ const App: React.FC = () => {
                   </div>
                 ) : (
                   <div className="flex items-center">
-                    <img 
-                      src={appLogo} 
-                      alt="App Logo" 
-                      className="h-8 w-8 rounded-lg"
-                    />
+                    <SignedIn>
+                      <img 
+                        src={appLogo} 
+                        alt="App Logo" 
+                        className="h-8 w-8 rounded-lg"
+                      />
+                    </SignedIn>
+                    <SignedOut>
+                      <img 
+                        src="/plus-orb.png" 
+                        alt="Profile" 
+                        className="h-8 w-8 rounded-lg object-cover"
+                      />
+                    </SignedOut>
                     <span className="ml-3 text-sm font-semibold text-white">
                       {appName}
                     </span>
