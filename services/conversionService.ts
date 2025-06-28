@@ -1,36 +1,41 @@
-import { GoogleGenAI, Content } from "@google/genai";
-import { GEMINI_MODEL_NAME, HARDCODED_API_KEY } from '../constants';
+import Anthropic from '@anthropic-ai/sdk';
+import { CLAUDE_API_KEY, CLAUDE_MODEL_NAME } from '../constants';
 
-// Use the hardcoded API key as the default
-let currentApiKey: string | null = HARDCODED_API_KEY;
-let ai: GoogleGenAI | null = null;
+// Use the Claude API key
+let currentApiKey: string | null = CLAUDE_API_KEY;
+let anthropic: Anthropic | null = null;
 
-const initializeAiClient = () => {
+const initializeClaudeClient = () => {
   if (currentApiKey && currentApiKey.trim() !== "") {
     try {
-      ai = new GoogleGenAI({ apiKey: currentApiKey });
-      console.log(`Conversion service initialized with key ending: ...${currentApiKey.slice(-4)}`);
+      console.log("Creating Anthropic client...");
+      anthropic = new Anthropic({ 
+        apiKey: currentApiKey,
+        maxRetries: 3,
+        timeout: 60000,
+        dangerouslyAllowBrowser: true // Allow browser usage
+      });
+      console.log(`Conversion service initialized with Claude key ending: ...${currentApiKey.slice(-4)}`);
     } catch (error) {
-      console.error("Failed to initialize GoogleGenAI client for conversion:", error);
-      ai = null;
+      console.error("Failed to initialize Claude client for conversion:", error);
+      anthropic = null;
     }
   } else {
-    ai = null;
+    anthropic = null;
     console.warn("API Key is not set. Conversion services will not function.");
   }
 };
 
-// Initialize the AI client
-initializeAiClient();
+// Initialize the Claude client
+initializeClaudeClient();
 
 export interface ConversionResponse {
   flutterCode: string;
   reactCode: string;
 }
 
-const constructFlutterConversionPrompt = (swiftCode: string): Content[] => {
-  const systemInstruction = `
-You are an expert mobile app developer specializing in converting iOS SwiftUI code to Flutter/Dart code.
+const constructFlutterConversionPrompt = (swiftCode: string): string => {
+  return `You are an expert mobile app developer specializing in converting iOS SwiftUI code to Flutter/Dart code.
 
 The following SwiftUI code needs to be converted to Flutter:
 
@@ -48,20 +53,19 @@ Please convert this SwiftUI code to equivalent Flutter/Dart code. The Flutter co
 6. Include necessary imports
 7. Follow Flutter best practices and conventions
 
-Return your response as a single JSON object with the following structure:
+**RESPONSE FORMAT**: You must respond with ONLY a valid JSON object in this exact format:
 {
   "flutterCode": "COMPLETE_FLUTTER_CODE_HERE"
 }
 
 Ensure the flutterCode is a valid, properly escaped string within the JSON structure.
 If the SwiftUI code is complex, break it down into appropriate Flutter widgets and maintain the same user experience.
-`;
-  return [{ role: "user", parts: [{ text: systemInstruction }] }];
+
+Do not include any other text, explanations, or formatting outside of the JSON object.`;
 };
 
-const constructReactConversionPrompt = (swiftCode: string): Content[] => {
-  const systemInstruction = `
-You are an expert mobile app developer specializing in converting iOS SwiftUI code to React Native code.
+const constructReactConversionPrompt = (swiftCode: string): string => {
+  return `You are an expert mobile app developer specializing in converting iOS SwiftUI code to React Native code.
 
 The following SwiftUI code needs to be converted to React Native:
 
@@ -80,40 +84,48 @@ Please convert this SwiftUI code to equivalent React Native code. The React Nati
 7. Follow React Native best practices and conventions
 8. Use appropriate React Native components (View, Text, TouchableOpacity, etc.)
 
-Return your response as a single JSON object with the following structure:
+**RESPONSE FORMAT**: You must respond with ONLY a valid JSON object in this exact format:
 {
   "reactCode": "COMPLETE_REACT_NATIVE_CODE_HERE"
 }
 
 Ensure the reactCode is a valid, properly escaped string within the JSON structure.
 If the SwiftUI code is complex, break it down into appropriate React Native components and maintain the same user experience.
-`;
-  return [{ role: "user", parts: [{ text: systemInstruction }] }];
+
+Do not include any other text, explanations, or formatting outside of the JSON object.`;
 };
 
-const callGeminiApi = async (structuredContents: Content[]): Promise<any> => {
-  if (!ai) {
-    throw new Error("AI client not initialized. Please check your API key.");
+const callClaudeApi = async (prompt: string): Promise<string> => {
+  if (!anthropic) {
+    throw new Error("Claude client not initialized. Please check your API key.");
   }
 
   try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: structuredContents,
-      config: {
-        responseMimeType: "application/json",
-      },
+    const response = await anthropic.messages.create({
+      model: CLAUDE_MODEL_NAME,
+      max_tokens: 4000,
+      temperature: 0.7,
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
     });
     
-    const text = response.text;
-    
-    if (!text) {
-      throw new Error("No response received from AI");
+    if (!response.content || response.content.length === 0) {
+      throw new Error("Empty response from Claude API");
     }
 
-    return text;
+    const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+    
+    if (!responseText) {
+      throw new Error("No text content in Claude API response");
+    }
+
+    return responseText;
   } catch (error) {
-    console.error("Error calling Gemini API for conversion:", error);
+    console.error("Error calling Claude API for conversion:", error);
     throw new Error(`Conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
@@ -133,17 +145,17 @@ const parseConversionResponse = (responseText: string, type: 'flutter' | 'react'
     
     if (!parsedData[codeKey]) {
       console.error(`Parsed data missing ${codeKey}`, parsedData);
-      throw new Error(`Invalid response structure from AI. Missing ${codeKey}.`);
+      throw new Error(`Invalid response structure from Claude. Missing ${codeKey}.`);
     }
     
     if (parsedData[codeKey].trim() === "") {
-      throw new Error(`AI returned empty ${type} code. Try again.`);
+      throw new Error(`Claude returned empty ${type} code. Try again.`);
     }
     
     return parsedData[codeKey];
   } catch(e) {
     console.error("Failed to parse conversion response:", jsonStr, e);
-    throw new Error(`Failed to parse AI's conversion response. Raw: ${jsonStr.substring(0,200)}...`);
+    throw new Error(`Failed to parse Claude's conversion response. Raw: ${jsonStr.substring(0,200)}...`);
   }
 };
 
@@ -153,7 +165,7 @@ export const convertSwiftToFlutter = async (swiftCode: string): Promise<{ flutte
   }
 
   const prompt = constructFlutterConversionPrompt(swiftCode);
-  const response = await callGeminiApi(prompt);
+  const response = await callClaudeApi(prompt);
   const flutterCode = parseConversionResponse(response, 'flutter');
   
   return { flutterCode };
@@ -165,15 +177,14 @@ export const convertSwiftToReact = async (swiftCode: string): Promise<{ reactCod
   }
 
   const prompt = constructReactConversionPrompt(swiftCode);
-  const response = await callGeminiApi(prompt);
+  const response = await callClaudeApi(prompt);
   const reactCode = parseConversionResponse(response, 'react');
   
   return { reactCode };
 };
 
-const constructFlutterToSwiftConversionPrompt = (flutterCode: string): Content[] => {
-  const systemInstruction = `
-You are an expert mobile app developer specializing in converting Flutter/Dart code to iOS SwiftUI code.
+const constructFlutterToSwiftConversionPrompt = (flutterCode: string): string => {
+  return `You are an expert mobile app developer specializing in converting Flutter/Dart code to iOS SwiftUI code.
 
 The following Flutter code needs to be converted to SwiftUI:
 
@@ -191,20 +202,19 @@ Please convert this Flutter code to equivalent SwiftUI code. The SwiftUI code sh
 6. Include necessary imports
 7. Follow SwiftUI best practices and conventions
 
-Return your response as a single JSON object with the following structure:
+**RESPONSE FORMAT**: You must respond with ONLY a valid JSON object in this exact format:
 {
   "swiftCode": "COMPLETE_SWIFTUI_CODE_HERE"
 }
 
 Ensure the swiftCode is a valid, properly escaped string within the JSON structure.
 If the Flutter code is complex, break it down into appropriate SwiftUI views and maintain the same user experience.
-`;
-  return [{ role: "user", parts: [{ text: systemInstruction }] }];
+
+Do not include any other text, explanations, or formatting outside of the JSON object.`;
 };
 
-const constructReactToSwiftConversionPrompt = (reactCode: string): Content[] => {
-  const systemInstruction = `
-You are an expert mobile app developer specializing in converting React Native code to iOS SwiftUI code.
+const constructReactToSwiftConversionPrompt = (reactCode: string): string => {
+  return `You are an expert mobile app developer specializing in converting React Native code to iOS SwiftUI code.
 
 The following React Native code needs to be converted to SwiftUI:
 
@@ -222,15 +232,15 @@ Please convert this React Native code to equivalent SwiftUI code. The SwiftUI co
 6. Include necessary imports
 7. Follow SwiftUI best practices and conventions
 
-Return your response as a single JSON object with the following structure:
+**RESPONSE FORMAT**: You must respond with ONLY a valid JSON object in this exact format:
 {
   "swiftCode": "COMPLETE_SWIFTUI_CODE_HERE"
 }
 
 Ensure the swiftCode is a valid, properly escaped string within the JSON structure.
 If the React Native code is complex, break it down into appropriate SwiftUI views and maintain the same user experience.
-`;
-  return [{ role: "user", parts: [{ text: systemInstruction }] }];
+
+Do not include any other text, explanations, or formatting outside of the JSON object.`;
 };
 
 export const convertFlutterToSwift = async (flutterCode: string): Promise<{ swiftCode: string }> => {
@@ -239,7 +249,7 @@ export const convertFlutterToSwift = async (flutterCode: string): Promise<{ swif
   }
 
   const prompt = constructFlutterToSwiftConversionPrompt(flutterCode);
-  const response = await callGeminiApi(prompt);
+  const response = await callClaudeApi(prompt);
   const swiftCode = parseConversionResponse(response, 'swift');
   
   return { swiftCode };
@@ -251,7 +261,7 @@ export const convertReactToSwift = async (reactCode: string): Promise<{ swiftCod
   }
 
   const prompt = constructReactToSwiftConversionPrompt(reactCode);
-  const response = await callGeminiApi(prompt);
+  const response = await callClaudeApi(prompt);
   const swiftCode = parseConversionResponse(response, 'swift');
   
   return { swiftCode };

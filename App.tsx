@@ -2,7 +2,8 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PhonePreview } from './components/PhonePreview';
 import { PromptInput } from './components/PromptInput';
 import { CodeDisplay } from './components/CodeDisplay';
-import { generateAppCodeAndPreview, refineAppCodeAndPreview, handleInteractionAndUpdateCodeAndPreview, setExternalApiKey } from './services/geminiService';
+import { generateAppCodeAndPreview as generateClaudeCode, refineAppCodeAndPreview as refineClaudeCode, handleInteractionAndUpdateCodeAndPreview as handleClaudeInteraction, setExternalApiKey as setClaudeApiKey } from './services/claudeService';
+import { generateAppCodeAndPreview as generateGeminiCode, refineAppCodeAndPreview as refineGeminiCode, handleInteractionAndUpdateCodeAndPreview as handleGeminiInteraction, setExternalApiKey as setGeminiApiKey } from './services/geminiService';
 import { ModelId } from './types';
 import { APP_TITLE, MAX_FREE_PROMPTS, CONTACT_EMAIL } from './constants';
 import { GithubIcon } from './components/icons/GithubIcon';
@@ -168,6 +169,12 @@ const App: React.FC = () => {
   const [isJoiningWaitlist, setIsJoiningWaitlist] = useState(false);
   const [hasSeenV2Popup, setHasSeenV2Popup] = useState(false);
 
+  // Claude password protection state
+  const [showClaudePasswordPopup, setShowClaudePasswordPopup] = useState<boolean>(false);
+  const [claudePassword, setClaudePassword] = useState<string>('');
+  const [claudePasswordError, setClaudePasswordError] = useState<string>('');
+  const [pendingModelChange, setPendingModelChange] = useState<ModelId | null>(null);
+
   useEffect(() => {
     if (chatHistoryRef.current) {
       chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
@@ -238,7 +245,7 @@ const App: React.FC = () => {
 
   const handleCheckoutV1 = () => {
     setShowV2WaitlistPopup(false);
-    setIsSubscriptionModalOpen(true);
+    window.open('https://mypip.lemonsqueezy.com/buy/61780121-1aa0-418d-a300-67e81fe60513', '_blank');
   };
 
   const openConfigModal = (platform: string) => {
@@ -363,7 +370,8 @@ const App: React.FC = () => {
     try {
       setTimeout(() => setAiThoughtProcess('Thinking about the best app structure...'), 1000);
       setTimeout(() => setAiThoughtProcess('Designing UI and generating Swift code...'), 2000);
-      const result = await generateAppCodeAndPreview(prompt);
+      const aiService = getAIService();
+      const result = await aiService.generate(prompt);
       setGeneratedCode(result.swiftCode);
       setPreviewHtml(result.previewHtml);
       setAiThoughtProcess('App generated!');
@@ -392,45 +400,220 @@ const App: React.FC = () => {
   }, [prompt, canSubmit, isEarlyBirdKeyApplied]);
 
   const handlePreviewInteraction = useCallback(async (actionId: string, actionDescription: string) => {
-    if (!canSubmit) {
-      if (isEarlyBirdKeyApplied) {
-        setError('Error with Early Bird access.');
-      } else {
-        setError('You have used all your free prompts for interaction-based refinement.');
-        // Show subscription modal when user runs out of prompts
-        setIsSubscriptionModalOpen(true);
-      }
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
-    const oldCode = generatedCode;
-    const oldPreview = previewHtml;
-
     const interactionLog = `User clicked "${actionDescription || actionId}" in preview.`;
     setChatHistory(prev => [...prev, { type: 'interaction', content: interactionLog }]);
     
-    try {
-      const result = await handleInteractionAndUpdateCodeAndPreview(generatedCode, previewHtml, actionId, actionDescription);
-      setGeneratedCode(result.swiftCode);
-      setPreviewHtml(result.previewHtml);
-      if (!isEarlyBirdKeyApplied) {
-        setFreePromptsRemaining(prev => Math.max(0, prev - 1));
+    console.log('Handling interaction locally:', actionId, actionDescription);
+    
+    // Create a temporary DOM element to parse and manipulate the HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = previewHtml;
+    
+    let updatedHtml = previewHtml;
+    let hasChanges = false;
+    
+    switch (actionId) {
+      case 'toggleItem':
+      case 'markComplete':
+      case 'markIncomplete':
+        // Find and toggle checkboxes
+        const checkboxes = tempDiv.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach((checkbox, index) => {
+          if (index === 0) { // Toggle the first checkbox found
+            (checkbox as HTMLInputElement).checked = !(checkbox as HTMLInputElement).checked;
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'addItem':
+        // Add new item to lists
+        const lists = tempDiv.querySelectorAll('ul, ol');
+        lists.forEach((list, listIndex) => {
+          if (listIndex === 0) { // Add to first list found
+            const newItem = document.createElement('li');
+            newItem.className = 'p-2 border-b border-gray-200 flex items-center justify-between';
+            newItem.innerHTML = `
+              <span>New Item ${Date.now().toString().slice(-4)}</span>
+              <button data-action-id="deleteItem" data-action-description="Delete item" 
+                      class="text-red-500 hover:text-red-700 cursor-pointer hover:opacity-80 transition-opacity active:scale-95">×</button>
+            `;
+            list.appendChild(newItem);
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'deleteItem':
+        // Remove items from lists
+        const deleteButtons = tempDiv.querySelectorAll('[data-action-id="deleteItem"]');
+        deleteButtons.forEach((button, index) => {
+          if (index === 0) { // Delete first item with delete button
+            const listItem = button.closest('li');
+            if (listItem) {
+              listItem.remove();
+              hasChanges = true;
+            }
+          }
+        });
+        break;
+        
+      case 'toggleSwitch':
+      case 'toggleFeature':
+        // Toggle switches and features
+        const switches = tempDiv.querySelectorAll('input[type="checkbox"]');
+        switches.forEach((switchEl, index) => {
+          if (index === 0) {
+            (switchEl as HTMLInputElement).checked = !(switchEl as HTMLInputElement).checked;
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'submitForm':
+        // Show success message for form submission
+        const forms = tempDiv.querySelectorAll('form');
+        forms.forEach((form, index) => {
+          if (index === 0) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'mt-4 p-3 bg-green-100 text-green-700 rounded-lg';
+            successDiv.textContent = 'Form submitted successfully!';
+            form.appendChild(successDiv);
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'saveData':
+        // Show success message for data saving
+        const saveButtons = tempDiv.querySelectorAll('[data-action-id="saveData"]');
+        saveButtons.forEach((button, index) => {
+          if (index === 0) {
+            button.textContent = 'Saved!';
+            button.className = button.className.replace('bg-blue-500', 'bg-green-500');
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'inputChange':
+        // Handle text input changes
+        const inputs = tempDiv.querySelectorAll('input[type="text"], input[type="email"], textarea');
+        inputs.forEach((input, index) => {
+          if (index === 0) {
+            // Add a visual indicator that input was changed
+            (input as HTMLElement).style.borderColor = '#3b82f6';
+            (input as HTMLElement).style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'searchItems':
+        // Simulate search functionality
+        const searchInputs = tempDiv.querySelectorAll('input[placeholder*="search"], input[placeholder*="Search"]');
+        searchInputs.forEach((input, index) => {
+          if (index === 0) {
+            (input as HTMLInputElement).value = 'Search results...';
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'filterResults':
+        // Simulate filter functionality
+        const filterButtons = tempDiv.querySelectorAll('[data-action-id="filterResults"]');
+        filterButtons.forEach((button, index) => {
+          if (index === 0) {
+            button.textContent = 'Filtered!';
+            button.className = button.className.replace('bg-gray-500', 'bg-purple-500');
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'viewDetails':
+        // Simulate viewing details
+        const detailButtons = tempDiv.querySelectorAll('[data-action-id="viewDetails"]');
+        detailButtons.forEach((button, index) => {
+          if (index === 0) {
+            button.textContent = 'Viewed!';
+            button.className = button.className.replace('bg-blue-500', 'bg-gray-500');
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'editItem':
+        // Simulate editing an item
+        const editButtons = tempDiv.querySelectorAll('[data-action-id="editItem"]');
+        editButtons.forEach((button, index) => {
+          if (index === 0) {
+            button.textContent = 'Editing...';
+            button.className = button.className.replace('bg-blue-500', 'bg-yellow-500');
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      case 'cancelAction':
+        // Simulate canceling an action
+        const cancelButtons = tempDiv.querySelectorAll('[data-action-id="cancelAction"]');
+        cancelButtons.forEach((button, index) => {
+          if (index === 0) {
+            button.textContent = 'Cancelled!';
+            button.className = button.className.replace('bg-gray-500', 'bg-red-500');
+            hasChanges = true;
+          }
+        });
+        break;
+        
+      default:
+        // For any other interaction, try to find and interact with the element
+        const targetElements = tempDiv.querySelectorAll(`[data-action-id="${actionId}"]`);
+        targetElements.forEach((element, index) => {
+          if (index === 0) {
+            // Add visual feedback
+            if (element instanceof HTMLElement) {
+              element.style.transform = 'scale(0.95)';
+              element.style.transition = 'transform 0.1s ease';
+              setTimeout(() => {
+                element.style.transform = 'scale(1)';
+              }, 100);
       }
-      setChatHistory(prev => [...prev, { type: 'ai', content: 'App updated based on preview interaction.' }]);
-      setPreviewRefreshKey(prev => prev + 1);
-    } catch (err) {
-      console.error(err);
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(`Failed to update based on interaction: ${errorMessage}`);
-      setGeneratedCode(oldCode);
-      setPreviewHtml(oldPreview);
-      setChatHistory(prev => [...prev, { type: 'ai', content: `Error processing interaction: ${errorMessage}` }]);
-      setPreviewRefreshKey(prev => prev + 1);
-    } finally {
-      setIsLoading(false);
+            
+            // If it's a button, change its text to show it was clicked
+            if (element.tagName === 'BUTTON') {
+              const originalText = element.textContent;
+              element.textContent = 'Clicked!';
+              element.className = element.className.replace('bg-blue-500', 'bg-green-500');
+              hasChanges = true;
+              
+              // Restore original text after 2 seconds
+              setTimeout(() => {
+                element.textContent = originalText;
+                element.className = element.className.replace('bg-green-500', 'bg-blue-500');
+              }, 2000);
+            }
+          }
+        });
+        break;
     }
-  }, [generatedCode, previewHtml, canSubmit, isEarlyBirdKeyApplied]);
+    
+    if (hasChanges) {
+      // Update the preview with the modified HTML
+      updatedHtml = tempDiv.innerHTML;
+      setPreviewHtml(updatedHtml);
+      setPreviewRefreshKey(prev => prev + 1);
+      
+      // Add success message to chat
+      setChatHistory(prev => [...prev, { type: 'ai', content: `Updated: ${actionDescription}` }]);
+    } else {
+      // If no changes were made, still log the interaction
+      console.log('Interaction logged but no changes made:', actionId);
+      setChatHistory(prev => [...prev, { type: 'ai', content: `Interaction: ${actionDescription}` }]);
+    }
+  }, [previewHtml]);
   
   const downloadSwiftCode = () => {
     if (!generatedCode || generatedCode.startsWith('//') || generatedCode.startsWith('Error:')) {
@@ -1071,6 +1254,66 @@ const App: React.FC = () => {
     }
   };
 
+  // Claude password protection handlers
+  const handleModelChange = (modelId: ModelId) => {
+    if (modelId === ModelId.CLAUDE) {
+      // Show password popup for Claude
+      setPendingModelChange(modelId);
+      setShowClaudePasswordPopup(true);
+      setClaudePassword('');
+      setClaudePasswordError('');
+    } else {
+      // Allow direct change for other models
+      setSelectedModel(modelId);
+    }
+  };
+
+  const handleClaudePasswordSubmit = () => {
+    if (claudePassword === 'forvibecodersbyvibecoders') {
+      setSelectedModel(ModelId.CLAUDE);
+      setShowClaudePasswordPopup(false);
+      setClaudePassword('');
+      setClaudePasswordError('');
+      setPendingModelChange(null);
+    } else {
+      setClaudePasswordError('Incorrect password. Please try again.');
+    }
+  };
+
+  const handleClaudePasswordCancel = () => {
+    setShowClaudePasswordPopup(false);
+    setClaudePassword('');
+    setClaudePasswordError('');
+    setPendingModelChange(null);
+  };
+
+  // Service selection function
+  const getAIService = () => {
+    switch (selectedModel) {
+      case ModelId.CLAUDE:
+        return {
+          generate: generateClaudeCode,
+          refine: refineClaudeCode,
+          handleInteraction: handleClaudeInteraction,
+          setApiKey: setClaudeApiKey
+        };
+      case ModelId.GEMINI_FLASH:
+        return {
+          generate: generateGeminiCode,
+          refine: refineGeminiCode,
+          handleInteraction: handleGeminiInteraction,
+          setApiKey: setGeminiApiKey
+        };
+      default:
+        return {
+          generate: generateGeminiCode,
+          refine: refineGeminiCode,
+          handleInteraction: handleGeminiInteraction,
+          setApiKey: setGeminiApiKey
+        };
+    }
+  };
+
   return (
     <div className={`flex flex-col min-h-screen font-sans transition-colors duration-300 ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-white text-neutral-800'}`}>
       {/* Hidden Sidebar - Hidden on mobile, hover on desktop */}
@@ -1378,11 +1621,11 @@ const App: React.FC = () => {
                 ) : (
                   <div className="flex items-center">
                     <SignedIn>
-                      <img 
-                        src={appLogo} 
-                        alt="App Logo" 
-                        className="h-8 w-8 rounded-lg"
-                      />
+                    <img 
+                      src={appLogo} 
+                      alt="App Logo" 
+                      className="h-8 w-8 rounded-lg"
+                    />
                     </SignedIn>
                     <SignedOut>
                       <img 
@@ -1627,7 +1870,7 @@ const App: React.FC = () => {
                 </div>
               ) : (
                 <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white">
-                  Credits: {freePromptsRemaining}/{MAX_FREE_PROMPTS}
+                  Builds: {freePromptsRemaining}/{MAX_FREE_PROMPTS}
                 </div>
               )}
               <button
@@ -1774,7 +2017,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <main className={`flex-grow container mx-auto p-4 ${isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
+        <main className={`flex-grow ${currentView === 'main' && hasConfirmedFirstPrompt ? 'w-full' : 'container mx-auto p-4'} ${isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
           {currentView === 'main' ? (
             <>
               {!hasConfirmedFirstPrompt ? (
@@ -1788,6 +2031,7 @@ const App: React.FC = () => {
                         onPreviewInteraction={handlePreviewInteraction}
                         key={previewRefreshKey}
                         size="mini"
+                        isLoading={isLoading}
                       />
                     </div>
                   </div>
@@ -1800,7 +2044,7 @@ const App: React.FC = () => {
                         onSubmit={handleSubmit}
                         isLoading={isLoading}
                         selectedModel={selectedModel}
-                        onModelChange={(modelId) => setSelectedModel(modelId as ModelId)}
+                        onModelChange={(modelId) => handleModelChange(modelId as ModelId)}
                         isDisabled={!canSubmit || isLoading}
                         actionText="Generate App"
                         aiThoughtProcess={aiThoughtProcess}
@@ -1816,7 +2060,7 @@ const App: React.FC = () => {
                     )}
                     {!canSubmit && !isEarlyBirdKeyApplied && (
                       <div className="mt-1 glass-card p-2 text-xs text-center bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-400/30">
-                        You've used all your free prompts. Enter an Early Bird Code for unlimited access or subscribe for unlimited prompts!
+                        You've used all your free prompts. Subscribe to a credit plan or an unlimited access plan for more prompts!
                       </div>
                     )}
                   </div>
@@ -1969,6 +2213,7 @@ const App: React.FC = () => {
                           onPreviewInteraction={handlePreviewInteraction}
                           key={previewRefreshKey} 
                           className=""
+                          isLoading={isLoading}
                         />
                       </div>
                       
@@ -2043,7 +2288,7 @@ const App: React.FC = () => {
 
                     {!canSubmit && currentView === 'main' && !isEarlyBirdKeyApplied && (
                       <div className={`p-3 border rounded-md text-sm text-center ${isDarkMode ? 'bg-yellow-900/20 border-yellow-700 text-yellow-300' : 'bg-yellow-100 border-yellow-300 text-yellow-800'}`}>
-                        You've used all your free prompts. Enter an Early Bird Code for unlimited access or subscribe for unlimited prompts!
+                        You've used all your free prompts. Subscribe to a credit plan or an unlimited access plan for more prompts!
                       </div>
                     )}
 
@@ -3177,16 +3422,16 @@ const App: React.FC = () => {
                         
                         setIsGeneratingAab(true);
                         try {
-                          // Simulate AAB generation using Gemini services
+                          // Simulate AAB generation using Claude services
                           await new Promise(resolve => setTimeout(resolve, 3000));
                           
                           // Create a mock AAB file
-                          const mockAabContent = `Mock AAB file for ${googlePlayAppName} generated using Gemini services`;
+                          const mockAabContent = `Mock AAB file for ${googlePlayAppName} generated using Claude services`;
                           const blob = new Blob([mockAabContent], { type: 'application/octet-stream' });
                           const file = new File([blob], `${googlePlayAppName.replace(/\s+/g, '-')}.aab`, { type: 'application/octet-stream' });
                           
                           setGooglePlayAabFile(file);
-                          setSuccess('AAB file generated successfully using Gemini services!');
+                          setSuccess('AAB file generated successfully using Claude services!');
                           setTimeout(() => setSuccess(null), 3000);
                         } catch (error) {
                           setError('Failed to generate AAB file. Please try again.');
@@ -3224,7 +3469,7 @@ const App: React.FC = () => {
                   {googlePlayAabFile && (
                     <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
                       <p className="text-green-300 text-sm">
-                        AAB file generated successfully using Gemini services! Ready for Play Store submission.
+                        AAB file generated successfully using Claude services! Ready for Play Store submission.
                       </p>
                     </div>
                   )}
@@ -3959,6 +4204,78 @@ const App: React.FC = () => {
               <button
                 onClick={() => setShowV2WaitlistPopup(false)}
                 className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors p-2"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Claude Password Protection Popup */}
+      {showClaudePasswordPopup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'backdrop-blur-xl bg-white/90 border border-white/40'} max-w-md w-full p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden`}>
+            {/* Liquid glass effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-3xl"></div>
+            
+            {/* Content */}
+            <div className="relative z-10">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'} mb-2`}>Admin Access Required</h2>
+                <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm`}>Enter admin password to access Claude 3.5 Sonnet</p>
+              </div>
+
+              {/* Password Input */}
+              <div className="mb-6">
+                <label className={`block ${isDarkMode ? 'text-white/80' : 'text-gray-700'} text-sm font-medium mb-2`}>Admin Password</label>
+                <input
+                  type="password"
+                  value={claudePassword}
+                  onChange={(e) => setClaudePassword(e.target.value)}
+                  placeholder="Enter admin password"
+                  className={`w-full px-4 py-3 ${isDarkMode ? 'bg-gray-700 text-white placeholder-white/50 border-gray-600' : 'bg-white text-gray-900 placeholder-gray-500 border-gray-300'} border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300`}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleClaudePasswordSubmit();
+                    }
+                  }}
+                />
+                {claudePasswordError && (
+                  <p className="text-red-500 text-sm mt-2">{claudePasswordError}</p>
+                )}
+              </div>
+
+              {/* Buttons */}
+              <div className="space-y-3">
+                <button
+                  onClick={handleClaudePasswordSubmit}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300"
+                >
+                  Access Claude
+                </button>
+                
+                <button
+                  onClick={handleClaudePasswordCancel}
+                  className="w-full px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-xl transition-all duration-300"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {/* Close button */}
+              <button
+                onClick={handleClaudePasswordCancel}
+                className={`absolute top-4 right-4 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} transition-colors p-2`}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

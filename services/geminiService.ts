@@ -1,42 +1,40 @@
-import { GoogleGenAI, GenerateContentResponse, Content } from "@google/genai";
-import { GEMINI_MODEL_NAME, HARDCODED_API_KEY } from '../constants';
 import { GeminiResponse } from "../types";
 
-// Use the hardcoded API key as the default
-let currentApiKey: string | null = HARDCODED_API_KEY;
-let ai: GoogleGenAI | null = null;
+// Gemini API configuration
+const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY'; // This should be set in environment variables
+const GEMINI_MODEL_NAME = 'gemini-2.5-flash-preview-04-17';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent';
 
-const initializeAiClient = () => {
+let currentApiKey: string | null = GEMINI_API_KEY;
+
+const initializeGeminiClient = () => {
+  console.log("Initializing Gemini client...");
+  console.log("API Key available:", !!currentApiKey);
+  console.log("API Key length:", currentApiKey?.length || 0);
+  
   if (currentApiKey && currentApiKey.trim() !== "") {
-    try {
-      ai = new GoogleGenAI({ apiKey: currentApiKey });
-      // Log only the last 4 characters of the key for security reasons in console.
-      const keySnippet = currentApiKey.length > 4 ? `...${currentApiKey.slice(-4)}` : '(key too short to snip)';
-      console.log(`Gemini AI client initialized/re-initialized successfully with key ending: ${keySnippet}.`);
-    } catch (error) {
-      console.error("Failed to initialize GoogleGenAI client with the current key:", error);
-      ai = null; // Ensure ai is null if initialization fails
-    }
+    const keySnippet = currentApiKey.length > 4 ? `...${currentApiKey.slice(-4)}` : '(key too short to snip)';
+    console.log(`✅ Gemini AI client initialized successfully with key ending: ${keySnippet}`);
   } else {
-    ai = null; // Ensure ai is null if no valid key
-    console.warn("API Key is not set or is empty. AI client not initialized.");
+    console.warn("⚠️ API Key is not set or is empty. Gemini client not initialized.");
   }
 };
 
-// Initialize the AI client with the hardcoded key
-initializeAiClient();
+// Initialize the Gemini client with the API key
+console.log("Starting Gemini service initialization...");
+initializeGeminiClient();
 
 if (!currentApiKey) { 
-  console.warn("No API Key was available. Gemini services will not function.");
-} else if (currentApiKey && !ai) { // currentApiKey was present but client failed to initialize
-  console.error("CRITICAL: An API Key was provided, but the AI client failed to initialize. Please check the key and console for errors from GoogleGenAI constructor.");
+  console.warn("⚠️ No API Key was available. Gemini services will not function.");
+} else {
+  console.log("✅ Gemini service initialization completed successfully");
 }
 
 export const setExternalApiKey = async (newApiKey: string): Promise<boolean> => {
   if (!newApiKey || typeof newApiKey !== 'string' || !newApiKey.trim()) {
     console.error("Attempted to set an empty or invalid API key. Reverting to initial env key if available, or null.");
-    currentApiKey = HARDCODED_API_KEY || null; // Revert to initial state
-    initializeAiClient(); // Re-initialize with the reverted key
+    currentApiKey = GEMINI_API_KEY || null;
+    initializeGeminiClient();
     return false;
   }
   
@@ -44,30 +42,32 @@ export const setExternalApiKey = async (newApiKey: string): Promise<boolean> => 
   const keySnippet = trimmedNewApiKey.length > 4 ? `...${trimmedNewApiKey.slice(-4)}` : '(key too short to snip)';
   console.log(`Attempting to set and use new API key ending: ${keySnippet}`);
   
-  currentApiKey = trimmedNewApiKey; // Update currentApiKey to the new one
-  initializeAiClient(); // Re-initialize the 'ai' client with the new 'currentApiKey'
+  currentApiKey = trimmedNewApiKey;
+  initializeGeminiClient();
   
-  if (ai !== null) {
-    console.log(`Successfully applied new API key. AI client is now active with the new key.`);
-    return true;
-  } else {
-    console.error(`Failed to activate AI client with the newly provided API key (ending: ${keySnippet}). The key might be invalid or malformed.`);
-    // Optionally, decide if you want to revert to initialEnvApiKey if the new key fails
-    // For now, it will keep 'currentApiKey' as the user-provided (but failed) key, and 'ai' will be null.
-    // This means subsequent calls will fail until a valid key is provided.
-    return false;
-  }
+  console.log(`Successfully applied new API key. Gemini client is now active with the new key.`);
+  return true;
 };
 
 const parseGeminiJsonResponse = (responseText: string): GeminiResponse => {
   let jsonStr = responseText.trim();
     
+  // First, try to extract JSON from code fences
   const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
   const match = jsonStr.match(fenceRegex);
   if (match && match[1]) {
     jsonStr = match[1].trim();
   }
 
+  // If no code fences, try to find JSON object boundaries
+  if (!jsonStr.startsWith('{')) {
+    const jsonStart = jsonStr.indexOf('{');
+    if (jsonStart !== -1) {
+      jsonStr = jsonStr.substring(jsonStart);
+    }
+  }
+
+  // Clean up common escape sequences
   jsonStr = jsonStr.replace(/\\n/g, "\\n")
                    .replace(/\\'/g, "\\'")
                    .replace(/\\"/g, '\\"')
@@ -92,218 +92,267 @@ const parseGeminiJsonResponse = (responseText: string): GeminiResponse => {
     return parsedData;
   } catch(e) {
     console.error("Failed to parse JSON string:", jsonStr, e);
-    throw new Error(`Failed to parse AI's JSON response. Raw: ${jsonStr.substring(0,200)}...`);
+    
+    // Try to provide more helpful error information
+    const errorMessage = e instanceof Error ? e.message : 'Unknown parsing error';
+    const jsonPreview = jsonStr.length > 500 ? jsonStr.substring(0, 500) + '...' : jsonStr;
+    
+    // Fallback: try to extract SwiftUI code and HTML manually
+    console.log("Attempting fallback extraction...");
+    try {
+      const swiftMatch = jsonStr.match(/"swiftCode"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+      const htmlMatch = jsonStr.match(/"previewHtml"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+      
+      if (swiftMatch && htmlMatch) {
+        const swiftCode = swiftMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+        const previewHtml = htmlMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+        
+        console.log("Fallback extraction successful");
+        return {
+          swiftCode: swiftCode || "// Fallback: Could not extract SwiftUI code",
+          previewHtml: previewHtml || '<div class="p-4 text-center text-neutral-500">Fallback: Could not extract HTML preview</div>'
+        };
+      }
+    } catch (fallbackError) {
+      console.error("Fallback extraction also failed:", fallbackError);
+    }
+    
+    throw new Error(`Failed to parse AI's JSON response. Error: ${errorMessage}. Raw preview: ${jsonPreview}`);
   }
 };
 
-const constructInitialGeminiPrompt = (userPrompt: string): Content[] => {
-  const systemInstruction = `
-You are an expert iOS app developer and UI designer. The user wants to build an iOS app.
+const constructInitialGeminiPrompt = (userPrompt: string): string => {
+  return `You are an expert iOS app developer and UI designer. The user wants to build an interactive iOS app that users can actually interact with in a preview.
+
 Based on the following user prompt:
 "${userPrompt}"
 
 Generate the following:
-1.  **SwiftUI Code**: Complete, functional SwiftUI code for a single-screen iOS application or component that implements the user's request. Assume a modern iOS target. The code should be self-contained within a single SwiftUI View struct if possible. Ensure the code is valid SwiftUI.
-2.  **HTML Preview**: A simple HTML snippet using Tailwind CSS classes that visually represents the UI described by the user. This HTML should be suitable for rendering in a web-based preview pane that mimics a phone screen.
-    -   Keep the HTML structure minimal.
-    -   Do NOT include <script> tags or external CSS links other than what Tailwind provides by default.
-    -   Use placeholder images (e.g., from https://picsum.photos/width/height) if necessary.
-    -   The HTML should be a single, self-contained block of markup designed to look like a mobile app screen.
-    -   Ensure content is visible on a white background (e.g., use dark text like text-neutral-700).
-    -   **CRITICAL**: For any interactive elements in the HTML preview (buttons, links that simulate app actions), you MUST add these exact data attributes:
-        -   \`data-action-id="UNIQUE_ACTION_IDENTIFIER"\`: A concise, unique identifier for the action this element performs. Use descriptive camelCase names like:
-            - \`addItem\`, \`deleteItem\`, \`editItem\` for list management
-            - \`submitForm\`, \`saveData\`, \`cancelForm\` for form actions
-            - \`viewDetails\`, \`navigateTo\`, \`goBack\` for navigation
-            - \`toggleSwitch\`, \`toggleMenu\`, \`toggleView\` for state toggles
-            - \`selectItem\`, \`chooseOption\`, \`pickCategory\` for selections
-        -   \`data-action-description="User-friendly description of the action"\`: A short phrase describing what the button does (e.g., "Add new item to list", "Submit user data", "View product details").
-    -   **IMPORTANT**: Make all interactive elements clearly clickable by adding these Tailwind classes: \`cursor-pointer hover:opacity-80 transition-opacity\`
-    -   **Example button**: \`<button data-action-id="addItem" data-action-description="Add new item to list" class="bg-blue-500 text-white p-3 rounded-lg cursor-pointer hover:opacity-80 transition-opacity">Add Item</button>\`
-    -   **Example link**: \`<a href="#" data-action-id="viewDetails" data-action-description="View item details" class="text-blue-600 underline cursor-pointer hover:opacity-80 transition-opacity">View Details</a>\`
+1. **SwiftUI Code**: Complete, functional SwiftUI code for a single-screen iOS application that implements the user's request with FULL INTERACTIVITY. The code must include:
+   - Working buttons that perform actual actions
+   - Text inputs that users can type in
+   - State management (@State variables)
+   - Logic that responds to user interactions
+   - Navigation or view transitions
+   - Data persistence or temporary storage
+   - Form validation where appropriate
+   - Animations and visual feedback
+   - Error handling for user inputs
+   
+   The SwiftUI code should be a complete, runnable app that users can interact with. Include realistic functionality that makes sense for the app type.
 
-**IMPORTANT**: ALWAYS include at least 2-3 interactive elements in your HTML preview to demonstrate the app's functionality. These should be meaningful actions that users would actually want to perform in the app.
+2. **HTML Preview**: A highly interactive HTML snippet using Tailwind CSS that accurately represents the SwiftUI app and allows users to interact with it in the preview. This HTML should:
+   - Include working form inputs (text fields, textareas, selects)
+   - Have functional buttons that trigger actions
+   - Show state changes when users interact
+   - Include realistic data and content
+   - Use proper form validation
+   - Show loading states and feedback
+   - Include multiple interactive elements (at least 3-5)
+   
+   **CRITICAL**: For EVERY interactive element in the HTML preview, you MUST add these exact data attributes:
+   - \`data-action-id="UNIQUE_ACTION_IDENTIFIER"\`: A unique identifier for the action
+   - \`data-action-description="User-friendly description of the action"\`: What the button/input does
+   
+   **REQUIRED Interactive Elements** (include at least 3-5 of these):
+   - Submit buttons: \`data-action-id="submitForm" data-action-description="Submit form data"\`
+   - Add buttons: \`data-action-id="addItem" data-action-description="Add new item to list"\`
+   - Delete buttons: \`data-action-id="deleteItem" data-action-description="Remove item from list"\`
+   - Edit buttons: \`data-action-id="editItem" data-action-description="Edit selected item"\`
+   - Save buttons: \`data-action-id="saveData" data-action-description="Save current data"\`
+   - Cancel buttons: \`data-action-id="cancelAction" data-action-description="Cancel current action"\`
+   - Toggle buttons: \`data-action-id="toggleFeature" data-action-description="Toggle feature on/off"\`
+   - View buttons: \`data-action-id="viewDetails" data-action-description="View item details"\`
+   - Search buttons: \`data-action-id="searchItems" data-action-description="Search for items"\`
+   - Filter buttons: \`data-action-id="filterResults" data-action-description="Filter results"\`
+   - Checkbox/Complete: \`data-action-id="markComplete" data-action-description="Mark item as complete"\`
+   - Uncheck/Incomplete: \`data-action-id="markIncomplete" data-action-description="Mark item as incomplete"\`
+   - Toggle items: \`data-action-id="toggleItem" data-action-description="Toggle item state"\`
+   
+   **IMPORTANT**: Make all interactive elements clearly clickable with these Tailwind classes: \`cursor-pointer hover:opacity-80 transition-opacity active:scale-95\`
+   
+   **Example Interactive Button**: 
+   \`<button data-action-id="addItem" data-action-description="Add new item to list" class="bg-blue-500 text-white px-4 py-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity active:scale-95">Add Item</button>\`
+   
+   **Example Interactive Input**:
+   \`<input type="text" data-action-id="searchItems" data-action-description="Search for items" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search...">\`
 
-Return your response as a single JSON object with the following exact structure:
+**CRITICAL REQUIREMENTS:**
+- Return ONLY a valid JSON object with exactly these two fields: "swiftCode" and "previewHtml"
+- The JSON must be properly escaped and valid
+- Do not include any markdown formatting, code fences, or additional text
+- The response must be parseable by JSON.parse()
+- Both swiftCode and previewHtml must contain meaningful, functional content
+
+**Example Response Format:**
+\`\`\`json
 {
-  "swiftCode": "SWIFTUI_CODE_HERE",
-  "previewHtml": "HTML_PREVIEW_CODE_HERE"
+  "swiftCode": "import SwiftUI\\n\\nstruct ContentView: View {\\n    @State private var text = \\"\\"\\n    \\n    var body: some View {\\n        VStack {\\n            TextField(\\"Enter text\\", text: $text)\\n                .textFieldStyle(RoundedBorderTextFieldStyle())\\n                .padding()\\n            \\n            Button(\\"Submit\\") {\\n                // Action here\\n            }\\n            .padding()\\n        }\\n    }\\n}",
+  "previewHtml": "<div class=\\"p-4\\"><input type=\\"text\\" data-action-id=\\"submitForm\\" data-action-description=\\"Submit form data\\" class=\\"border border-gray-300 rounded-lg px-3 py-2 w-full mb-4\\" placeholder=\\"Enter text\\"><button data-action-id=\\"submitForm\\" data-action-description=\\"Submit form data\\" class=\\"bg-blue-500 text-white px-4 py-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity active:scale-95\\">Submit</button></div>"
 }
+\`\`\`
 
-Ensure the swiftCode and previewHtml are valid, properly escaped strings within the JSON structure.
-If the user prompt is vague, try to create a common, simple app screen related to the prompt, including appropriate interactive elements with data attributes.
-`;
-  return [{ role: "user", parts: [{ text: systemInstruction }] }];
+Remember: Return ONLY the JSON object, no additional text or formatting.`;
 };
 
-const constructRefinementGeminiPrompt = (currentSwiftCode: string, currentHtmlPreview: string, refinementRequest: string): Content[] => {
-  const systemInstruction = `
-You are an expert iOS app developer and UI designer. You have previously generated an iOS app.
-The current SwiftUI code is:
+const constructRefinementGeminiPrompt = (currentSwiftCode: string, currentHtmlPreview: string, refinementRequest: string): string => {
+  return `You are an expert iOS app developer and UI designer. The user wants to refine their existing iOS app.
+
+Current SwiftUI Code:
 \`\`\`swift
 ${currentSwiftCode}
 \`\`\`
 
-The current HTML preview code is:
+Current HTML Preview:
 \`\`\`html
 ${currentHtmlPreview}
 \`\`\`
 
-Now, the user wants to refine this app with the following request:
+User's Refinement Request:
 "${refinementRequest}"
 
-Based on this refinement request, update BOTH the SwiftUI code AND the HTML preview.
-Ensure the updated SwiftUI code is complete and functional for a single screen.
-Ensure the updated HTML preview accurately reflects the refined UI, using Tailwind CSS, and is suitable for a phone screen preview.
+Please update both the SwiftUI code and HTML preview to implement the requested changes while maintaining all existing functionality and interactivity.
 
-**CRITICAL**: For any interactive elements in the updated HTML preview (buttons, links that simulate app actions), you MUST add or update these exact data attributes:
-    -   \`data-action-id="UNIQUE_ACTION_IDENTIFIER"\`: A concise, unique identifier for the action this element performs. Use descriptive camelCase names like:
-        - \`addItem\`, \`deleteItem\`, \`editItem\` for list management
-        - \`submitForm\`, \`saveData\`, \`cancelForm\` for form actions
-        - \`viewDetails\`, \`navigateTo\`, \`goBack\` for navigation
-        - \`toggleSwitch\`, \`toggleMenu\`, \`toggleView\` for state toggles
-        - \`selectItem\`, \`chooseOption\`, \`pickCategory\` for selections
-    -   \`data-action-description="User-friendly description of the action"\`: A short phrase describing what the button does (e.g., "Add new item to list", "Submit user data", "View product details").
-**IMPORTANT**: Make all interactive elements clearly clickable by adding these Tailwind classes: \`cursor-pointer hover:opacity-80 transition-opacity\`
+**CRITICAL REQUIREMENTS:**
+- Return ONLY a valid JSON object with exactly these two fields: "swiftCode" and "previewHtml"
+- The JSON must be properly escaped and valid
+- Do not include any markdown formatting, code fences, or additional text
+- The response must be parseable by JSON.parse()
+- Both swiftCode and previewHtml must contain meaningful, functional content
+- Maintain all existing interactive elements and their data-action-id attributes
 
-**IMPORTANT**: ALWAYS include at least 2-3 interactive elements in your HTML preview to demonstrate the app's functionality. These should be meaningful actions that users would actually want to perform in the app.
-
-Return your response as a single JSON object with the following exact structure:
+**Example Response Format:**
+\`\`\`json
 {
-  "swiftCode": "UPDATED_SWIFTUI_CODE_HERE",
-  "previewHtml": "UPDATED_HTML_PREVIEW_CODE_HERE"
+  "swiftCode": "updated SwiftUI code here",
+  "previewHtml": "updated HTML preview here"
 }
+\`\`\`
 
-Ensure the swiftCode and previewHtml are valid, properly escaped strings within the JSON structure.
-The HTML preview should be a self-contained block of markup.
-`;
-  return [{ role: "user", parts: [{ text: systemInstruction }] }];
+Remember: Return ONLY the JSON object, no additional text or formatting.`;
 };
 
-const constructInteractionGeminiPrompt = (currentSwiftCode: string, currentHtmlPreview: string, actionId: string, actionDescription: string): Content[] => {
-  const systemInstruction = `
-You are an expert iOS app developer and UI designer.
-The current SwiftUI code for an app is:
+const constructInteractionGeminiPrompt = (currentSwiftCode: string, currentHtmlPreview: string, actionId: string, actionDescription: string): string => {
+  return `You are an expert iOS app developer and UI designer. A user has interacted with your app preview and you need to update the code to reflect their action.
+
+Current SwiftUI Code:
 \`\`\`swift
 ${currentSwiftCode}
 \`\`\`
 
-The current HTML preview for this app is:
+Current HTML Preview:
 \`\`\`html
 ${currentHtmlPreview}
 \`\`\`
 
-The user has just interacted with an element in the HTML preview.
-- Interaction Element ID: \`${actionId}\`
-- Interaction Element Description: \`${actionDescription}\`
+User Action:
+- Action ID: "${actionId}"
+- Action Description: "${actionDescription}"
 
-This interaction signifies the user's intent to trigger the behavior associated with this element in the iOS app.
+Please update both the SwiftUI code and HTML preview to implement the appropriate response to this user action. The action should:
+- Update the app's state appropriately
+- Show visual feedback to the user
+- Maintain all existing functionality
+- Add realistic data or content changes
+- Provide meaningful interaction results
 
-**CRITICAL INSTRUCTIONS FOR HANDLING INTERACTIONS:**
+**CRITICAL REQUIREMENTS:**
+- Return ONLY a valid JSON object with exactly these two fields: "swiftCode" and "previewHtml"
+- The JSON must be properly escaped and valid
+- Do not include any markdown formatting, code fences, or additional text
+- The response must be parseable by JSON.parse()
+- Both swiftCode and previewHtml must contain meaningful, functional content
+- Maintain all existing interactive elements and their data-action-id attributes
 
-1. **ALWAYS make a VISIBLE change** to the app state when an interaction occurs. The user should see something different after clicking.
-
-2. **Common interaction patterns to implement:**
-   - **Navigation actions** (viewDetails, navigateTo, goBack): Show a new screen or overlay
-   - **Data actions** (addItem, deleteItem, submitForm): Update lists, show success messages, or change form state
-   - **Toggle actions** (toggleSwitch, toggleMenu): Change boolean states and update UI accordingly
-   - **Selection actions** (selectItem, chooseOption): Highlight selected items or update selection state
-   - **Action buttons** (save, cancel, confirm): Show loading states, success messages, or navigate away
-
-3. **Update BOTH the SwiftUI code AND HTML preview** to reflect the new state:
-   - Add or modify @State variables to track the new state
-   - Update the UI to show the result of the interaction
-   - Ensure the HTML preview visually represents the new state
-   - Add appropriate feedback (success messages, loading states, etc.)
-
-4. **Make the changes obvious and meaningful** - don't just change text, make functional changes that users would expect from the interaction.
-
-Your task is to:
-1. Analyze the \`${actionId}\` and \`${actionDescription}\` to understand the user's intended action.
-2. Update the **SwiftUI code** to implement the outcome of this action with visible state changes.
-3. Update the **HTML preview** to visually represent the new state of the app AFTER this interaction has occurred.
-4. Ensure the updated HTML preview includes \`data-action-id\` and \`data-action-description\` attributes on its interactive elements.
-
-**Example responses:**
-- If user clicks "Add Item" → Add an item to a list and show a success message
-- If user clicks "View Details" → Show a detailed view or modal
-- If user clicks "Submit Form" → Show loading state, then success message
-- If user clicks "Toggle Switch" → Change the switch state and update related UI
-
-Return your response as a single JSON object with the following exact structure:
+**Example Response Format:**
+\`\`\`json
 {
-  "swiftCode": "UPDATED_SWIFTUI_CODE_AFTER_INTERACTION_HERE",
-  "previewHtml": "UPDATED_HTML_PREVIEW_AFTER_INTERACTION_HERE"
+  "swiftCode": "updated SwiftUI code here",
+  "previewHtml": "updated HTML preview here"
 }
+\`\`\`
 
-Ensure the swiftCode and previewHtml are valid, properly escaped strings within the JSON structure.
-Focus on making the SwiftUI code reflect the direct consequence of the specified user interaction with VISIBLE changes.
-The updated HTML preview must accurately reflect the new app state and show what changed.
-`;
-  return [{ role: "user", parts: [{ text: systemInstruction }] }];
+Remember: Return ONLY the JSON object, no additional text or formatting.`;
 };
 
-const callGeminiApi = async (structuredContents: Content[]): Promise<GeminiResponse> => {
-  if (!ai) {
-    console.warn("Gemini API client not initialized at call time.");
-    if (currentApiKey && currentApiKey.trim() !== "") {
-      console.warn(`An API key is configured (ending ${currentApiKey.length > 4 ? `...${currentApiKey.slice(-4)}` : '(key too short)'}), attempting to re-initialize client...`);
-      initializeAiClient(); 
-    }
-    
-    if (!ai) {
-      const errMessage = currentApiKey && currentApiKey.trim() !== "" 
-        ? "Gemini API client could not be initialized even though an API key is present. The key might be invalid or there's a configuration issue."
-        : "Gemini API client is not initialized. An API Key is required. Please provide one via the 'Early Bird API' input if available, or ensure environment key is set up.";
-      console.error(errMessage);
-      throw new Error(errMessage);
-    }
+const callGeminiApi = async (prompt: string): Promise<GeminiResponse> => {
+  if (!currentApiKey) {
+    throw new Error("Gemini API key is not configured. Please set up your API key.");
   }
 
   try {
-    const response: GenerateContentResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL_NAME,
-      contents: structuredContents, // Use the structured Content[]
-      config: {
-        responseMimeType: "application/json",
+    const response = await fetch(`${GEMINI_API_URL}?key=${currentApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          }
+        ]
+      })
     });
-    
-    return parseGeminiJsonResponse(response.text);
 
-  } catch (error) {
-    console.error("Error calling Gemini API or parsing response:", error);
-    if (error instanceof Error) {
-        if (error.message.includes("API key not valid")) {
-             throw new Error("The provided API Key is not valid. Please check the key and try again.");
-        }
-        if (error.message.toLowerCase().includes("quota") || (error as any)?.status === 429) {
-            throw new Error("API quota exceeded. Please check your quota or try again later.");
-        }
-        if (error.message.includes("SAFETY")) {
-             throw new Error("The AI generated a response that couldn't be shown due to safety settings. Please try a different prompt.");
-        }
-        // Check for NotSupportedError specifically (as seen in the user's error)
-        if (error.name === 'NotSupportedError' || error.message.includes("ReadableStream uploading is not supported")) {
-            throw new Error(`AI API Error: ReadableStream uploading is not supported by the proxy server. Please check the proxy configuration. Original detail: ${error.message}`);
-        }
-        throw new Error(`AI API Error: ${error.message}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API error:', response.status, errorText);
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
     }
-    throw new Error("An unknown error occurred while communicating with the AI.");
+
+    const data = await response.json();
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+      console.error('Unexpected Gemini API response structure:', data);
+      throw new Error('Unexpected response structure from Gemini API');
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text;
+    console.log('Raw Gemini response:', responseText);
+    
+    return parseGeminiJsonResponse(responseText);
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    throw error;
   }
 };
 
 export const generateAppCodeAndPreview = async (userPrompt: string): Promise<GeminiResponse> => {
-  const contents = constructInitialGeminiPrompt(userPrompt);
-  return callGeminiApi(contents);
+  const prompt = constructInitialGeminiPrompt(userPrompt);
+  return await callGeminiApi(prompt);
 };
 
 export const refineAppCodeAndPreview = async (currentSwiftCode: string, currentHtmlPreview: string, refinementRequest: string): Promise<GeminiResponse> => {
-  const contents = constructRefinementGeminiPrompt(currentSwiftCode, currentHtmlPreview, refinementRequest);
-  return callGeminiApi(contents);
+  const prompt = constructRefinementGeminiPrompt(currentSwiftCode, currentHtmlPreview, refinementRequest);
+  return await callGeminiApi(prompt);
 };
 
 export const handleInteractionAndUpdateCodeAndPreview = async (currentSwiftCode: string, currentHtmlPreview: string, actionId: string, actionDescription: string): Promise<GeminiResponse> => {
-  const contents = constructInteractionGeminiPrompt(currentSwiftCode, currentHtmlPreview, actionId, actionDescription);
-  return callGeminiApi(contents);
-};
+  const prompt = constructInteractionGeminiPrompt(currentSwiftCode, currentHtmlPreview, actionId, actionDescription);
+  return await callGeminiApi(prompt);
+}; 

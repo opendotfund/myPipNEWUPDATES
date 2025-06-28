@@ -576,6 +576,9 @@
       align-items: start;
       width: 100%;
       max-width: none;
+      margin: 0;
+      padding-left: 0;
+      padding-right: 0;
     }
 
     /* Responsive layout for mobile */
@@ -619,6 +622,8 @@
     /* Ensure the code section takes up the right side properly */
     .refine-app-container > div:nth-child(3) {
       justify-self: end;
+      width: 100%;
+      max-width: none;
     }
 
     /* Override main container constraints for refine app */
@@ -721,13 +726,14 @@
 
     .refine-app-container > div:nth-child(3) {
       min-width: 400px;
-      max-width: 600px;
+      max-width: none;
+      width: 100%;
     }
 
     /* Ensure the layout works well on larger screens */
     @media (min-width: 1400px) {
       .refine-app-container {
-        grid-template-columns: 350px auto 500px;
+        grid-template-columns: 350px auto 1fr;
         gap: 3rem;
       }
     }

@@ -1,13 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 
 interface PhonePreviewProps {
   htmlContent: string;
   onPreviewInteraction: (actionId: string, actionDescription: string) => void;
   size?: 'tiny' | 'small' | 'default' | 'mini';
   className?: string;
+  isLoading?: boolean;
 }
 
-export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPreviewInteraction, size = 'default', className }) => {
+export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPreviewInteraction, size = 'default', className, isLoading = false }) => {
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // Size configurations
@@ -32,6 +33,26 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPrevi
 
   const config = sizeConfig[size];
 
+  const handleInteraction = useCallback((event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    const actionId = target.getAttribute('data-action-id');
+    const actionDescription = target.getAttribute('data-action-description');
+    
+    if (actionId) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Provide immediate visual feedback
+      target.style.transform = 'scale(0.95)';
+      setTimeout(() => {
+        target.style.transform = '';
+      }, 150);
+      
+      // Call the interaction handler
+      onPreviewInteraction(actionId, actionDescription || actionId);
+    }
+  }, [onPreviewInteraction]);
+
   useEffect(() => {
     const container = previewContainerRef.current;
     if (!container) return;
@@ -55,31 +76,31 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPrevi
             e.stopPropagation();
             console.log(`Interaction detected:`, { actionId, actionDescription });
             
-            // Add visual feedback
+            // Enhanced visual feedback
             if (el instanceof HTMLElement) {
               el.style.transform = 'scale(0.95)';
               el.style.transition = 'transform 0.1s ease';
+              
               setTimeout(() => {
                 el.style.transform = 'scale(1)';
               }, 100);
             }
             
-            // Ensure attribute still exists
-            const currentActionId = el.getAttribute('data-action-id');
-            const currentActionDescription = el.getAttribute('data-action-description');
-            if (currentActionId) {
-              onPreviewInteraction(currentActionId, currentActionDescription || currentActionId);
-            }
+            // Call the interaction handler immediately
+            handleInteraction(e as MouseEvent);
           };
           
-          // Add both click and touchstart events for better mobile support
+          // Add multiple event listeners for better interaction coverage
           el.addEventListener('click', eventListener);
           el.addEventListener('touchstart', eventListener, { passive: false });
+          el.addEventListener('mousedown', eventListener);
           
-          // Make the element look clickable and ensure proper styling
+          // Enhanced styling for interactive elements
           if (el instanceof HTMLElement) {
             el.style.cursor = 'pointer';
             el.style.userSelect = 'none';
+            el.style.transition = 'all 0.2s ease';
+            el.style.position = 'relative';
             
             // Add hover effects if not already present
             if (!el.classList.contains('hover:opacity-80')) {
@@ -88,9 +109,50 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPrevi
             if (!el.classList.contains('transition-opacity')) {
               el.classList.add('transition-opacity');
             }
+            if (!el.classList.contains('active:scale-95')) {
+              el.classList.add('active:scale-95');
+            }
+            
+            // Add focus styles for accessibility
+            el.setAttribute('tabindex', '0');
+            el.addEventListener('focus', () => {
+              el.style.outline = '2px solid #3b82f6';
+              el.style.outlineOffset = '2px';
+            });
+            el.addEventListener('blur', () => {
+              el.style.outline = 'none';
+            });
+            
+            // Add hover state management
+            el.addEventListener('mouseenter', () => {
+              el.style.transform = 'scale(1.02)';
+            });
+            el.addEventListener('mouseleave', () => {
+              el.style.transform = 'scale(1)';
+            });
           }
           
           listenersToRemove.push({ el, listener: eventListener });
+        }
+      });
+
+      // Also handle form inputs and other interactive elements without data-action-id
+      const formInputs = container.querySelectorAll('input, textarea, select, button');
+      formInputs.forEach((input) => {
+        if (!input.hasAttribute('data-action-id')) {
+          // Add basic interactivity to form elements
+          if (input instanceof HTMLElement) {
+            input.style.transition = 'all 0.2s ease';
+            
+            // Add focus styles
+            input.addEventListener('focus', () => {
+              input.style.outline = '2px solid #3b82f6';
+              input.style.outlineOffset = '2px';
+            });
+            input.addEventListener('blur', () => {
+              input.style.outline = 'none';
+            });
+          }
         }
       });
 
@@ -98,6 +160,7 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPrevi
         listenersToRemove.forEach(({ el, listener }) => {
           el.removeEventListener('click', listener);
           el.removeEventListener('touchstart', listener);
+          el.removeEventListener('mousedown', listener);
         });
       };
     }, 100); // Small delay to ensure content is rendered
@@ -105,7 +168,7 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPrevi
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [htmlContent, onPreviewInteraction]); 
+  }, [htmlContent, handleInteraction]);
 
   return (
     <div className={`${config.container} ${className || ''}`}>
@@ -123,6 +186,16 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPrevi
             WebkitOverflowScrolling: 'touch'
           }}
         />
+        
+        {/* Loading Overlay - Only show for AI interactions, not initial generation */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+            <div className="bg-white rounded-lg p-4 flex items-center space-x-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="text-sm text-gray-700">Processing interaction...</span>
+            </div>
+          </div>
+        )}
         
         <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-28 h-1 bg-neutral-500 rounded-full" aria-hidden="true"></div>
       </div>
