@@ -1,7 +1,7 @@
 import { GeminiResponse } from "../types";
 
 // Gemini API configuration
-const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY'; // This should be set in environment variables
+const GEMINI_API_KEY = 'AIzaSyB3D9sUIrwAK4ItMti3ROr--h_Qr-GblBQ'; // User-provided Gemini API key
 const GEMINI_MODEL_NAME = 'gemini-2.5-flash-preview-04-17';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent';
 

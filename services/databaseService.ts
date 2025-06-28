@@ -1,5 +1,5 @@
 import { createClerkSupabaseClient } from './supabaseClient'
-import type { User, Project, ProjectLike, ProjectView, UserSavedProject } from '../types/database'
+import type { User, Project, ProjectLike, ProjectView, UserSavedProject, Waitlist } from '../types/database'
 
 const client = createClerkSupabaseClient()
 
@@ -59,6 +59,101 @@ export const userService = {
     }
 
     return data
+  }
+}
+
+// Waitlist operations
+export const waitlistService = {
+  // Join the waitlist
+  async joinWaitlist(email: string, source: string = 'v2_popup'): Promise<Waitlist | null> {
+    const { data, error } = await client
+      .from('waitlist')
+      .insert({ email: email.toLowerCase().trim(), source })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error joining waitlist:', error)
+      return null
+    }
+
+    return data
+  },
+
+  // Check if email is already on waitlist
+  async isEmailOnWaitlist(email: string): Promise<boolean> {
+    const { data, error } = await client
+      .from('waitlist')
+      .select('id')
+      .eq('email', email.toLowerCase().trim())
+      .single()
+
+    if (error) {
+      console.error('Error checking waitlist status:', error)
+      return false
+    }
+
+    return !!data
+  },
+
+  // Get all waitlist entries (admin only)
+  async getAllWaitlistEntries(): Promise<Waitlist[]> {
+    const { data, error } = await client
+      .from('waitlist')
+      .select()
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error getting waitlist entries:', error)
+      return []
+    }
+
+    return data || []
+  },
+
+  // Get waitlist statistics
+  async getWaitlistStats(): Promise<{ total: number; today: number; thisWeek: number }> {
+    const { data: totalData, error: totalError } = await client
+      .from('waitlist')
+      .select('id', { count: 'exact' })
+
+    if (totalError) {
+      console.error('Error getting total waitlist count:', totalError)
+      return { total: 0, today: 0, thisWeek: 0 }
+    }
+
+    const { data: todayData, error: todayError } = await client
+      .from('waitlist')
+      .select('id', { count: 'exact' })
+      .gte('created_at', new Date().toISOString().split('T')[0])
+
+    if (todayError) {
+      console.error('Error getting today\'s waitlist count:', todayError)
+      return { total: totalData?.length || 0, today: 0, thisWeek: 0 }
+    }
+
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+
+    const { data: weekData, error: weekError } = await client
+      .from('waitlist')
+      .select('id', { count: 'exact' })
+      .gte('created_at', oneWeekAgo.toISOString())
+
+    if (weekError) {
+      console.error('Error getting this week\'s waitlist count:', weekError)
+      return { 
+        total: totalData?.length || 0, 
+        today: todayData?.length || 0, 
+        thisWeek: 0 
+      }
+    }
+
+    return {
+      total: totalData?.length || 0,
+      today: todayData?.length || 0,
+      thisWeek: weekData?.length || 0
+    }
   }
 }
 

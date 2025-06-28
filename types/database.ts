@@ -10,6 +10,15 @@ export interface User {
   updated_at: string
 }
 
+export interface Waitlist {
+  id: string
+  email: string
+  source: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Project {
   id: string
   user_id: string
@@ -58,6 +67,11 @@ export interface Database {
         Row: User
         Insert: Omit<User, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>
+      }
+      waitlist: {
+        Row: Waitlist
+        Insert: Omit<Waitlist, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Waitlist, 'id' | 'created_at' | 'updated_at'>>
       }
       projects: {
         Row: Project

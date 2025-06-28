@@ -18,6 +18,8 @@ import { useProjects, usePublicProjects, useSavedProjects } from './hooks/usePro
 import { AppleIcon } from './components/icons/AppleIcon';
 import { convertSwiftToFlutter, convertSwiftToReact, convertFlutterToSwift, convertReactToSwift } from './services/conversionService.ts';
 import { GitHubModal } from './components/GitHubModal';
+import { waitlistService } from './services/databaseService';
+import { WaitlistAdmin } from './components/WaitlistAdmin';
 
 type AppView = 'main' | 'community' | 'myPips' | 'affiliate';
 
@@ -169,6 +171,9 @@ const App: React.FC = () => {
   const [isJoiningWaitlist, setIsJoiningWaitlist] = useState(false);
   const [hasSeenV2Popup, setHasSeenV2Popup] = useState(false);
 
+  // Waitlist admin state
+  const [isWaitlistAdminOpen, setIsWaitlistAdminOpen] = useState(false);
+
   // Claude password protection state
   const [showClaudePasswordPopup, setShowClaudePasswordPopup] = useState<boolean>(false);
   const [claudePassword, setClaudePassword] = useState<string>('');
@@ -190,16 +195,18 @@ const App: React.FC = () => {
 
   // Show V2 waitlist popup when user first logs in
   useEffect(() => {
-    if (user && !hasSeenV2Popup) {
+    // Show popup for all users, not just logged-in ones
+    if (!hasSeenV2Popup) {
       // Small delay to ensure the app is fully loaded
       const timer = setTimeout(() => {
+        console.log('Showing V2 waitlist popup');
         setShowV2WaitlistPopup(true);
         setHasSeenV2Popup(true);
       }, 1000);
       
       return () => clearTimeout(timer);
     }
-  }, [user, hasSeenV2Popup]);
+  }, [hasSeenV2Popup]);
 
   const handleApplyApiKey = useCallback(async (apiKey: string) => {
     setIsLoading(true);
@@ -227,16 +234,36 @@ const App: React.FC = () => {
     
     setIsJoiningWaitlist(true);
     setError(null);
+    setSuccess(null);
     
     try {
-      // Simulate API call to join waitlist
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Check if email is already on waitlist
+      const isAlreadyOnWaitlist = await waitlistService.isEmailOnWaitlist(waitlistEmail);
       
-      setError('Successfully joined the waitlist! You\'ll receive a 7-day trial of myPip Pro when V2 launches.');
-      setTimeout(() => setError(null), 5000);
-      setShowV2WaitlistPopup(false);
-      setWaitlistEmail('');
+      if (isAlreadyOnWaitlist) {
+        setSuccess('This email is already on the waitlist! You\'ll receive a 7-day trial of myPip Pro when V2 launches.');
+        setTimeout(() => setSuccess(null), 5000);
+        setShowV2WaitlistPopup(false);
+        setWaitlistEmail('');
+        return;
+      }
+      
+      // Join the waitlist
+      const result = await waitlistService.joinWaitlist(waitlistEmail, 'v2_popup');
+      
+      if (result) {
+        setSuccess('Successfully joined the waitlist! You\'ll receive a 7-day trial of myPip Pro when V2 launches.');
+        setTimeout(() => setSuccess(null), 5000);
+        setShowV2WaitlistPopup(false);
+        setWaitlistEmail('');
+        
+        // Mark that user has seen the popup
+        localStorage.setItem('hasSeenV2WaitlistPopup', 'true');
+      } else {
+        setError('Failed to join waitlist. Please try again.');
+      }
     } catch (err) {
+      console.error('Error joining waitlist:', err);
       setError('Failed to join waitlist. Please try again.');
     } finally {
       setIsJoiningWaitlist(false);
@@ -1905,11 +1932,40 @@ const App: React.FC = () => {
                   <span className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 text-white">
                     {user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress}
                   </span>
+                  {/* Admin button - only show for specific admin emails */}
+                  {(user?.primaryEmailAddress?.emailAddress === 'm3stastn@uwaterloo.ca' || 
+                    user?.primaryEmailAddress?.emailAddress === 'admin@mypip.com' || 
+                    user?.primaryEmailAddress?.emailAddress === 'your-admin-email@example.com') && (
+                    <button
+                      onClick={() => setIsWaitlistAdminOpen(true)}
+                      className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 text-white"
+                      title="Waitlist Admin"
+                    >
+                      <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Admin
+                    </button>
+                  )}
                 </div>
               </SignedIn>
             </div>
           </div>
         </header>
+
+        {/* Top-level Success Notification */}
+        {success && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4">
+            <div className="glass-card p-4 text-center bg-gradient-to-r from-green-400/20 to-emerald-500/20 border-green-400/30 text-green-100 shadow-lg">
+              <div className="flex items-center justify-center space-x-2">
+                <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm font-medium">{success}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* + Button for New Project - Top Right (only show when not on first prompt) */}
         {hasConfirmedFirstPrompt && (
@@ -4293,6 +4349,13 @@ const App: React.FC = () => {
         code={currentCodeType === 'swift' ? generatedCode : convertedCode}
         projectName={projectName || 'My App'}
         codeType={currentCodeType}
+      />
+
+      {/* Waitlist Admin Modal */}
+      <WaitlistAdmin
+        isOpen={isWaitlistAdminOpen}
+        onClose={() => setIsWaitlistAdminOpen(false)}
+        isDarkMode={isDarkMode}
       />
     </div>
   );

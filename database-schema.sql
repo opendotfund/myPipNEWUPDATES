@@ -14,6 +14,16 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Waitlist table for V2 signups
+CREATE TABLE IF NOT EXISTS waitlist (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  source TEXT DEFAULT 'v2_popup',
+  status TEXT DEFAULT 'pending',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Projects table
 CREATE TABLE IF NOT EXISTS projects (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -63,6 +73,9 @@ CREATE TABLE IF NOT EXISTS user_saved_projects (
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_clerk_id ON users(clerk_id);
+CREATE INDEX IF NOT EXISTS idx_waitlist_email ON waitlist(email);
+CREATE INDEX IF NOT EXISTS idx_waitlist_status ON waitlist(status);
+CREATE INDEX IF NOT EXISTS idx_waitlist_created_at ON waitlist(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_projects_public ON projects(is_public) WHERE is_public = true;
 CREATE INDEX IF NOT EXISTS idx_projects_category ON projects(category);
@@ -76,6 +89,7 @@ CREATE INDEX IF NOT EXISTS idx_user_saved_projects_project_id ON user_saved_proj
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_views ENABLE ROW LEVEL SECURITY;
@@ -90,6 +104,16 @@ CREATE POLICY "Users can update their own profile" ON users
 
 CREATE POLICY "Users can insert their own profile" ON users
   FOR INSERT WITH CHECK (clerk_id = current_setting('request.jwt.claims', true)::json->>'user_id');
+
+-- RLS Policies for waitlist table
+CREATE POLICY "Anyone can join waitlist" ON waitlist
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Anyone can view waitlist" ON waitlist
+  FOR SELECT USING (true);
+
+CREATE POLICY "Only admins can update waitlist" ON waitlist
+  FOR UPDATE USING (auth.email() IN ('m3stastn@uwaterloo.ca', 'admin@mypip.com'));
 
 -- RLS Policies for projects table
 CREATE POLICY "Users can view their own projects" ON projects
@@ -164,6 +188,9 @@ $$ language 'plpgsql';
 
 -- Triggers to automatically update updated_at
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_waitlist_updated_at BEFORE UPDATE ON waitlist
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
