@@ -177,7 +177,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
               <div className="space-y-2">
                 <button 
-                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/61780121-1aa0-418d-a300-67e81fe60513')}
+                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/e210a879-e5ce-4682-8dd6-b00dd56312f2')}
                   className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   Buy myPip Basic
@@ -224,7 +224,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
               <div className="space-y-2 mb-4">
                 <button 
-                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/3bbb65ba-61db-47e1-8d6d-09bf008233f5')}
+                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/b0e37f2f-9385-471f-a4cb-ca24b1ff7108')}
                   className="w-full flex items-center justify-center px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   Buy myPip Pro
@@ -240,7 +240,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                 <p className="text-xs text-gray-300 mb-1">Base monthly + $0.10 per prompt</p>
                 <p className="text-xs text-gray-400 mb-2">Perfect for high-volume users who want to pay only for what they use.</p>
                 <button 
-                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/5aba50ab-154a-4d32-a978-97e928a0c893')}
+                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/570daf7c-d83f-4f80-8844-8c295955af16')}
                   className="w-full flex items-center justify-center px-3 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 text-xs"
                 >
                   Buy Pro Plus
@@ -292,7 +292,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
               <div className="space-y-2">
                 <button 
-                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/71593e62-d3d4-4dcf-8dc9-54ee3fae8ee2')}
+                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/96500a66-befe-4016-be3b-ae691ad87b3f')}
                   className="w-full flex items-center justify-center px-4 py-3 bg-white hover:bg-gray-100 text-blue-600 font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg"
                 >
                   Buy myPip Enterprise

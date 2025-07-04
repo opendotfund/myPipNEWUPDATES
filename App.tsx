@@ -292,7 +292,7 @@ const App: React.FC = () => {
 
   const handleCheckoutV1 = () => {
     setShowV2WaitlistPopup(false);
-    window.open('https://mypip.lemonsqueezy.com/buy/61780121-1aa0-418d-a300-67e81fe60513', '_blank');
+    window.open('https://mypip.lemonsqueezy.com/buy/e210a879-e5ce-4682-8dd6-b00dd56312f2', '_blank');
   };
 
   const openConfigModal = (platform: string) => {
@@ -2741,7 +2741,7 @@ class SocialFeed: ObservableObject {
                         </div>
               ) : (
                 // Refine App Layout - Compact Two Column Design
-                <div className="col-span-1 md:col-span-2 h-screen flex flex-col lg:flex-row gap-6 p-6 w-full">
+                <div className="col-span-1 md:col-span-2 min-h-screen flex flex-col lg:flex-row gap-6 p-6 w-full">
                   {/* Left Column - Cursor/Lovable Style */}
                   <div className={`w-full lg:w-80 lg:flex-shrink-0 flex flex-col rounded-xl border font-sf-pro ${
                     isDarkMode 
@@ -2861,7 +2861,7 @@ class SocialFeed: ObservableObject {
                   </div>
 
                   {/* Right Column - Phone Preview or Code Files */}
-                  <div className="flex-1 flex flex-col min-w-0 w-full">
+                  <div className="flex-1 flex flex-col min-w-0 w-full h-full">
                     {/* Top Controls */}
                     <div className="flex justify-end items-center mb-4">
                         <div className="flex items-center gap-2">
@@ -2907,10 +2907,16 @@ class SocialFeed: ObservableObject {
                       
                     {showCode ? (
                       // Code Files View
-                      <div className="flex-1 flex flex-col bg-gray-900 rounded-xl border border-gray-700">
+                      <div className={`flex-1 flex flex-col rounded-xl border h-full ${
+                        isDarkMode 
+                          ? 'bg-gray-900 border-gray-700' 
+                          : 'bg-white border-gray-200'
+                      }`}>
                         {/* File Selector */}
                         {appFiles.length > 0 && (
-                          <div className="p-4 border-b border-gray-700">
+                          <div className={`p-4 border-b ${
+                            isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                          }`}>
                             <FileSelector
                               files={appFiles}
                               currentFileId={currentFileId}
@@ -2930,22 +2936,32 @@ class SocialFeed: ObservableObject {
                               return (
                                 <div className="space-y-4">
                                   <div className="flex justify-between items-center">
-                                    <h3 className="text-white text-sm font-semibold">
+                                    <h3 className={`text-sm font-semibold ${
+                                      isDarkMode ? 'text-white' : 'text-gray-900'
+                                    }`}>
                                       {currentFile.name}
                                     </h3>
-                                    <div className="text-xs text-gray-400">
+                                    <div className={`text-xs ${
+                                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                    }`}>
                                       {currentFile.path}
                                     </div>
                                   </div>
                                   
-                                  <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
-                                                                         {currentFile.type === 'swift' || currentFile.type === 'html' || currentFile.type === 'json' || currentFile.type === 'plist' ? (
-                                       <CodeDisplay 
-                                         code={currentFile.content || ''} 
-                                         isDarkMode={true}
-                                       />
-                                     ) : (
-                                      <div className="text-gray-300 text-sm">
+                                  <div className={`rounded-lg p-4 border ${
+                                    isDarkMode 
+                                      ? 'bg-gray-800 border-gray-600' 
+                                      : 'bg-gray-50 border-gray-300'
+                                  }`}>
+                                    {currentFile.type === 'swift' || currentFile.type === 'html' || currentFile.type === 'json' || currentFile.type === 'plist' ? (
+                                      <CodeDisplay 
+                                        code={currentFile.content || ''} 
+                                        isDarkMode={isDarkMode}
+                                      />
+                                    ) : (
+                                      <div className={`text-sm ${
+                                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                                      }`}>
                                         {currentFile.content}
                                       </div>
                                     )}
@@ -2954,8 +2970,12 @@ class SocialFeed: ObservableObject {
                               );
                             })()
                           ) : (
-                            <div className="text-center text-gray-400 py-8">
-                              <svg className="h-12 w-12 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className={`text-center py-8 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
+                              <svg className={`h-12 w-12 mx-auto mb-4 ${
+                                isDarkMode ? 'text-gray-600' : 'text-gray-400'
+                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                               <p>No files generated yet. Generate an app to see the code files.</p>
@@ -2968,7 +2988,11 @@ class SocialFeed: ObservableObject {
                       <>
                         {/* Page Selector */}
                         {showPageSelector && (
-                          <div className="mb-4 p-2 bg-gray-800/50 rounded-lg border border-gray-700">
+                          <div className={`mb-4 p-2 rounded-lg border ${
+                            isDarkMode 
+                              ? 'bg-gray-800/50 border-gray-700' 
+                              : 'bg-gray-100/50 border-gray-300'
+                          }`}>
                             <PageSelector
                               pages={appPages}
                               currentPageId={currentPageId}
@@ -2979,7 +3003,7 @@ class SocialFeed: ObservableObject {
                         )}
                         
                         {/* Phone Preview */}
-                        <div className="flex-1 flex flex-col justify-center items-center">
+                        <div className="flex-1 flex flex-col justify-center items-center h-full">
                           <h2 className="text-white text-lg font-semibold font-sf-pro mb-4">
                             {showCode ? 'App Files' : (projectName ? `${projectName} Preview` : 'App Preview')}
                           </h2>
