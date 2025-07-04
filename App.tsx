@@ -2658,7 +2658,7 @@ class SocialFeed: ObservableObject {
           </div>
         )}
 
-        <main className={`flex-grow ${currentView === 'main' && hasConfirmedFirstPrompt ? 'w-full' : 'container mx-auto p-4'} ${isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
+        <main className={`flex-grow ${currentView === 'main' && hasConfirmedFirstPrompt ? 'w-full h-full' : 'container mx-auto p-4'} ${currentView === 'main' && hasConfirmedFirstPrompt ? 'flex flex-col' : isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
           {currentView === 'main' ? (
             <>
               {!hasConfirmedFirstPrompt ? (
@@ -2740,10 +2740,10 @@ class SocialFeed: ObservableObject {
                           </div>
                         </div>
               ) : (
-                // Refine App Layout - Compact Two Column Design
-                <div className="col-span-1 md:col-span-2 min-h-screen flex flex-col lg:flex-row gap-6 p-6 w-full">
-                  {/* Left Column - Cursor/Lovable Style */}
-                  <div className={`w-full lg:w-80 lg:flex-shrink-0 flex flex-col rounded-xl border font-sf-pro ${
+                // Refine App Layout - Clean Two Column Design
+                <div className="w-full h-full flex flex-col lg:flex-row gap-6">
+                  {/* Left Column - Controls */}
+                  <div className={`w-full lg:w-80 lg:flex-shrink-0 flex flex-col rounded-xl border ${
                     isDarkMode 
                       ? 'bg-gray-900 border-gray-700' 
                       : 'bg-white border-gray-200'
@@ -2760,7 +2760,7 @@ class SocialFeed: ObservableObject {
                     {/* AI Thinking Process */}
                       {aiThoughtProcess && (
                       <div className={`p-4 border-b ${
-                        isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                        isDarkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200'
                       }`}>
                         <div className="flex items-center space-x-2 mb-3">
                           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -2860,18 +2860,18 @@ class SocialFeed: ObservableObject {
                     </div>
                   </div>
 
-                  {/* Right Column - Phone Preview or Code Files */}
-                  <div className="flex-1 flex flex-col min-w-0 w-full h-full">
-                    {/* Top Controls */}
-                    <div className="flex justify-end items-center mb-4">
-                        <div className="flex items-center gap-2">
+                                    {/* Right Column - Phone Preview or Code Files */}
+                  <div className="flex-1 flex flex-col min-w-0">
+                    {/* Control Buttons - Always visible */}
+                    <div className="flex justify-center items-center mb-4">
+                      <div className="flex items-center gap-2">
                         {!showCode && (
                           <button
                             onClick={() => setShowPageSelector(!showPageSelector)}
                             title="Select Pages"
-                            className="glass-button px-2 py-1.5 rounded-md transition-all duration-200 text-xs font-medium"
+                            className="glass-button px-3 py-2 rounded-md transition-all duration-200 text-sm font-medium"
                           >
-                            <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                             </svg>
                             Pages
@@ -2881,13 +2881,13 @@ class SocialFeed: ObservableObject {
                         <button
                           onClick={() => setShowCode(!showCode)}
                           title={showCode ? "Show Preview" : "Show Code"}
-                          className={`px-2 py-1.5 rounded-md transition-all duration-200 text-xs font-medium ${
+                          className={`px-3 py-2 rounded-md transition-all duration-200 text-sm font-medium ${
                             showCode 
                               ? 'bg-blue-600 text-white' 
                               : 'glass-button'
                           }`}
                         >
-                          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                           </svg>
                           {showCode ? 'Preview' : 'Code'}
@@ -2897,14 +2897,14 @@ class SocialFeed: ObservableObject {
                           <button
                             onClick={refreshPreview}
                             title="Refresh Preview"
-                            className="glass-button p-1.5 rounded-md transition-all duration-200"
+                            className="glass-button p-2 rounded-md transition-all duration-200"
                           >
                             <RefreshIcon className="h-4 w-4" />
                           </button>
                         )}
-                        </div>
                       </div>
-                      
+                    </div>
+
                     {showCode ? (
                       // Code Files View
                       <div className={`flex-1 flex flex-col rounded-xl border h-full ${
@@ -2986,9 +2986,9 @@ class SocialFeed: ObservableObject {
                     ) : (
                       // Phone Preview View
                       <>
-                        {/* Page Selector */}
+                        {/* Page Selector - With more space for popup */}
                         {showPageSelector && (
-                          <div className={`mb-4 p-2 rounded-lg border ${
+                          <div className={`mb-6 p-4 rounded-lg border ${
                             isDarkMode 
                               ? 'bg-gray-800/50 border-gray-700' 
                               : 'bg-gray-100/50 border-gray-300'
@@ -3003,8 +3003,10 @@ class SocialFeed: ObservableObject {
                         )}
                         
                         {/* Phone Preview */}
-                        <div className="flex-1 flex flex-col justify-center items-center h-full">
-                          <h2 className="text-white text-lg font-semibold font-sf-pro mb-4">
+                        <div className="flex-1 flex flex-col justify-center items-center">
+                          <h2 className={`text-lg font-semibold mb-4 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                             {showCode ? 'App Files' : (projectName ? `${projectName} Preview` : 'App Preview')}
                           </h2>
                           <PhonePreview 
@@ -3019,7 +3021,7 @@ class SocialFeed: ObservableObject {
                     )}
                       
                     {/* Action Buttons */}
-                    <div className="flex justify-center gap-2 mt-4">
+                    <div className="flex justify-center gap-2 mt-4 p-4">
                         <button
                           onClick={handleSave}
                           title="Save Pip"
