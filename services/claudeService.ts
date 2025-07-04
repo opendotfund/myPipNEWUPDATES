@@ -151,16 +151,24 @@ Based on the following user prompt:
 "${userPrompt}"
 
 Generate the following:
-1. **SwiftUI Code**: Complete, functional SwiftUI code for a single-screen iOS application that implements the user's request with FULL INTERACTIVITY. The code must include:
+1. **SwiftUI Code**: Complete, functional SwiftUI code for an iOS application that implements the user's request with FULL INTERACTIVITY. The code should include:
+   - Multiple screens or views when appropriate (e.g., main screen, detail screen, settings, profile, etc.)
+   - Navigation between screens using NavigationView, NavigationLink, or TabView
    - Working buttons that perform actual actions
    - Text inputs that users can type in
    - State management (@State variables)
    - Logic that responds to user interactions
-   - Navigation or view transitions
    - Data persistence or temporary storage
    - Form validation where appropriate
    - Animations and visual feedback
    - Error handling for user inputs
+   
+   **MULTI-PAGE REQUIREMENTS**:
+   - If the app concept naturally supports multiple screens, create 2-4 different screens
+   - Common multi-page patterns: Home/List + Detail, Main + Settings, Dashboard + Profile, etc.
+   - Use NavigationView with NavigationLink for screen transitions
+   - Each screen should have distinct functionality and purpose
+   - Include navigation buttons or tabs to move between screens
    
    The SwiftUI code should be a complete, runnable app that users can interact with. Include realistic functionality that makes sense for the app type.
 
@@ -172,6 +180,7 @@ Generate the following:
    - Use proper form validation
    - Show loading states and feedback
    - Include multiple interactive elements (at least 3-5)
+   - If the app has multiple screens, show navigation elements (tabs, buttons, etc.)
    
    **CRITICAL**: For EVERY interactive element in the HTML preview, you MUST add these exact data attributes:
    - \`data-action-id="UNIQUE_ACTION_IDENTIFIER"\`: A unique identifier for the action
@@ -191,6 +200,7 @@ Generate the following:
    - Checkbox/Complete: \`data-action-id="markComplete" data-action-description="Mark item as complete"\`
    - Uncheck/Incomplete: \`data-action-id="markIncomplete" data-action-description="Mark item as incomplete"\`
    - Toggle items: \`data-action-id="toggleItem" data-action-description="Toggle item state"\`
+   - Navigation buttons: \`data-action-id="navigateTo" data-action-description="Navigate to different screen"\`
    
    **IMPORTANT**: Make all interactive elements clearly clickable with these Tailwind classes: \`cursor-pointer hover:opacity-80 transition-opacity active:scale-95\`
    
@@ -206,7 +216,8 @@ Generate the following:
 - Add proper form validation and error handling
 - Show loading states and success/error feedback
 - Make the app feel like a real, working application
-- Include multiple screens or views if appropriate
+- **PREFER MULTI-PAGE APPS**: Create 2-4 screens when the app concept supports it
+- Include navigation between screens (tabs, buttons, or navigation links)
 - Add animations and visual feedback for interactions
 - Ensure all buttons and inputs have meaningful functionality
 - Make sure the HTML preview accurately represents the SwiftUI functionality

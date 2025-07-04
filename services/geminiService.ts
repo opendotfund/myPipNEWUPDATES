@@ -49,6 +49,81 @@ export const setExternalApiKey = async (newApiKey: string): Promise<boolean> => 
   return true;
 };
 
+// Test function to verify Gemini API connectivity
+export const testGeminiApiConnection = async (): Promise<boolean> => {
+  if (!currentApiKey) {
+    console.error("No Gemini API key available for testing");
+    return false;
+  }
+
+  try {
+    console.log("Testing Gemini API connection...");
+    console.log("API Key available:", !!currentApiKey);
+    console.log("API Key length:", currentApiKey.length);
+    
+    // Create an AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for test
+
+    const response = await fetch(`${GEMINI_API_URL}?key=${currentApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: "Hello, this is a test message. Please respond with 'API is working'."
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 50,
+        }
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API test failed:', response.status, errorText);
+      
+      if (response.status === 400) {
+        console.error('❌ Invalid request format');
+        return false;
+      } else if (response.status === 401) {
+        console.error('❌ Invalid API key');
+        return false;
+      } else if (response.status === 429) {
+        console.error('❌ Rate limit exceeded');
+        return false;
+      } else if (response.status >= 500) {
+        console.error('❌ Server error');
+        return false;
+      }
+      
+      return false;
+    }
+
+    const data = await response.json();
+    console.log("✅ Gemini API test successful:", data);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Gemini API test failed:', error);
+    
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('❌ Gemini API test timed out');
+    } else if (error instanceof Error && error.message.includes('fetch')) {
+      console.error('❌ Network error - check your internet connection');
+    }
+    
+    return false;
+  }
+};
+
 const parseGeminiJsonResponse = (responseText: string): GeminiResponse => {
   let jsonStr = responseText.trim();
     
@@ -67,8 +142,28 @@ const parseGeminiJsonResponse = (responseText: string): GeminiResponse => {
     }
   }
 
-  // Clean up common escape sequences
-  jsonStr = jsonStr.replace(/\\n/g, "\\n")
+  // Find the end of the JSON object
+  let braceCount = 0;
+  let jsonEnd = -1;
+  for (let i = 0; i < jsonStr.length; i++) {
+    if (jsonStr[i] === '{') braceCount++;
+    if (jsonStr[i] === '}') {
+      braceCount--;
+      if (braceCount === 0) {
+        jsonEnd = i + 1;
+        break;
+      }
+    }
+  }
+  
+  if (jsonEnd > 0) {
+    jsonStr = jsonStr.substring(0, jsonEnd);
+  }
+
+  // Clean up common escape sequence issues
+  jsonStr = jsonStr.replace(/\\\\n/g, "\\n")  // Fix double-escaped newlines
+                   .replace(/\\\\"/g, '\\"')  // Fix double-escaped quotes
+                   .replace(/\\n/g, "\\n")
                    .replace(/\\'/g, "\\'")
                    .replace(/\\"/g, '\\"')
                    .replace(/\\&/g, "\\&")
@@ -91,188 +186,172 @@ const parseGeminiJsonResponse = (responseText: string): GeminiResponse => {
     }
     return parsedData;
   } catch(e) {
-    console.error("Failed to parse JSON string:", jsonStr, e);
+    console.error("Direct JSON parse failed, attempting cleanup...");
     
-    // Try to provide more helpful error information
-    const errorMessage = e instanceof Error ? e.message : 'Unknown parsing error';
-    const jsonPreview = jsonStr.length > 500 ? jsonStr.substring(0, 500) + '...' : jsonStr;
-    
-    // Fallback: try to extract SwiftUI code and HTML manually
-    console.log("Attempting fallback extraction...");
+    // Second attempt: clean up common JSON issues
     try {
-      const swiftMatch = jsonStr.match(/"swiftCode"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
-      const htmlMatch = jsonStr.match(/"previewHtml"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+      // Fix common escape sequence issues
+      let cleanedJson = jsonStr
+        // Fix newlines in strings
+        .replace(/(?<!\\)"/g, '"') // Replace unescaped quotes
+        .replace(/\\n/g, '\\n') // Ensure newlines are properly escaped
+        .replace(/\\"/g, '\\"') // Ensure quotes are properly escaped
+        .replace(/\\\\/g, '\\\\') // Ensure backslashes are properly escaped
+        // Remove any trailing commas
+        .replace(/,(\s*[}\]])/g, '$1');
       
-      if (swiftMatch && htmlMatch) {
-        const swiftCode = swiftMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
-        const previewHtml = htmlMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
-        
-        console.log("Fallback extraction successful");
-        return {
-          swiftCode: swiftCode || "// Fallback: Could not extract SwiftUI code",
-          previewHtml: previewHtml || '<div class="p-4 text-center text-neutral-500">Fallback: Could not extract HTML preview</div>'
-        };
+      const parsedData = JSON.parse(cleanedJson) as GeminiResponse;
+      if (!parsedData.swiftCode || !parsedData.previewHtml) {
+        throw new Error("Invalid response structure from AI. Missing swiftCode or previewHtml.");
       }
-    } catch (fallbackError) {
-      console.error("Fallback extraction also failed:", fallbackError);
+      if (parsedData.previewHtml.trim() === "") {
+          parsedData.previewHtml = '<div class="p-4 text-center text-neutral-500">AI returned an empty preview. Try adjusting your prompt.</div>';
+      }
+      if (parsedData.swiftCode.trim() === "") {
+          parsedData.swiftCode = "// AI returned empty code. Try adjusting your prompt.";
+      }
+      return parsedData;
+    } catch(cleanupError) {
+      console.error("JSON cleanup also failed, attempting manual extraction...");
+      
+      // Third attempt: manual extraction using regex
+      try {
+        // Extract swiftCode and previewHtml using more robust regex
+        const swiftCodeMatch = jsonStr.match(/"swiftCode"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        const previewHtmlMatch = jsonStr.match(/"previewHtml"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        
+        if (swiftCodeMatch && previewHtmlMatch) {
+          let swiftCode = swiftCodeMatch[1]
+            .replace(/\\\\n/g, '\n')  // Fix double-escaped newlines
+            .replace(/\\\\"/g, '"')   // Fix double-escaped quotes
+            .replace(/\\n/g, '\n')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\');
+          
+          let previewHtml = previewHtmlMatch[1]
+            .replace(/\\\\n/g, '\n')  // Fix double-escaped newlines
+            .replace(/\\\\"/g, '"')   // Fix double-escaped quotes
+            .replace(/\\n/g, '\n')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\');
+          
+          console.log("Manual extraction successful");
+          return {
+            swiftCode: swiftCode || "// Manual extraction: Could not extract SwiftUI code",
+            previewHtml: previewHtml || '<div class="p-4 text-center text-neutral-500">Manual extraction: Could not extract HTML preview</div>'
+          };
+        }
+      } catch (extractionError) {
+        console.error("Manual extraction also failed:", extractionError);
+      }
+      
+      // Final fallback: create a basic response
+      console.log("Using final fallback response");
+      
+      // Try to extract any partial content from the malformed JSON
+      let partialSwiftCode = "";
+      let partialHtml = "";
+      
+      // Look for any SwiftUI code patterns
+      const swiftMatches = jsonStr.match(/import SwiftUI[\s\S]*?struct[\s\S]*?View[\s\S]*?}/);
+      if (swiftMatches) {
+        partialSwiftCode = swiftMatches[0]
+          .replace(/\\\\n/g, '\n')  // Fix double-escaped newlines
+          .replace(/\\\\"/g, '"')   // Fix double-escaped quotes
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"');
+      }
+      
+      // Look for any HTML patterns
+      const htmlMatches = jsonStr.match(/<div[\s\S]*?<\/div>/);
+      if (htmlMatches) {
+        partialHtml = htmlMatches[0]
+          .replace(/\\\\n/g, '\n')  // Fix double-escaped newlines
+          .replace(/\\\\"/g, '"')   // Fix double-escaped quotes
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"');
+      }
+      
+      return {
+        swiftCode: partialSwiftCode || `// Error parsing AI response. Raw response was too malformed to parse.
+// Please try regenerating your app with a different prompt.
+
+import SwiftUI
+
+struct ContentView: View {
+    var body: some View {
+        VStack {
+            Text("Error: Could not parse AI response")
+                .foregroundColor(.red)
+            Text("Please try again with a different prompt")
+                .font(.caption)
+        }
     }
-    
-    throw new Error(`Failed to parse AI's JSON response. Error: ${errorMessage}. Raw preview: ${jsonPreview}`);
+}`,
+        previewHtml: partialHtml || `<div class="p-4 text-center">
+    <p class="text-red-600 font-semibold">Error: Could not parse AI response</p>
+    <p class="text-sm text-gray-600 mt-2">Please try again with a different prompt</p>
+</div>`
+      };
+    }
   }
 };
 
 const constructInitialGeminiPrompt = (userPrompt: string): string => {
-  return `You are an expert iOS app developer and UI designer. The user wants to build an interactive iOS app that users can actually interact with in a preview.
+  return `Create an iOS app for: "${userPrompt}"
 
-Based on the following user prompt:
-"${userPrompt}"
-
-Generate the following:
-1. **SwiftUI Code**: Complete, functional SwiftUI code for a single-screen iOS application that implements the user's request with FULL INTERACTIVITY. The code must include:
-   - Working buttons that perform actual actions
-   - Text inputs that users can type in
-   - State management (@State variables)
-   - Logic that responds to user interactions
-   - Navigation or view transitions
-   - Data persistence or temporary storage
-   - Form validation where appropriate
-   - Animations and visual feedback
-   - Error handling for user inputs
-   
-   The SwiftUI code should be a complete, runnable app that users can interact with. Include realistic functionality that makes sense for the app type.
-
-2. **HTML Preview**: A highly interactive HTML snippet using Tailwind CSS that accurately represents the SwiftUI app and allows users to interact with it in the preview. This HTML should:
-   - Include working form inputs (text fields, textareas, selects)
-   - Have functional buttons that trigger actions
-   - Show state changes when users interact
-   - Include realistic data and content
-   - Use proper form validation
-   - Show loading states and feedback
-   - Include multiple interactive elements (at least 3-5)
-   
-   **CRITICAL**: For EVERY interactive element in the HTML preview, you MUST add these exact data attributes:
-   - \`data-action-id="UNIQUE_ACTION_IDENTIFIER"\`: A unique identifier for the action
-   - \`data-action-description="User-friendly description of the action"\`: What the button/input does
-   
-   **REQUIRED Interactive Elements** (include at least 3-5 of these):
-   - Submit buttons: \`data-action-id="submitForm" data-action-description="Submit form data"\`
-   - Add buttons: \`data-action-id="addItem" data-action-description="Add new item to list"\`
-   - Delete buttons: \`data-action-id="deleteItem" data-action-description="Remove item from list"\`
-   - Edit buttons: \`data-action-id="editItem" data-action-description="Edit selected item"\`
-   - Save buttons: \`data-action-id="saveData" data-action-description="Save current data"\`
-   - Cancel buttons: \`data-action-id="cancelAction" data-action-description="Cancel current action"\`
-   - Toggle buttons: \`data-action-id="toggleFeature" data-action-description="Toggle feature on/off"\`
-   - View buttons: \`data-action-id="viewDetails" data-action-description="View item details"\`
-   - Search buttons: \`data-action-id="searchItems" data-action-description="Search for items"\`
-   - Filter buttons: \`data-action-id="filterResults" data-action-description="Filter results"\`
-   - Checkbox/Complete: \`data-action-id="markComplete" data-action-description="Mark item as complete"\`
-   - Uncheck/Incomplete: \`data-action-id="markIncomplete" data-action-description="Mark item as incomplete"\`
-   - Toggle items: \`data-action-id="toggleItem" data-action-description="Toggle item state"\`
-   
-   **IMPORTANT**: Make all interactive elements clearly clickable with these Tailwind classes: \`cursor-pointer hover:opacity-80 transition-opacity active:scale-95\`
-   
-   **Example Interactive Button**: 
-   \`<button data-action-id="addItem" data-action-description="Add new item to list" class="bg-blue-500 text-white px-4 py-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity active:scale-95">Add Item</button>\`
-   
-   **Example Interactive Input**:
-   \`<input type="text" data-action-id="searchItems" data-action-description="Search for items" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search...">\`
-
-**CRITICAL REQUIREMENTS:**
-- Return ONLY a valid JSON object with exactly these two fields: "swiftCode" and "previewHtml"
-- The JSON must be properly escaped and valid
-- Do not include any markdown formatting, code fences, or additional text
-- The response must be parseable by JSON.parse()
-- Both swiftCode and previewHtml must contain meaningful, functional content
-
-**Example Response Format:**
-\`\`\`json
+Return ONLY valid JSON with these exact fields:
 {
-  "swiftCode": "import SwiftUI\\n\\nstruct ContentView: View {\\n    @State private var text = \\"\\"\\n    \\n    var body: some View {\\n        VStack {\\n            TextField(\\"Enter text\\", text: $text)\\n                .textFieldStyle(RoundedBorderTextFieldStyle())\\n                .padding()\\n            \\n            Button(\\"Submit\\") {\\n                // Action here\\n            }\\n            .padding()\\n        }\\n    }\\n}",
-  "previewHtml": "<div class=\\"p-4\\"><input type=\\"text\\" data-action-id=\\"submitForm\\" data-action-description=\\"Submit form data\\" class=\\"border border-gray-300 rounded-lg px-3 py-2 w-full mb-4\\" placeholder=\\"Enter text\\"><button data-action-id=\\"submitForm\\" data-action-description=\\"Submit form data\\" class=\\"bg-blue-500 text-white px-4 py-2 rounded-lg cursor-pointer hover:opacity-80 transition-opacity active:scale-95\\">Submit</button></div>"
+  "swiftCode": "your SwiftUI code here",
+  "previewHtml": "your HTML preview here"
 }
-\`\`\`
 
-Remember: Return ONLY the JSON object, no additional text or formatting.`;
+Requirements:
+- SwiftUI code must be complete and runnable
+- HTML preview must use Tailwind CSS
+- Add data-action-id and data-action-description to interactive elements
+- Escape all quotes and newlines properly (\\", \\n)
+- No markdown formatting, only pure JSON`;
 };
 
 const constructRefinementGeminiPrompt = (currentSwiftCode: string, currentHtmlPreview: string, refinementRequest: string): string => {
-  return `You are an expert iOS app developer and UI designer. The user wants to refine their existing iOS app.
+  return `Refine this iOS app based on: "${refinementRequest}"
 
-Current SwiftUI Code:
-\`\`\`swift
-${currentSwiftCode}
-\`\`\`
+Current code:
+SwiftUI: ${currentSwiftCode.substring(0, 500)}...
+HTML: ${currentHtmlPreview.substring(0, 500)}...
 
-Current HTML Preview:
-\`\`\`html
-${currentHtmlPreview}
-\`\`\`
-
-User's Refinement Request:
-"${refinementRequest}"
-
-Please update both the SwiftUI code and HTML preview to implement the requested changes while maintaining all existing functionality and interactivity.
-
-**CRITICAL REQUIREMENTS:**
-- Return ONLY a valid JSON object with exactly these two fields: "swiftCode" and "previewHtml"
-- The JSON must be properly escaped and valid
-- Do not include any markdown formatting, code fences, or additional text
-- The response must be parseable by JSON.parse()
-- Both swiftCode and previewHtml must contain meaningful, functional content
-- Maintain all existing interactive elements and their data-action-id attributes
-
-**Example Response Format:**
-\`\`\`json
+Return ONLY valid JSON with these exact fields:
 {
   "swiftCode": "updated SwiftUI code here",
   "previewHtml": "updated HTML preview here"
 }
-\`\`\`
 
-Remember: Return ONLY the JSON object, no additional text or formatting.`;
+Requirements:
+- Update both SwiftUI and HTML to match the refinement request
+- Keep all existing functionality
+- Escape all quotes and newlines properly (\\", \\n)
+- No markdown formatting, only pure JSON`;
 };
 
 const constructInteractionGeminiPrompt = (currentSwiftCode: string, currentHtmlPreview: string, actionId: string, actionDescription: string): string => {
-  return `You are an expert iOS app developer and UI designer. A user has interacted with your app preview and you need to update the code to reflect their action.
+  return `Handle user interaction: "${actionId}" - "${actionDescription}"
 
-Current SwiftUI Code:
-\`\`\`swift
-${currentSwiftCode}
-\`\`\`
+Current code:
+SwiftUI: ${currentSwiftCode.substring(0, 500)}...
+HTML: ${currentHtmlPreview.substring(0, 500)}...
 
-Current HTML Preview:
-\`\`\`html
-${currentHtmlPreview}
-\`\`\`
-
-User Action:
-- Action ID: "${actionId}"
-- Action Description: "${actionDescription}"
-
-Please update both the SwiftUI code and HTML preview to implement the appropriate response to this user action. The action should:
-- Update the app's state appropriately
-- Show visual feedback to the user
-- Maintain all existing functionality
-- Add realistic data or content changes
-- Provide meaningful interaction results
-
-**CRITICAL REQUIREMENTS:**
-- Return ONLY a valid JSON object with exactly these two fields: "swiftCode" and "previewHtml"
-- The JSON must be properly escaped and valid
-- Do not include any markdown formatting, code fences, or additional text
-- The response must be parseable by JSON.parse()
-- Both swiftCode and previewHtml must contain meaningful, functional content
-- Maintain all existing interactive elements and their data-action-id attributes
-
-**Example Response Format:**
-\`\`\`json
+Return ONLY valid JSON with these exact fields:
 {
   "swiftCode": "updated SwiftUI code here",
   "previewHtml": "updated HTML preview here"
 }
-\`\`\`
 
-Remember: Return ONLY the JSON object, no additional text or formatting.`;
+Requirements:
+- Update code to handle the user interaction
+- Show appropriate visual feedback
+- Escape all quotes and newlines properly (\\", \\n)
+- No markdown formatting, only pure JSON`;
 };
 
 const callGeminiApi = async (prompt: string): Promise<GeminiResponse> => {
@@ -280,66 +359,119 @@ const callGeminiApi = async (prompt: string): Promise<GeminiResponse> => {
     throw new Error("Gemini API key is not configured. Please set up your API key.");
   }
 
-  try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${currentApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
+  // Retry mechanism with exponential backoff
+  const maxRetries = 3;
+  const baseDelay = 2000; // 2 seconds
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      console.log(`Gemini API attempt ${attempt + 1}/${maxRetries}`);
+      
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+      const response = await fetch(`${GEMINI_API_URL}?key=${currentApiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: prompt
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 16384, // Increased token limit
           },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }
-        ]
-      })
-    });
+          safetySettings: [
+            {
+              category: "HARM_CATEGORY_HARASSMENT",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+              category: "HARM_CATEGORY_HATE_SPEECH",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            }
+          ]
+        }),
+        signal: controller.signal
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', response.status, errorText);
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Gemini API error:', response.status, errorText);
+        
+        // Handle specific error codes
+        if (response.status === 400) {
+          throw new Error('Invalid request to Gemini API. Please check your prompt.');
+        } else if (response.status === 401) {
+          throw new Error('Invalid Gemini API key. Please check your API key.');
+        } else if (response.status === 429) {
+          throw new Error('Gemini API rate limit exceeded. Please try again later.');
+        } else if (response.status >= 500) {
+          throw new Error('Gemini API server error. Please try again.');
+        } else {
+          throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+        }
+      }
+
+      const data = await response.json();
+      
+      if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
+        console.error('Unexpected Gemini API response structure:', data);
+        throw new Error('Unexpected response structure from Gemini API');
+      }
+
+      const responseText = data.candidates[0].content.parts[0].text;
+      console.log('Raw Gemini response:', responseText);
+      
+      return parseGeminiJsonResponse(responseText);
+      
+    } catch (error) {
+      console.error(`Gemini API attempt ${attempt + 1} failed:`, error);
+      
+      // Handle timeout specifically
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request timed out, retrying...');
+        if (attempt === maxRetries - 1) {
+          throw new Error('Request timed out after multiple attempts. Please try again.');
+        }
+      } else if (error instanceof Error && error.message.includes('rate limit')) {
+        // Don't retry rate limit errors
+        throw error;
+      } else if (error instanceof Error && error.message.includes('Invalid Gemini API key')) {
+        // Don't retry invalid key errors
+        throw error;
+      }
+      
+      // If this is the last attempt, throw the error
+      if (attempt === maxRetries - 1) {
+        throw error;
+      }
+      
+      // Wait before retry with exponential backoff
+      const delay = baseDelay * Math.pow(2, attempt);
+      console.log(`Waiting ${delay}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-
-    const data = await response.json();
-    
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts[0]) {
-      console.error('Unexpected Gemini API response structure:', data);
-      throw new Error('Unexpected response structure from Gemini API');
-    }
-
-    const responseText = data.candidates[0].content.parts[0].text;
-    console.log('Raw Gemini response:', responseText);
-    
-    return parseGeminiJsonResponse(responseText);
-  } catch (error) {
-    console.error('Error calling Gemini API:', error);
-    throw error;
   }
+  
+  throw new Error('All Gemini API attempts failed');
 };
 
 export const generateAppCodeAndPreview = async (userPrompt: string): Promise<GeminiResponse> => {

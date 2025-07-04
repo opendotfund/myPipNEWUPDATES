@@ -2,8 +2,10 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PhonePreview } from './components/PhonePreview';
 import { PromptInput } from './components/PromptInput';
 import { CodeDisplay } from './components/CodeDisplay';
+import { PageSelector, AppPage } from './components/PageSelector';
+import { FileSelector, AppFile } from './components/FileSelector';
 import { generateAppCodeAndPreview as generateClaudeCode, refineAppCodeAndPreview as refineClaudeCode, handleInteractionAndUpdateCodeAndPreview as handleClaudeInteraction, setExternalApiKey as setClaudeApiKey } from './services/claudeService';
-import { generateAppCodeAndPreview as generateGeminiCode, refineAppCodeAndPreview as refineGeminiCode, handleInteractionAndUpdateCodeAndPreview as handleGeminiInteraction, setExternalApiKey as setGeminiApiKey } from './services/geminiService';
+import { generateAppCodeAndPreview as generateGeminiCode, refineAppCodeAndPreview as refineGeminiCode, handleInteractionAndUpdateCodeAndPreview as handleGeminiInteraction, setExternalApiKey as setGeminiApiKey, testGeminiApiConnection } from './services/geminiService';
 import { ModelId } from './types';
 import { APP_TITLE, MAX_FREE_PROMPTS, CONTACT_EMAIL } from './constants';
 import { GithubIcon } from './components/icons/GithubIcon';
@@ -53,6 +55,12 @@ const App: React.FC = () => {
 
   const [userProvidedApiKey, setUserProvidedApiKey] = useState<string | null>(null); // Added
   const [isEarlyBirdKeyApplied, setIsEarlyBirdKeyApplied] = useState<boolean>(false); // Added
+
+  // Page management state
+  const [appPages, setAppPages] = useState<AppPage[]>([
+    { id: 'main', name: 'Home', description: 'Main app screen', isActive: true }
+  ]);
+  const [currentPageId, setCurrentPageId] = useState<string>('main');
 
   // Configuration modal states
   const [isConfigModalOpen, setIsConfigModalOpen] = useState<boolean>(false);
@@ -180,6 +188,14 @@ const App: React.FC = () => {
   const [claudePasswordError, setClaudePasswordError] = useState<string>('');
   const [pendingModelChange, setPendingModelChange] = useState<ModelId | null>(null);
 
+  // New state for refine app layout
+  const [showPageSelector, setShowPageSelector] = useState<boolean>(false);
+  const [showCode, setShowCode] = useState<boolean>(false);
+  
+  // File management state
+  const [appFiles, setAppFiles] = useState<AppFile[]>([]);
+  const [currentFileId, setCurrentFileId] = useState<string>('main-swift');
+
   useEffect(() => {
     if (chatHistoryRef.current) {
       chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
@@ -199,9 +215,14 @@ const App: React.FC = () => {
     if (!hasSeenV2Popup) {
       // Small delay to ensure the app is fully loaded
       const timer = setTimeout(() => {
-        console.log('Showing V2 waitlist popup');
-        setShowV2WaitlistPopup(true);
-        setHasSeenV2Popup(true);
+        try {
+          console.log('Showing V2 waitlist popup');
+          setShowV2WaitlistPopup(true);
+          setHasSeenV2Popup(true);
+        } catch (error) {
+          console.error('Error showing waitlist popup:', error);
+          // Don't crash the app if there's an error
+        }
       }, 1000);
       
       return () => clearTimeout(timer);
@@ -256,15 +277,14 @@ const App: React.FC = () => {
         setTimeout(() => setSuccess(null), 5000);
         setShowV2WaitlistPopup(false);
         setWaitlistEmail('');
-        
-        // Mark that user has seen the popup
-        localStorage.setItem('hasSeenV2WaitlistPopup', 'true');
       } else {
         setError('Failed to join waitlist. Please try again.');
       }
-    } catch (err) {
-      console.error('Error joining waitlist:', err);
-      setError('Failed to join waitlist. Please try again.');
+    } catch (error) {
+      console.error('Waitlist error:', error);
+      // Don't show error to user, just close the popup gracefully
+      setShowV2WaitlistPopup(false);
+      setWaitlistEmail('');
     } finally {
       setIsJoiningWaitlist(false);
     }
@@ -373,6 +393,114 @@ const App: React.FC = () => {
     }
   };
 
+  // Service selection function
+  const getAIService = () => {
+    switch (selectedModel) {
+      case ModelId.CLAUDE:
+        return {
+          generate: generateClaudeCode,
+          refine: refineClaudeCode,
+          handleInteraction: handleClaudeInteraction,
+          setApiKey: setClaudeApiKey
+        };
+      case ModelId.GEMINI_FLASH:
+        return {
+          generate: generateGeminiCode,
+          refine: refineGeminiCode,
+          handleInteraction: handleGeminiInteraction,
+          setApiKey: setGeminiApiKey
+        };
+      default:
+        return {
+          generate: generateGeminiCode,
+          refine: refineGeminiCode,
+          handleInteraction: handleGeminiInteraction,
+          setApiKey: setGeminiApiKey
+        };
+    }
+  };
+
+  // Retry system for AI generation with exponential backoff and model fallback
+  const generateWithRetry = useCallback(async (userPrompt: string, maxRetries: number = 3) => {
+    const retryDelay = (attempt: number) => Math.min(1000 * Math.pow(2, attempt), 10000); // Exponential backoff, max 10s
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Generating your app...`);
+        
+        // Try current model first
+        const aiService = getAIService();
+        const result = await aiService.generate(userPrompt);
+        
+        // Validate the response
+        if (!result.swiftCode || !result.previewHtml || 
+            result.swiftCode.trim() === '' || result.previewHtml.trim() === '') {
+          throw new Error('AI returned empty or invalid response');
+        }
+        
+        // Check if the response seems too generic or doesn't match the prompt
+        const promptKeywords = userPrompt.toLowerCase().split(' ').filter(word => word.length > 3);
+        const responseText = (result.swiftCode + ' ' + result.previewHtml).toLowerCase();
+        const keywordMatch = promptKeywords.filter(keyword => responseText.includes(keyword)).length;
+        
+        if (keywordMatch < promptKeywords.length * 0.3) { // Less than 30% keyword match
+          throw new Error('AI response doesn\'t seem to match your prompt well');
+        }
+        
+        return result;
+        
+      } catch (error) {
+        console.error(`Attempt ${attempt + 1} failed:`, error);
+        
+        if (attempt === maxRetries - 1) {
+          // Last attempt failed, throw the error
+          throw error;
+        }
+        
+        // Try switching AI models on retry
+        if (attempt === 1) {
+          const newModel = selectedModel === ModelId.CLAUDE ? ModelId.GEMINI_FLASH : ModelId.CLAUDE;
+          setAiThoughtProcess(`Switching from ${selectedModel} to ${newModel} and retrying...`);
+          setSelectedModel(newModel); // Update the UI to show the switch
+          
+          // Wait a bit for the state to update, then try again
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          setAiThoughtProcess(`Retrying with improved prompt processing...`);
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, retryDelay(attempt)));
+      }
+    }
+  }, [selectedModel, getAIService]);
+
+  // Enhanced prompt validation and preprocessing
+  const preprocessPrompt = useCallback((rawPrompt: string) => {
+    let processedPrompt = rawPrompt.trim();
+    
+    // Add context if prompt is too short
+    if (processedPrompt.length < 20) {
+      processedPrompt += ' Please create a complete, functional iOS app with interactive elements.';
+    }
+    
+    // Ensure the prompt mentions iOS/SwiftUI if it doesn't
+    if (!processedPrompt.toLowerCase().includes('ios') && 
+        !processedPrompt.toLowerCase().includes('swift') && 
+        !processedPrompt.toLowerCase().includes('app')) {
+      processedPrompt += ' This should be an iOS app built with SwiftUI.';
+    }
+    
+    // Add interactivity requirement if not mentioned
+    if (!processedPrompt.toLowerCase().includes('interactive') && 
+        !processedPrompt.toLowerCase().includes('button') && 
+        !processedPrompt.toLowerCase().includes('input')) {
+      processedPrompt += ' Include interactive elements like buttons, forms, or user inputs.';
+    }
+    
+    return processedPrompt;
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     if (!prompt.trim() || !canSubmit) {
       if (!canSubmit) {
@@ -387,44 +515,179 @@ const App: React.FC = () => {
       }
       return;
     }
+
+    // Enhanced prompt preprocessing
+    let processedPrompt = prompt.trim();
+    if (processedPrompt.length < 20) {
+      processedPrompt += ' Please create a complete, functional iOS app with interactive elements.';
+    }
+    if (!processedPrompt.toLowerCase().includes('ios') && 
+        !processedPrompt.toLowerCase().includes('swift') && 
+        !processedPrompt.toLowerCase().includes('app')) {
+      processedPrompt += ' This should be an iOS app built with SwiftUI.';
+    }
+    if (!processedPrompt.toLowerCase().includes('interactive') && 
+        !processedPrompt.toLowerCase().includes('button') && 
+        !processedPrompt.toLowerCase().includes('input')) {
+      processedPrompt += ' Include interactive elements like buttons, forms, or user inputs.';
+    }
+
     setIsLoading(true);
     setError(null);
     setGeneratedCode('// Generating Swift code...');
     setPreviewHtml(`<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}"><div class="max-w-xs"><div class="animate-spin rounded-full h-12 w-12 border-b-2 ${isDarkMode ? 'border-blue-400' : 'border-blue-500'} mx-auto mb-4"></div></div></div>`);
     setChatHistory([]);
-    setAiThoughtProcess('Analyzing your prompt and preparing a response...');
+    setAiThoughtProcess('Analyzing your prompt and understanding requirements...\nPlanning app architecture and user flow...\nDesigning UI components and layout...\nGenerating SwiftUI code with interactive elements...\nCreating HTML preview with Tailwind CSS...\nAdding animations and polish...');
     setThinkingLog('');
-    try {
-      setTimeout(() => setAiThoughtProcess('Thinking about the best app structure...'), 1000);
-      setTimeout(() => setAiThoughtProcess('Designing UI and generating Swift code...'), 2000);
-      const aiService = getAIService();
-      const result = await aiService.generate(prompt);
-      setGeneratedCode(result.swiftCode);
-      setPreviewHtml(result.previewHtml);
-      setAiThoughtProcess('App generated!');
-      // Simulate a summary log (replace with real backend summary if available)
-      setThinkingLog('Generated a SwiftUI app based on your prompt. Used a list and add button for tasks. The design follows modern iOS guidelines.');
-      if (!isEarlyBirdKeyApplied) {
-        setFreePromptsRemaining(prev => Math.max(0, prev - 1));
+
+    // Retry system with exponential backoff
+    const maxRetries = 3;
+    const retryDelay = (attempt: number) => Math.min(1000 * Math.pow(2, attempt), 10000);
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Generating your app...\nAnalyzing your prompt and understanding requirements...\nPlanning app architecture and user flow...\nDesigning UI components and layout...\nGenerating SwiftUI code with interactive elements...\nCreating HTML preview with Tailwind CSS...\nAdding animations and polish...`);
+        
+        setTimeout(() => setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Generating your app...\nAnalyzing your prompt and understanding requirements...\nPlanning app architecture and user flow...\nDesigning UI components and layout...\nGenerating SwiftUI code with interactive elements...\nCreating HTML preview with Tailwind CSS...\nAdding animations and polish...\nFinalizing code structure and testing...`), 1000);
+        setTimeout(() => setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Generating your app...\nAnalyzing your prompt and understanding requirements...\nPlanning app architecture and user flow...\nDesigning UI components and layout...\nGenerating SwiftUI code with interactive elements...\nCreating HTML preview with Tailwind CSS...\nAdding animations and polish...\nFinalizing code structure and testing...\nApp generation complete!`), 2000);
+        
+        // Use the appropriate AI service based on selected model and whether we're generating or refining
+        let result;
+        if (hasGenerated) {
+          // Refine existing app
+          setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Refining your app...\nAnalyzing your refinement request...\nUnderstanding current app structure...\nPlanning UI improvements...\nUpdating SwiftUI code...\nModifying HTML preview...\nApplying changes and testing...`);
+          
+          if (selectedModel === ModelId.CLAUDE) {
+            result = await refineClaudeCode(generatedCode, previewHtml, processedPrompt);
+          } else {
+            try {
+              result = await refineGeminiCode(generatedCode, previewHtml, processedPrompt);
+            } catch (geminiError) {
+              console.log('Gemini refinement failed, falling back to Claude:', geminiError);
+              setError('Gemini API failed, automatically switching to Claude for better reliability.');
+              setAiThoughtProcess(`Gemini failed, switching to Claude...\nAttempt ${attempt + 1}/${maxRetries}: Refining your app with Claude...\nAnalyzing your refinement request...\nUnderstanding current app structure...\nPlanning UI improvements...\nUpdating SwiftUI code...\nModifying HTML preview...\nApplying changes and testing...`);
+              result = await refineClaudeCode(generatedCode, previewHtml, processedPrompt);
+            }
+          }
+        } else {
+          // Generate new app
+        if (selectedModel === ModelId.CLAUDE) {
+          result = await generateClaudeCode(processedPrompt);
+        } else {
+            try {
+          result = await generateGeminiCode(processedPrompt);
+            } catch (geminiError) {
+              console.log('Gemini generation failed, falling back to Claude:', geminiError);
+              setError('Gemini API failed, automatically switching to Claude for better reliability.');
+              setAiThoughtProcess(`Gemini failed, switching to Claude...\nAttempt ${attempt + 1}/${maxRetries}: Generating your app with Claude...\nAnalyzing your prompt...\nDesigning app structure...\nCreating SwiftUI code...\nBuilding interactive preview...\nTesting functionality...\nFinalizing app...`);
+              result = await generateClaudeCode(processedPrompt);
+            }
+          }
+        }
+        
+        // Validate the response
+        if (!result.swiftCode || !result.previewHtml || 
+            result.swiftCode.trim() === '' || result.previewHtml.trim() === '') {
+          throw new Error('AI returned empty or invalid response');
+        }
+        
+        // Check if the response seems too generic or doesn't match the prompt
+        const promptKeywords = processedPrompt.toLowerCase().split(' ').filter(word => word.length > 3);
+        const responseText = (result.swiftCode + ' ' + result.previewHtml).toLowerCase();
+        const keywordMatch = promptKeywords.filter(keyword => responseText.includes(keyword)).length;
+        
+        // Only check keyword match if we have meaningful keywords and the response is very short
+        if (promptKeywords.length > 2 && responseText.length < 100) {
+          if (keywordMatch < promptKeywords.length * 0.2) { // Less than 20% keyword match for short responses
+            throw new Error('AI response doesn\'t seem to match your prompt well');
+          }
+        }
+        
+        // Success - set the results
+        setGeneratedCode(result.swiftCode);
+        setPreviewHtml(result.previewHtml);
+        
+        if (hasGenerated) {
+          setAiThoughtProcess('App refined successfully!\nYour SwiftUI app has been updated!\nInteractive preview updated\nUpdated code ready for download\nReady for deployment');
+          setThinkingLog('Refined the SwiftUI app based on your request. Updated the design and functionality.');
+        } else {
+          setAiThoughtProcess('App generated successfully!\nYour SwiftUI app is ready to use!\nInteractive preview available\nCode ready for download\nReady for deployment');
+        setThinkingLog('Generated a SwiftUI app based on your prompt. Used a list and add button for tasks. The design follows modern iOS guidelines.');
+        }
+        
+
+        
+        // Detect multi-page content and update page management
+        const appType = processedPrompt.toLowerCase().includes('music') ? 'music' :
+                       processedPrompt.toLowerCase().includes('todo') ? 'todo' :
+                       processedPrompt.toLowerCase().includes('social') ? 'social' : 'general';
+        const detectedPages = detectPagesFromContent(result.swiftCode, result.previewHtml, appType);
+        if (detectedPages.length > 1) {
+          updateAppPages(detectedPages);
+          setThinkingLog(prev => prev + ' Detected multiple pages and created navigation.');
+        } else {
+          // Reset to single page if no multi-page content detected
+          updateAppPages([{ id: 'main', name: 'Home', description: 'Main app screen', isActive: true }]);
+        }
+        
+        // Generate app files based on app type
+        const generatedFiles = generateAppFiles(result.swiftCode, result.previewHtml, appType);
+        setAppFiles(generatedFiles);
+        setCurrentFileId('main-swift');
+        
+        if (!isEarlyBirdKeyApplied) {
+          setFreePromptsRemaining(prev => Math.max(0, prev - 1));
+        }
+        if (hasGenerated) {
+          setChatHistory(prev => [...prev, { type: 'user', content: `Refinement request: ${prompt}` }, { type: 'ai', content: 'App refined successfully.' }]);
+        } else {
+        setChatHistory([{ type: 'user', content: `App idea: ${prompt}` }, { type: 'ai', content: 'App generated successfully.' }]);
+        }
+        setPrompt('');
+        setPreviewRefreshKey(prev => prev + 1);
+        setHasGenerated(true);
+        setHasConfirmedFirstPrompt(true);
+        
+        break; // Exit retry loop on success
+        
+      } catch (err) {
+        console.error(`Attempt ${attempt + 1} failed:`, err);
+        
+
+        
+        if (attempt === maxRetries - 1) {
+          // Last attempt failed
+          const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+          
+          // Provide more helpful error messages for common issues
+          let userFriendlyError = errorMessage;
+          if (errorMessage.includes('timeout') || errorMessage.includes('aborted')) {
+            userFriendlyError = 'Request timed out. This might be due to network issues or the AI service being busy. Please try again.';
+          } else if (errorMessage.includes('API key') || errorMessage.includes('401')) {
+            userFriendlyError = 'Invalid API key. Please check your API key in the settings.';
+          } else if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+            userFriendlyError = 'Rate limit exceeded. Please wait a moment and try again.';
+          } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+            userFriendlyError = 'Network error. Please check your internet connection and try again.';
+          }
+          
+          setError(`Failed to generate content after ${maxRetries} attempts: ${userFriendlyError}`);
+          
+          setPreviewHtml(`<div class="w-full h-full flex flex-col items-center justify-center text-red-600 p-4 text-center"><p class="font-semibold">Error Generating Preview</p><p class="text-sm mt-2">${userFriendlyError}</p><p class="text-xs mt-2">Try rephrasing your prompt, check your internet connection, or verify your API keys in settings.</p></div>`);
+          setGeneratedCode(`// Error: ${userFriendlyError}`);
+          setPreviewRefreshKey(prev => prev + 1);
+          setAiThoughtProcess('');
+          setThinkingLog('');
+        } else {
+          setAiThoughtProcess(`Retrying... (attempt ${attempt + 2}/${maxRetries})`);
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, retryDelay(attempt)));
+        }
       }
-      setChatHistory([{ type: 'user', content: `App idea: ${prompt}` }, { type: 'ai', content: 'App generated successfully.' }]);
-      setPrompt('');
-      setPreviewRefreshKey(prev => prev + 1);
-      setHasGenerated(true);
-      setHasConfirmedFirstPrompt(true); // NEW - Mark first prompt as confirmed
-    } catch (err) {
-      console.error(err);
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
-      setError(`Failed to generate content: ${errorMessage}`);
-      setPreviewHtml(`<div class="w-full h-full flex flex-col items-center justify-center text-red-600 p-4 text-center"><p class="font-semibold">Error Generating Preview</p><p class="text-sm mt-2">${errorMessage}</p></div>`);
-      setGeneratedCode(`// Error: ${errorMessage}`);
-      setPreviewRefreshKey(prev => prev + 1);
-      setAiThoughtProcess('');
-      setThinkingLog('');
-    } finally {
-      setIsLoading(false);
     }
-  }, [prompt, canSubmit, isEarlyBirdKeyApplied]);
+    
+    setIsLoading(false);
+  }, [prompt, canSubmit, isEarlyBirdKeyApplied, selectedModel, isDarkMode]);
 
   const handlePreviewInteraction = useCallback(async (actionId: string, actionDescription: string) => {
     const interactionLog = `User clicked "${actionDescription || actionId}" in preview.`;
@@ -1314,31 +1577,362 @@ const App: React.FC = () => {
     setPendingModelChange(null);
   };
 
-  // Service selection function
-  const getAIService = () => {
-    switch (selectedModel) {
-      case ModelId.CLAUDE:
-        return {
-          generate: generateClaudeCode,
-          refine: refineClaudeCode,
-          handleInteraction: handleClaudeInteraction,
-          setApiKey: setClaudeApiKey
-        };
-      case ModelId.GEMINI_FLASH:
-        return {
-          generate: generateGeminiCode,
-          refine: refineGeminiCode,
-          handleInteraction: handleGeminiInteraction,
-          setApiKey: setGeminiApiKey
-        };
-      default:
-        return {
-          generate: generateGeminiCode,
-          refine: refineGeminiCode,
-          handleInteraction: handleGeminiInteraction,
-          setApiKey: setGeminiApiKey
-        };
+  // Page change handler
+  const handlePageChange = (pageId: string) => {
+    setCurrentPageId(pageId);
+    setAppPages(prev => prev.map(page => ({
+      ...page,
+      isActive: page.id === pageId
+    })));
+  };
+
+  const handleFileChange = (fileId: string) => {
+    setCurrentFileId(fileId);
+  };
+
+  // Function to update pages when AI generates multi-page content
+  const updateAppPages = (pages: AppPage[]) => {
+    setAppPages(pages);
+    // Set the first page as active if no current page or current page doesn't exist
+    if (!pages.find(p => p.id === currentPageId)) {
+      setCurrentPageId(pages[0]?.id || 'main');
     }
+  };
+
+  // Function to detect pages from AI-generated content
+  const detectPagesFromContent = (swiftCode: string, htmlContent: string, appType: string = 'general'): AppPage[] => {
+    const pages: AppPage[] = [];
+    
+    // Check Swift code for page indicators
+    const swiftLower = swiftCode.toLowerCase();
+    const htmlLower = htmlContent.toLowerCase();
+    
+    // App-specific page patterns
+    let pagePatterns = [];
+    
+    if (appType.toLowerCase().includes('music') || appType.toLowerCase().includes('player')) {
+      pagePatterns = [
+        { id: 'home', name: 'Home', keywords: ['ContentView', 'main', 'home', 'dashboard'] },
+        { id: 'library', name: 'Library', keywords: ['library', 'playlist', 'songs', 'music'] },
+        { id: 'search', name: 'Search', keywords: ['search', 'find', 'discover'] },
+        { id: 'now-playing', name: 'Now Playing', keywords: ['player', 'playing', 'controls'] },
+        { id: 'playlists', name: 'Playlists', keywords: ['playlist', 'playlists', 'collection'] },
+        { id: 'profile', name: 'Profile', keywords: ['profile', 'account', 'user'] }
+      ];
+    } else if (appType.toLowerCase().includes('todo') || appType.toLowerCase().includes('task')) {
+      pagePatterns = [
+        { id: 'home', name: 'Tasks', keywords: ['ContentView', 'main', 'home', 'tasks', 'todo'] },
+        { id: 'add-task', name: 'Add Task', keywords: ['add', 'create', 'new', 'form'] },
+        { id: 'completed', name: 'Completed', keywords: ['completed', 'done', 'finished'] },
+        { id: 'categories', name: 'Categories', keywords: ['category', 'categories', 'filter'] },
+        { id: 'settings', name: 'Settings', keywords: ['settings', 'preferences', 'config'] }
+      ];
+    } else if (appType.toLowerCase().includes('social') || appType.toLowerCase().includes('chat')) {
+      pagePatterns = [
+        { id: 'home', name: 'Feed', keywords: ['ContentView', 'main', 'home', 'feed', 'posts'] },
+        { id: 'profile', name: 'Profile', keywords: ['profile', 'account', 'user'] },
+        { id: 'messages', name: 'Messages', keywords: ['message', 'chat', 'conversation'] },
+        { id: 'discover', name: 'Discover', keywords: ['discover', 'explore', 'search'] },
+        { id: 'notifications', name: 'Notifications', keywords: ['notification', 'alert'] }
+      ];
+    } else {
+      // Generic page patterns
+      pagePatterns = [
+        { id: 'home', name: 'Home', keywords: ['ContentView', 'main', 'home', 'dashboard'] },
+        { id: 'profile', name: 'Profile', keywords: ['profile', 'account', 'user', 'settings'] },
+        { id: 'list', name: 'List', keywords: ['list', 'items', 'tasks', 'todo'] },
+        { id: 'detail', name: 'Detail', keywords: ['detail', 'view', 'show', 'item'] },
+        { id: 'form', name: 'Form', keywords: ['form', 'add', 'create', 'edit'] },
+        { id: 'search', name: 'Search', keywords: ['search', 'find', 'filter'] },
+        { id: 'settings', name: 'Settings', keywords: ['settings', 'preferences', 'config'] },
+        { id: 'help', name: 'Help', keywords: ['help', 'about', 'info', 'support'] }
+      ];
+    }
+    
+    // Always add a main page
+    pages.push({ id: 'main', name: pagePatterns[0].name, description: 'Main app screen', isActive: true });
+    
+    // Detect additional pages based on content analysis
+    pagePatterns.forEach(pattern => {
+      const hasSwiftMatch = pattern.keywords.some(keyword => swiftLower.includes(keyword));
+      const hasHtmlMatch = pattern.keywords.some(keyword => htmlLower.includes(keyword));
+      
+      if (hasSwiftMatch || hasHtmlMatch) {
+        // Don't add duplicate of main page
+        if (pattern.id !== 'main') {
+          pages.push({
+            id: pattern.id,
+            name: pattern.name,
+            description: `${pattern.name} screen`,
+            isActive: false
+          });
+        }
+      }
+    });
+    
+    // If we found multiple pages, update the main page description
+    if (pages.length > 1) {
+      pages[0].description = 'Main app screen with navigation';
+    }
+    
+    return pages;
+  };
+
+  // Function to generate app files based on app type and content
+  const generateAppFiles = (swiftCode: string, htmlContent: string, appType: string = 'general'): AppFile[] => {
+    const files: AppFile[] = [];
+    
+    // Main SwiftUI files
+    files.push({
+      id: 'main-swift',
+      name: 'ContentView.swift',
+      type: 'swift',
+      content: swiftCode,
+      path: 'ContentView.swift',
+      description: 'Main SwiftUI view file',
+      isActive: true
+    });
+    
+    // App entry point
+    files.push({
+      id: 'app-swift',
+      name: 'App.swift',
+      type: 'swift',
+      content: `import SwiftUI
+
+@main
+struct ${appType.charAt(0).toUpperCase() + appType.slice(1)}App: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}`,
+      path: 'App.swift',
+      description: 'App entry point file'
+    });
+    
+    // HTML preview file
+    files.push({
+      id: 'preview-html',
+      name: 'preview.html',
+      type: 'html',
+      content: htmlContent,
+      path: 'preview.html',
+      description: 'HTML preview file'
+    });
+    
+    // Info.plist
+    files.push({
+      id: 'info-plist',
+      name: 'Info.plist',
+      type: 'plist',
+      content: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+    </dict>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>armv7</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+</dict>
+</plist>`,
+      path: 'Info.plist',
+      description: 'App configuration file'
+    });
+    
+    // Assets folder
+    files.push({
+      id: 'assets-folder',
+      name: 'Assets.xcassets',
+      type: 'assets',
+      content: 'App icons, images, and other assets',
+      path: 'Assets.xcassets',
+      description: 'App assets folder'
+    });
+    
+    // Project file
+    files.push({
+      id: 'project-file',
+      name: 'project.pbxproj',
+      type: 'config',
+      content: 'Xcode project configuration',
+      path: 'project.pbxproj',
+      description: 'Xcode project file'
+    });
+    
+    // Add app-specific files based on app type
+    if (appType.toLowerCase().includes('music') || appType.toLowerCase().includes('player')) {
+      files.push({
+        id: 'music-model',
+        name: 'MusicModel.swift',
+        type: 'swift',
+        content: `import Foundation
+
+struct Song: Identifiable, Codable {
+    let id = UUID()
+    var title: String
+    var artist: String
+    var album: String
+    var duration: TimeInterval
+    var artworkURL: String?
+}
+
+class MusicPlayer: ObservableObject {
+    @Published var currentSong: Song?
+    @Published var isPlaying = false
+    @Published var playlist: [Song] = []
+    
+    func play() { isPlaying = true }
+    func pause() { isPlaying = false }
+    func next() { /* Next song logic */ }
+    func previous() { /* Previous song logic */ }
+}`,
+        path: 'Models/MusicModel.swift',
+        description: 'Music player data model'
+      });
+    }
+    
+    if (appType.toLowerCase().includes('todo') || appType.toLowerCase().includes('task')) {
+      files.push({
+        id: 'task-model',
+        name: 'TaskModel.swift',
+        type: 'swift',
+        content: `import Foundation
+
+struct Task: Identifiable, Codable {
+    let id = UUID()
+    var title: String
+    var isCompleted: Bool
+    var dueDate: Date?
+    var priority: Priority
+    
+    enum Priority: String, CaseIterable, Codable {
+        case low, medium, high
+    }
+}
+
+class TaskManager: ObservableObject {
+    @Published var tasks: [Task] = []
+    
+    func addTask(_ task: Task) {
+        tasks.append(task)
+    }
+    
+    func toggleTask(_ task: Task) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            tasks[index].isCompleted.toggle()
+        }
+    }
+}`,
+        path: 'Models/TaskModel.swift',
+        description: 'Task management data model'
+      });
+    }
+    
+    if (appType.toLowerCase().includes('social') || appType.toLowerCase().includes('chat')) {
+      files.push({
+        id: 'social-model',
+        name: 'SocialModel.swift',
+        type: 'swift',
+        content: `import Foundation
+
+struct User: Identifiable, Codable {
+    let id = UUID()
+    var username: String
+    var avatarURL: String?
+    var bio: String?
+}
+
+struct Post: Identifiable, Codable {
+    let id = UUID()
+    var content: String
+    var author: User
+    var timestamp: Date
+    var likes: Int
+    var comments: [Comment]
+}
+
+struct Comment: Identifiable, Codable {
+    let id = UUID()
+    var content: String
+    var author: User
+    var timestamp: Date
+}
+
+class SocialFeed: ObservableObject {
+    @Published var posts: [Post] = []
+    @Published var currentUser: User?
+    
+    func addPost(_ post: Post) {
+        posts.insert(post, at: 0)
+    }
+    
+    func likePost(_ post: Post) {
+        // Like logic
+    }
+}`,
+        path: 'Models/SocialModel.swift',
+        description: 'Social media data model'
+      });
+    }
+    
+    return files;
+  };
+
+  // Test Gemini API connection
+  const handleTestGeminiApi = async () => {
+    setAiThoughtProcess('Testing Gemini API connection...');
+    try {
+      const isWorking = await testGeminiApiConnection();
+      if (isWorking) {
+        setError('✅ Gemini API is working correctly!');
+        setTimeout(() => setError(null), 3000);
+      } else {
+        setError('❌ Gemini API test failed. Check your internet connection or API key.');
+      }
+    } catch (err) {
+      setError(`❌ Gemini API test error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+    setAiThoughtProcess('');
   };
 
   return (
@@ -2068,23 +2662,32 @@ const App: React.FC = () => {
           {currentView === 'main' ? (
             <>
               {!hasConfirmedFirstPrompt ? (
-                // Replace the first prompt container div with a version that has no top padding and minimal spacing
-                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-start space-y-1 first-prompt-container" style={{paddingTop: '0', paddingBottom: '0.25rem'}}>
-                  {/* Phone Preview - Even Smaller */}
-                  <div className="w-[110px] flex justify-center">
-                    <div className="glass-card p-1">
-                      <PhonePreview 
-                        htmlContent={previewHtml} 
-                        onPreviewInteraction={handlePreviewInteraction}
-                        key={previewRefreshKey}
-                        size="mini"
-                        isLoading={isLoading}
-                      />
+                // Landing page layout with title, subtitle, and reorganized sections
+                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-start space-y-6 first-prompt-container" style={{paddingTop: '2rem', paddingBottom: '1rem'}}>
+                  {/* Landing Page Title and Subtitle */}
+                  <div className="text-center space-y-4 max-w-4xl">
+                    <h1 className="text-4xl md:text-6xl font-bold">
+                      <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        From Idea to App.
+                      </span>
+                      <span className="bg-gradient-to-r from-pink-500 via-pink-600 to-pink-700 bg-clip-text text-transparent">
+                        {" "}Instantly.
+                      </span>
+                    </h1>
+                    <p className="text-xl md:text-2xl text-gray-300 font-medium max-w-3xl mx-auto leading-relaxed">
+                      myPip builds full-stack mobile apps for iOS & Android from a single prompt.{" "}
+                      <span className="bg-gradient-to-r from-pink-500 via-pink-600 to-pink-700 bg-clip-text text-transparent font-semibold">
+                        No code. No limits.
+                      </span>
+                    </p>
                     </div>
-                  </div>
-                  {/* Prompt Input - Even More Compact */}
-                  <div className="w-full max-w-[340px] flex justify-center">
-                    <div className="glass-card p-2 w-full transition-opacity duration-500 ease-in-out">
+                  
+                  {/* Main Content Area - Two Column Layout */}
+                  <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                    {/* Left Column - Prompt Input */}
+                    <div className="flex flex-col items-center justify-start space-y-4">
+                      <div className="w-full max-w-[500px]">
+                        <div className="glass-card p-4 w-full transition-opacity duration-500 ease-in-out">
                       <PromptInput
                         prompt={prompt}
                         setPrompt={setPrompt}
@@ -2101,252 +2704,338 @@ const App: React.FC = () => {
                       />
                     </div>
                     {error && (
-                      <div className={`mt-1 glass-card p-2 text-xs transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
+                          <div className={`mt-3 glass-card p-3 text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
                         {error}
                       </div>
                     )}
                     {!canSubmit && !isEarlyBirdKeyApplied && (
-                      <div className="mt-1 glass-card p-2 text-xs text-center bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-400/30">
+                          <div className="mt-3 glass-card p-3 text-sm text-center bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-400/30">
                         You've used all your free prompts. Subscribe to a credit plan or an unlimited access plan for more prompts!
                       </div>
                     )}
                   </div>
                 </div>
-              ) : (
-                // Full Layout (Existing) - Improved for Refine App
-                <div className="col-span-1 md:col-span-2 refine-app-container">
-                  {/* Left Section - Change Logs, Thinking, and Prompt */}
-                  <div className="flex flex-col space-y-4">
-                    {/* Change Logs and AI Thinking */}
-                    <div className="space-y-4">
-                      {chatHistory.length > 0 && (
-                        <div className={`p-3 rounded-lg border text-xs ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'}`}>
-                          <p className={`font-semibold mb-2 ${isDarkMode ? 'text-blue-200' : 'text-neutral-600'}`}>Change Log:</p>
-                          <div ref={chatHistoryRef} className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                            {chatHistory.map((item, index) => (
-                              <div key={index} className={`p-1.5 rounded text-xs ${getChatItemBackgroundClass(item.type)}`}>
-                                <strong>{getChatSpeaker(item.type)}</strong> {item.content}
+                    
+                    {/* Right Column - Phone Preview */}
+                    <div className="flex flex-col items-center justify-start">
+                      <div className="glass-card p-4">
+                        <div className="w-full flex justify-between items-center mb-4">
+                          <h2 className="text-xl font-semibold text-white">
+                            App Preview
+                          </h2>
                               </div>
-                            ))}
+                        
+                        {/* Phone Preview - Hyper Realistic */}
+                        <div className="flex justify-center mb-6">
+                          <PhonePreview 
+                            htmlContent={previewHtml} 
+                            onPreviewInteraction={handlePreviewInteraction}
+                            key={previewRefreshKey}
+                            size="default"
+                            isLoading={isLoading}
+                          />
                           </div>
                         </div>
-                      )}
-                      
-                      {/* AI Thinking Process */}
-                      {aiThoughtProcess && (
-                        <div className={`p-3 rounded-lg border text-xs ${isDarkMode ? 'bg-purple-900/20 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
-                          <p className={`font-semibold mb-2 ${isDarkMode ? 'text-purple-200' : 'text-neutral-600'}`}>AI Thinking:</p>
-                          <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                            <div className={`p-1.5 rounded text-xs ${isDarkMode ? 'bg-purple-800/30' : 'bg-purple-100'}`}>
-                              {aiThoughtProcess}
                             </div>
                           </div>
                         </div>
-                      )}
+              ) : (
+                // Refine App Layout - Compact Two Column Design
+                <div className="col-span-1 md:col-span-2 h-screen flex flex-col lg:flex-row gap-6 p-6 w-full">
+                  {/* Left Column - Cursor/Lovable Style */}
+                  <div className={`w-full lg:w-80 lg:flex-shrink-0 flex flex-col rounded-xl border font-sf-pro ${
+                    isDarkMode 
+                      ? 'bg-gray-900 border-gray-700' 
+                      : 'bg-white border-gray-200'
+                  }`}>
+                    {/* Header */}
+                    <div className={`p-4 border-b ${
+                      isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                    }`}>
+                      <h2 className={`text-lg font-semibold ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Refine Your App</h2>
                     </div>
 
-                    {/* Refinement Prompt Box - At Bottom */}
-                    <div className="mt-auto">
-                      <h2 className={`text-xl font-semibold mb-3 ${isDarkMode ? 'text-gray-200' : 'text-neutral-700'}`}>Refine Your App</h2>
-                      
-                      {/* Chat-like AI Thinking Display */}
+                    {/* AI Thinking Process */}
                       {aiThoughtProcess && (
-                        <div className={`mb-4 p-4 rounded-xl border ${isDarkMode ? 'bg-purple-900/20 border-purple-700/50' : 'bg-purple-50 border-purple-200'} shadow-sm`}>
-                          <div className="flex items-start space-x-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-purple-600' : 'bg-purple-500'}`}>
-                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                              </svg>
+                      <div className={`p-4 border-b ${
+                        isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
+                        <div className="flex items-center space-x-2 mb-3">
+                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                          <span className="text-green-400 text-xs font-medium">Processing...</span>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className={`text-sm font-medium ${isDarkMode ? 'text-purple-200' : 'text-purple-700'} mb-1`}>
-                                AI Thinking Process
-                              </div>
-                              <div className={`text-sm ${isDarkMode ? 'text-purple-100' : 'text-purple-600'} leading-relaxed`}>
+                        
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
                                 {aiThoughtProcess.split('\n').map((step, index) => (
-                                  <div key={index} className="mb-2 last:mb-0">
-                                    {step.trim() && (
-                                      <div className="flex items-start">
-                                        <span className={`inline-block w-2 h-2 rounded-full mt-2 mr-2 flex-shrink-0 ${isDarkMode ? 'bg-purple-400' : 'bg-purple-500'}`}></span>
-                                        <span>{step.trim()}</span>
+                            step.trim() && (
+                              <div key={index} className="flex items-start space-x-2">
+                                <div className="w-1 h-1 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <p className={`text-xs leading-relaxed ${
+                                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                                }`}>{step.trim()}</p>
                                       </div>
-                                    )}
-                                  </div>
+                            )
                                 ))}
                               </div>
                             </div>
+                    )}
+                    
+                    {/* Chat History */}
+                    {chatHistory.length > 0 && (
+                      <div className={`p-4 border-b flex-1 overflow-y-auto ${
+                        isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
+                        <h3 className={`text-xs font-medium mb-2 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>Recent Changes</h3>
+                        <div className="space-y-1">
+                          {chatHistory.slice(-5).map((item, index) => (
+                            <div key={index} className={`text-xs ${
+                              isDarkMode ? 'text-gray-500' : 'text-gray-600'
+                            }`}>
+                              <span className="text-blue-400">{getChatSpeaker(item.type)}</span> {item.content}
+                            </div>
+                          ))}
                           </div>
                         </div>
                       )}
                       
-                      {/* Chat-like Input */}
-                      <div className={`rounded-xl border ${isDarkMode ? 'bg-gray-800/50 border-gray-600' : 'bg-white border-gray-200'} shadow-sm overflow-hidden`}>
-                        <div className="flex items-end space-x-3 p-4">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isDarkMode ? 'bg-blue-600' : 'bg-blue-500'}`}>
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
+                    {/* Prompt Input */}
+                    <div className={`p-4 border-t ${
+                      isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                    }`}>
+                      <div className={`rounded-lg border overflow-hidden ${
+                        isDarkMode 
+                          ? 'bg-gray-800 border-gray-600' 
+                          : 'bg-gray-50 border-gray-300'
+                      }`}>
                             <textarea
                               value={prompt}
                               onChange={(e) => setPrompt(e.target.value)}
                               placeholder="Describe how you'd like to refine your app..."
-                              className={`w-full resize-none border-0 bg-transparent ${isDarkMode ? 'text-white placeholder-white/50' : 'text-gray-900 placeholder-gray-500'} focus:outline-none focus:ring-0 text-sm leading-relaxed`}
-                              rows={3}
+                          className={`w-full resize-none border-0 bg-transparent placeholder-gray-400 focus:outline-none focus:ring-0 text-sm leading-relaxed font-sf-pro p-3 ${
+                            isDarkMode 
+                              ? 'text-white placeholder-gray-400' 
+                              : 'text-gray-900 placeholder-gray-500'
+                          }`}
+                          rows={4}
                               disabled={!canSubmit || isLoading}
                             />
+                        <div className={`flex justify-between items-center p-3 border-t ${
+                          isDarkMode ? 'border-gray-600' : 'border-gray-300'
+                        }`}>
+                          <div className={`text-xs ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}>
+                            {prompt.length}/500 characters
                           </div>
                           <button
                             onClick={handleSubmit}
-                            disabled={!canSubmit || isLoading}
-                            className={`p-2 rounded-lg transition-all duration-300 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                            disabled={!canSubmit || isLoading || !prompt.trim()}
+                            className="px-4 py-1.5 rounded-md transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isLoading ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <div className="flex items-center space-x-2">
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                <span>Processing...</span>
+                              </div>
                             ) : (
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                              </svg>
+                              'Refine App'
                             )}
                           </button>
                         </div>
                       </div>
                       
                       {error && (
-                        <div className={`mt-3 p-3 border rounded-md text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? (isDarkMode ? 'bg-emerald-900/20 border-emerald-700 text-emerald-300' : 'bg-emerald-100 border-emerald-300 text-emerald-700') : (isDarkMode ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-red-100 border-red-300 text-red-700')}`}>
+                        <div className={`mt-3 p-2 border rounded-md text-xs transition-opacity duration-300 ease-in-out ${
+                          error.includes("successfully") 
+                            ? (isDarkMode ? 'bg-emerald-900/20 border-emerald-700 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-700')
+                            : (isDarkMode ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-red-50 border-red-200 text-red-700')
+                        }`}>
                           {error}
                         </div>
                       )}
-                      {success && (
-                        <div className={`mt-1 glass-card p-2 text-xs transition-opacity duration-300 ease-in-out bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30`}>
-                          {success}
-                        </div>
-                      )}
                     </div>
                   </div>
 
-                  {/* Middle Section - iPhone Preview with Buttons */}
-                  <div className="flex flex-col items-center justify-start">
-                    <div className="glass-card p-4 w-full">
-                      <div className="w-full flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold text-white">
-                          {projectName ? `${projectName} Preview` : 'App Preview'}
-                        </h2>
+                  {/* Right Column - Phone Preview or Code Files */}
+                  <div className="flex-1 flex flex-col min-w-0 w-full">
+                    {/* Top Controls */}
+                    <div className="flex justify-end items-center mb-4">
                         <div className="flex items-center gap-2">
-                          {/* Share Button */}
+                        {!showCode && (
                           <button
-                            onClick={() => setIsShareModalOpen(true)}
-                            title="Share Pip"
-                            className="glass-button p-2 rounded-lg transition-all duration-300"
+                            onClick={() => setShowPageSelector(!showPageSelector)}
+                            title="Select Pages"
+                            className="glass-button px-2 py-1.5 rounded-md transition-all duration-200 text-xs font-medium"
                           >
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v2a4 4 0 004 4h8a4 4 0 004-4v-2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 6V4a4 4 0 00-8 0v2" /></svg>
+                            <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                            </svg>
+                            Pages
                           </button>
-                          {/* Refresh Button */}
+                        )}
+                        
+                        <button
+                          onClick={() => setShowCode(!showCode)}
+                          title={showCode ? "Show Preview" : "Show Code"}
+                          className={`px-2 py-1.5 rounded-md transition-all duration-200 text-xs font-medium ${
+                            showCode 
+                              ? 'bg-blue-600 text-white' 
+                              : 'glass-button'
+                          }`}
+                        >
+                          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                          </svg>
+                          {showCode ? 'Preview' : 'Code'}
+                        </button>
+                        
+                        {!showCode && (
                           <button
                             onClick={refreshPreview}
                             title="Refresh Preview"
-                            className="glass-button p-2 rounded-lg transition-all duration-300"
+                            className="glass-button p-1.5 rounded-md transition-all duration-200"
                           >
-                            <RefreshIcon className="h-5 w-5" />
+                            <RefreshIcon className="h-4 w-4" />
                           </button>
+                        )}
                         </div>
                       </div>
                       
-                      {/* Phone Preview - Centered */}
-                      <div className="flex justify-center mb-4">
-                        <PhonePreview 
-                          htmlContent={previewHtml} 
-                          onPreviewInteraction={handlePreviewInteraction}
-                          key={previewRefreshKey} 
-                          className=""
-                          isLoading={isLoading}
-                        />
+                    {showCode ? (
+                      // Code Files View
+                      <div className="flex-1 flex flex-col bg-gray-900 rounded-xl border border-gray-700">
+                        {/* File Selector */}
+                        {appFiles.length > 0 && (
+                          <div className="p-4 border-b border-gray-700">
+                            <FileSelector
+                              files={appFiles}
+                              currentFileId={currentFileId}
+                              onFileChange={handleFileChange}
+                              className=""
+                            />
+                          </div>
+                        )}
+                        
+                        {/* File Content */}
+                        <div className="flex-1 p-4 overflow-y-auto">
+                          {appFiles.length > 0 ? (
+                            (() => {
+                              const currentFile = appFiles.find(file => file.id === currentFileId);
+                              if (!currentFile) return null;
+                              
+                              return (
+                                <div className="space-y-4">
+                                  <div className="flex justify-between items-center">
+                                    <h3 className="text-white text-sm font-semibold">
+                                      {currentFile.name}
+                                    </h3>
+                                    <div className="text-xs text-gray-400">
+                                      {currentFile.path}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
+                                                                         {currentFile.type === 'swift' || currentFile.type === 'html' || currentFile.type === 'json' || currentFile.type === 'plist' ? (
+                                       <CodeDisplay 
+                                         code={currentFile.content || ''} 
+                                         isDarkMode={true}
+                                       />
+                                     ) : (
+                                      <div className="text-gray-300 text-sm">
+                                        {currentFile.content}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <div className="text-center text-gray-400 py-8">
+                              <svg className="h-12 w-12 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <p>No files generated yet. Generate an app to see the code files.</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
+                    ) : (
+                      // Phone Preview View
+                      <>
+                        {/* Page Selector */}
+                        {showPageSelector && (
+                          <div className="mb-4 p-2 bg-gray-800/50 rounded-lg border border-gray-700">
+                            <PageSelector
+                              pages={appPages}
+                              currentPageId={currentPageId}
+                              onPageChange={handlePageChange}
+                              className=""
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Phone Preview */}
+                        <div className="flex-1 flex flex-col justify-center items-center">
+                          <h2 className="text-white text-lg font-semibold font-sf-pro mb-4">
+                            {showCode ? 'App Files' : (projectName ? `${projectName} Preview` : 'App Preview')}
+                          </h2>
+                          <PhonePreview 
+                            htmlContent={previewHtml} 
+                            onPreviewInteraction={handlePreviewInteraction}
+                            key={previewRefreshKey} 
+                            size="small"
+                            isLoading={isLoading}
+                          />
+                        </div>
+                      </>
+                    )}
                       
-                      {/* Action Buttons Row */}
-                      <div className="flex justify-center gap-2">
-                        {/* Save Button */}
+                    {/* Action Buttons */}
+                    <div className="flex justify-center gap-2 mt-4">
                         <button
                           onClick={handleSave}
                           title="Save Pip"
-                          className="glass-button p-2 rounded-lg transition-all duration-300"
+                        className="glass-button px-3 py-1.5 rounded-md transition-all duration-200 text-xs font-medium"
                         >
-                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Save
                         </button>
                         
-                        {/* GitHub Icon */}
                         <button
                           title="Connect to GitHub"
                           onClick={handleGitHubClick}
-                          className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900"
+                        className="glass-button px-3 py-1.5 rounded-md transition-all duration-200 text-xs font-medium bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900"
                         >
-                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="h-3 w-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                           </svg>
+                        GitHub
                         </button>
                         
-                        {/* Apple Store Icon */}
                         <button
                           title="Deploy to Apple App Store"
-                          className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-blue-400 to-purple-500"
+                        className="glass-button px-3 py-1.5 rounded-md transition-all duration-200 text-xs font-medium bg-gradient-to-r from-blue-400 to-purple-500"
                           onClick={handleAppleDeploymentClick}
                         >
-                          <AppleIcon className="h-5 w-5" />
+                        <AppleIcon className="h-3 w-3 mr-1" />
+                        App Store
                         </button>
                         
-                        {/* Google Play Store Icon - Now Clickable and Green */}
                         <button
                           title="Deploy to Google Play Store"
                           onClick={handleGooglePlayDeploymentClick}
-                          className="glass-button p-2 rounded-lg transition-all duration-300 bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700"
+                        className="glass-button px-3 py-1.5 rounded-md transition-all duration-200 text-xs font-medium bg-gradient-to-r from-green-400 to-green-600 hover:from-green-500 hover:to-green-700"
                         >
-                          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="h-3 w-3 mr-1" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.61 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/>
                           </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Code Section - Right */}
-                  <div className="flex flex-col space-y-4">
-                    <div className="mt-2">
-                       <div className="flex justify-between items-center mb-3">
-                          <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-gray-200' : 'text-neutral-700'}`}>
-                              {currentCodeType === 'swift' 
-                                ? (currentView === 'main' ? 'Generated iOS Code (SwiftUI)' : 'Updated iOS Code (SwiftUI)')
-                                : currentCodeType === 'flutter'
-                                ? 'Generated Android Code (Flutter)'
-                                : 'Generated Android Code (React Native)'
-                              }
-                          </h2>
-                          <button
-                              onClick={downloadSwiftCode}
-                              disabled={isLoading || generatedCode.startsWith('//') || generatedCode.startsWith('Error:')}
-                              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white focus:ring-blue-400' : 'bg-blue-500 hover:bg-blue-600 disabled:bg-neutral-300 text-white focus:ring-blue-400'}`}
-                              title="Download .swift file"
-                          >
-                              Download Code
-                          </button>
-                       </div>
-                      <CodeDisplay code={currentCodeType === 'swift' ? generatedCode : convertedCode} isDarkMode={isDarkMode} />
-                    </div>
-
-                    {!canSubmit && currentView === 'main' && !isEarlyBirdKeyApplied && (
-                      <div className={`p-3 border rounded-md text-sm text-center ${isDarkMode ? 'bg-yellow-900/20 border-yellow-700 text-yellow-300' : 'bg-yellow-100 border-yellow-300 text-yellow-800'}`}>
-                        You've used all your free prompts. Subscribe to a credit plan or an unlimited access plan for more prompts!
-                      </div>
-                    )}
-
-                    <div className="flex gap-3 mb-6">
-                      {/* Share Button */}
-                      <button
-                        onClick={() => setIsShareModalOpen(true)}
-                        className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 ${isDarkMode ? 'bg-purple-600 hover:bg-purple-700 text-white focus:ring-purple-400' : 'bg-purple-500 hover:bg-purple-600 text-white focus:ring-purple-400'}`}
-                      >
-                        <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12v2a4 4 0 004 4h8a4 4 0 004-4v-2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 6V4a4 4 0 00-8 0v2" /></svg>
-                        Share
+                        Play Store
                       </button>
                     </div>
                   </div>
@@ -3809,6 +4498,22 @@ const App: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* AI API Testing */}
+              <div className="glass-card p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium text-white">AI API Testing</h3>
+                    <p className="text-sm text-white/60 mt-1">Test Gemini API connection</p>
+                  </div>
+                  <button 
+                    onClick={handleTestGeminiApi}
+                    className="glass-button px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-sm transition-all duration-300"
+                  >
+                    Test Gemini
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end pt-6 border-t border-white/20">
@@ -4353,3 +5058,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
