@@ -52,6 +52,7 @@ const App: React.FC = () => {
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState<boolean>(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState<number>(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false); // Added for mobile sidebar
+  const [isPhoneRotated, setIsPhoneRotated] = useState<boolean>(false); // Phone rotation state
 
   const [userProvidedApiKey, setUserProvidedApiKey] = useState<string | null>(null); // Added
   const [isEarlyBirdKeyApplied, setIsEarlyBirdKeyApplied] = useState<boolean>(false); // Added
@@ -179,6 +180,14 @@ const App: React.FC = () => {
   const [isJoiningWaitlist, setIsJoiningWaitlist] = useState(false);
   const [hasSeenV2Popup, setHasSeenV2Popup] = useState(false);
 
+  // Referral Program popup state
+  const [showReferralProgramPopup, setShowReferralProgramPopup] = useState<boolean>(() => {
+    // Check if user has seen the referral popup before
+    const hasSeenReferralPopup = localStorage.getItem('hasSeenReferralProgramPopup');
+    return !hasSeenReferralPopup; // Show popup if user hasn't seen it
+  });
+  const [hasSeenReferralPopup, setHasSeenReferralPopup] = useState(false);
+
   // Waitlist admin state
   const [isWaitlistAdminOpen, setIsWaitlistAdminOpen] = useState(false);
 
@@ -191,6 +200,27 @@ const App: React.FC = () => {
   // New state for refine app layout
   const [showPageSelector, setShowPageSelector] = useState<boolean>(false);
   const [showCode, setShowCode] = useState<boolean>(false);
+  
+  // Progress tracking state
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [progressSteps, setProgressSteps] = useState<Array<{
+    id: number;
+    title: string;
+    description: string;
+    status: 'pending' | 'active' | 'completed' | 'error';
+    progress: number;
+  }>>([]);
+  
+  // Handle preview ready event
+  const handlePreviewReady = useCallback(() => {
+    console.log('Preview is ready - completing progress to 100%');
+    setProgressSteps(prev => prev.map((step, index) => {
+      if (index === 5) {
+        return { ...step, status: 'completed' as const, progress: 100 };
+      }
+      return step;
+    }));
+  }, []);
   
   // File management state
   const [appFiles, setAppFiles] = useState<AppFile[]>([]);
@@ -209,14 +239,14 @@ const App: React.FC = () => {
     }
   }, [currentView, communityCategory, communitySearch]);
 
-  // Show V2 waitlist popup when user first logs in
+  // Show V2 waitlist popup after referral program popup (only for new users)
   useEffect(() => {
     // Show popup for all users, not just logged-in ones
-    if (!hasSeenV2Popup) {
+    if (!hasSeenV2Popup && hasSeenReferralPopup) {
       // Small delay to ensure the app is fully loaded
       const timer = setTimeout(() => {
         try {
-          console.log('Showing V2 waitlist popup');
+          console.log('Showing V2 waitlist popup (after referral program)');
           setShowV2WaitlistPopup(true);
           setHasSeenV2Popup(true);
         } catch (error) {
@@ -227,7 +257,26 @@ const App: React.FC = () => {
       
       return () => clearTimeout(timer);
     }
-  }, [hasSeenV2Popup]);
+  }, [hasSeenV2Popup, hasSeenReferralPopup]);
+
+  // Show Referral Program popup BEFORE V2 waitlist popup (only for new users)
+  useEffect(() => {
+    if (!hasSeenReferralPopup && !hasSeenV2Popup) {
+      // Small delay to ensure the app is fully loaded
+      const timer = setTimeout(() => {
+        try {
+          console.log('Showing Referral Program popup (before V2 waitlist)');
+          setShowReferralProgramPopup(true);
+          setHasSeenReferralPopup(true);
+        } catch (error) {
+          console.error('Error showing referral program popup:', error);
+          // Don't crash the app if there's an error
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [hasSeenReferralPopup, hasSeenV2Popup]);
 
   const handleApplyApiKey = useCallback(async (apiKey: string) => {
     setIsLoading(true);
@@ -532,12 +581,28 @@ const App: React.FC = () => {
       processedPrompt += ' Include interactive elements like buttons, forms, or user inputs.';
     }
 
+    // Immediately switch to refinement page for better UX
+    setHasGenerated(true);
+    setHasConfirmedFirstPrompt(true);
+    
+    // Initialize progress steps
+    const steps = [
+      { id: 1, title: 'Analyzing Prompt', description: 'Understanding your requirements and planning the app structure', status: 'pending' as const, progress: 0 },
+      { id: 2, title: 'Designing UI', description: 'Creating beautiful, modern iOS interface components', status: 'pending' as const, progress: 0 },
+      { id: 3, title: 'Generating Code', description: 'Writing clean, functional SwiftUI code with interactive elements', status: 'pending' as const, progress: 0 },
+      { id: 4, title: 'Building Preview', description: 'Creating interactive preview with real functionality', status: 'pending' as const, progress: 0 },
+      { id: 5, title: 'Testing & Polish', description: 'Ensuring everything works perfectly and adding final touches', status: 'pending' as const, progress: 0 },
+      { id: 6, title: 'Ready!', description: 'Your app is complete and ready to use', status: 'pending' as const, progress: 0 }
+    ];
+    setProgressSteps(steps);
+    setCurrentStep(0);
+    
     setIsLoading(true);
     setError(null);
     setGeneratedCode('// Generating Swift code...');
     setPreviewHtml(`<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}"><div class="max-w-xs"><div class="animate-spin rounded-full h-12 w-12 border-b-2 ${isDarkMode ? 'border-blue-400' : 'border-blue-500'} mx-auto mb-4"></div></div></div>`);
     setChatHistory([]);
-    setAiThoughtProcess('Analyzing your prompt and understanding requirements...\nPlanning app architecture and user flow...\nDesigning UI components and layout...\nGenerating SwiftUI code with interactive elements...\nCreating HTML preview with Tailwind CSS...\nAdding animations and polish...');
+    setAiThoughtProcess('Analyzing your prompt and understanding requirements...');
     setThinkingLog('');
 
     // Retry system with exponential backoff
@@ -546,16 +611,63 @@ const App: React.FC = () => {
     
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Generating your app...\nAnalyzing your prompt and understanding requirements...\nPlanning app architecture and user flow...\nDesigning UI components and layout...\nGenerating SwiftUI code with interactive elements...\nCreating HTML preview with Tailwind CSS...\nAdding animations and polish...`);
+        // Progress through the steps with timing and visual feedback
+        const updateProgressStep = (stepIndex: number, status: 'active' | 'completed' | 'error', progress: number = 100) => {
+          setProgressSteps(prev => prev.map((step, index) => {
+            if (index === stepIndex) {
+              return { ...step, status, progress };
+            } else if (index < stepIndex) {
+              return { ...step, status: 'completed' as const, progress: 100 };
+            }
+            return step;
+          }));
+          setCurrentStep(stepIndex);
+        };
+
+        // Start first step
+        updateProgressStep(0, 'active', 0);
         
-        setTimeout(() => setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Generating your app...\nAnalyzing your prompt and understanding requirements...\nPlanning app architecture and user flow...\nDesigning UI components and layout...\nGenerating SwiftUI code with interactive elements...\nCreating HTML preview with Tailwind CSS...\nAdding animations and polish...\nFinalizing code structure and testing...`), 1000);
-        setTimeout(() => setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Generating your app...\nAnalyzing your prompt and understanding requirements...\nPlanning app architecture and user flow...\nDesigning UI components and layout...\nGenerating SwiftUI code with interactive elements...\nCreating HTML preview with Tailwind CSS...\nAdding animations and polish...\nFinalizing code structure and testing...\nApp generation complete!`), 2000);
+        // Progress through steps with slower, more satisfying timing
+        setTimeout(() => updateProgressStep(0, 'completed'), 1500);
+        setTimeout(() => updateProgressStep(1, 'active', 0), 1800);
+        setTimeout(() => updateProgressStep(1, 'completed'), 3300);
+        setTimeout(() => updateProgressStep(2, 'active', 0), 3600);
+        setTimeout(() => updateProgressStep(2, 'completed'), 5100);
+        setTimeout(() => updateProgressStep(3, 'active', 0), 5400);
+        setTimeout(() => updateProgressStep(3, 'completed'), 6900);
+        setTimeout(() => updateProgressStep(4, 'active', 0), 7200);
+        setTimeout(() => updateProgressStep(4, 'completed'), 8700);
+        setTimeout(() => updateProgressStep(5, 'active', 0), 9000);
+        // Keep the last step at 90% until generation is actually complete
+        setTimeout(() => {
+          setProgressSteps(prev => prev.map((step, index) => {
+            if (index === 5) {
+              return { ...step, status: 'active' as const, progress: 90 };
+            }
+            return step;
+          }));
+        }, 9000);
+        
+        // Switch to refine view immediately when generation starts
+        if (!hasGenerated) {
+          setHasGenerated(true);
+        }
         
         // Use the appropriate AI service based on selected model and whether we're generating or refining
         let result;
-        if (hasGenerated) {
-          // Refine existing app
-          setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Refining your app...\nAnalyzing your refinement request...\nUnderstanding current app structure...\nPlanning UI improvements...\nUpdating SwiftUI code...\nModifying HTML preview...\nApplying changes and testing...`);
+        const isFirstGeneration = !hasGenerated;
+        if (!isFirstGeneration) {
+          // Refine existing app - use simpler progress for refinements
+          const refinementSteps = [
+            { id: 1, title: 'Analyzing Request', description: 'Understanding your refinement requirements', status: 'active' as const, progress: 0 },
+            { id: 2, title: 'Updating Code', description: 'Modifying SwiftUI code with your changes', status: 'pending' as const, progress: 0 },
+            { id: 3, title: 'Testing Changes', description: 'Ensuring everything works perfectly', status: 'pending' as const, progress: 0 },
+            { id: 4, title: 'Ready!', description: 'Your app has been updated successfully', status: 'pending' as const, progress: 0 }
+          ];
+          setProgressSteps(refinementSteps);
+          setCurrentStep(0);
+          
+          setAiThoughtProcess(`Attempt ${attempt + 1}/${maxRetries}: Refining your app...\nAnalyzing your refinement request...\nUnderstanding current app structure...\nPlanning UI improvements...\nUpdating SwiftUI code...\nModifying interactive preview...\nApplying changes and testing...`);
           
           if (selectedModel === ModelId.CLAUDE) {
             result = await refineClaudeCode(generatedCode, previewHtml, processedPrompt);
@@ -565,17 +677,17 @@ const App: React.FC = () => {
             } catch (geminiError) {
               console.log('Gemini refinement failed, falling back to Claude:', geminiError);
               setError('Gemini API failed, automatically switching to Claude for better reliability.');
-              setAiThoughtProcess(`Gemini failed, switching to Claude...\nAttempt ${attempt + 1}/${maxRetries}: Refining your app with Claude...\nAnalyzing your refinement request...\nUnderstanding current app structure...\nPlanning UI improvements...\nUpdating SwiftUI code...\nModifying HTML preview...\nApplying changes and testing...`);
+              setAiThoughtProcess(`Gemini failed, switching to Claude...\nAttempt ${attempt + 1}/${maxRetries}: Refining your app with Claude...\nAnalyzing your refinement request...\nUnderstanding current app structure...\nPlanning UI improvements...\nUpdating SwiftUI code...\nModifying interactive preview...\nApplying changes and testing...`);
               result = await refineClaudeCode(generatedCode, previewHtml, processedPrompt);
             }
           }
         } else {
           // Generate new app
-        if (selectedModel === ModelId.CLAUDE) {
-          result = await generateClaudeCode(processedPrompt);
-        } else {
+          if (selectedModel === ModelId.CLAUDE) {
+            result = await generateClaudeCode(processedPrompt);
+          } else {
             try {
-          result = await generateGeminiCode(processedPrompt);
+              result = await generateGeminiCode(processedPrompt);
             } catch (geminiError) {
               console.log('Gemini generation failed, falling back to Claude:', geminiError);
               setError('Gemini API failed, automatically switching to Claude for better reliability.');
@@ -607,12 +719,15 @@ const App: React.FC = () => {
         setGeneratedCode(result.swiftCode);
         setPreviewHtml(result.previewHtml);
         
-        if (hasGenerated) {
+        // Keep the final step at 90% until the preview is actually rendered
+        // The progress will only complete to 100% when the preview is ready
+        
+        if (!isFirstGeneration) {
           setAiThoughtProcess('App refined successfully!\nYour SwiftUI app has been updated!\nInteractive preview updated\nUpdated code ready for download\nReady for deployment');
           setThinkingLog('Refined the SwiftUI app based on your request. Updated the design and functionality.');
         } else {
           setAiThoughtProcess('App generated successfully!\nYour SwiftUI app is ready to use!\nInteractive preview available\nCode ready for download\nReady for deployment');
-        setThinkingLog('Generated a SwiftUI app based on your prompt. Used a list and add button for tasks. The design follows modern iOS guidelines.');
+          setThinkingLog('Generated a SwiftUI app based on your prompt. Used a list and add button for tasks. The design follows modern iOS guidelines.');
         }
         
 
@@ -638,15 +753,23 @@ const App: React.FC = () => {
         if (!isEarlyBirdKeyApplied) {
           setFreePromptsRemaining(prev => Math.max(0, prev - 1));
         }
-        if (hasGenerated) {
+        if (!isFirstGeneration) {
           setChatHistory(prev => [...prev, { type: 'user', content: `Refinement request: ${prompt}` }, { type: 'ai', content: 'App refined successfully.' }]);
         } else {
-        setChatHistory([{ type: 'user', content: `App idea: ${prompt}` }, { type: 'ai', content: 'App generated successfully.' }]);
+          setChatHistory([{ type: 'user', content: `App idea: ${prompt}` }, { type: 'ai', content: 'App generated successfully.' }]);
         }
         setPrompt('');
         setPreviewRefreshKey(prev => prev + 1);
         setHasGenerated(true);
         setHasConfirmedFirstPrompt(true);
+        
+        // Reset progress after a longer delay to show completion
+        setTimeout(() => {
+          setProgressSteps([]);
+          setCurrentStep(0);
+        }, 4000);
+        
+
         
         break; // Exit retry loop on success
         
@@ -678,6 +801,8 @@ const App: React.FC = () => {
           setPreviewRefreshKey(prev => prev + 1);
           setAiThoughtProcess('');
           setThinkingLog('');
+          
+
         } else {
           setAiThoughtProcess(`Retrying... (attempt ${attempt + 2}/${maxRetries})`);
           // Wait before retry
@@ -687,13 +812,15 @@ const App: React.FC = () => {
     }
     
     setIsLoading(false);
+    
+
   }, [prompt, canSubmit, isEarlyBirdKeyApplied, selectedModel, isDarkMode]);
 
   const handlePreviewInteraction = useCallback(async (actionId: string, actionDescription: string) => {
-    const interactionLog = `User clicked "${actionDescription || actionId}" in preview.`;
+    const interactionLog = `User interacted with "${actionDescription || actionId}" in preview.`;
     setChatHistory(prev => [...prev, { type: 'interaction', content: interactionLog }]);
     
-    console.log('Handling interaction locally:', actionId, actionDescription);
+    console.log('Handling real app interaction:', actionId, actionDescription);
     
     // Create a temporary DOM element to parse and manipulate the HTML
     const tempDiv = document.createElement('div');
@@ -702,47 +829,89 @@ const App: React.FC = () => {
     let updatedHtml = previewHtml;
     let hasChanges = false;
     
+    // Real app functionality - like iPhone mirroring
     switch (actionId) {
       case 'toggleItem':
       case 'markComplete':
       case 'markIncomplete':
-        // Find and toggle checkboxes
+        // Real checkbox functionality
         const checkboxes = tempDiv.querySelectorAll('input[type="checkbox"]');
         checkboxes.forEach((checkbox, index) => {
-          if (index === 0) { // Toggle the first checkbox found
-            (checkbox as HTMLInputElement).checked = !(checkbox as HTMLInputElement).checked;
+          if (index === 0) {
+            const isChecked = (checkbox as HTMLInputElement).checked;
+            (checkbox as HTMLInputElement).checked = !isChecked;
+            
+            // Update the associated label or text to show completion status
+            const label = checkbox.closest('label') || checkbox.nextElementSibling;
+            if (label && label.textContent && label instanceof HTMLElement) {
+              if (!isChecked) {
+                label.style.textDecoration = 'line-through';
+                label.style.opacity = '0.6';
+              } else {
+                label.style.textDecoration = 'none';
+                label.style.opacity = '1';
+              }
+            }
             hasChanges = true;
           }
         });
         break;
         
       case 'addItem':
-        // Add new item to lists
+        // Real add item functionality
         const lists = tempDiv.querySelectorAll('ul, ol');
-        lists.forEach((list, listIndex) => {
-          if (listIndex === 0) { // Add to first list found
-            const newItem = document.createElement('li');
-            newItem.className = 'p-2 border-b border-gray-200 flex items-center justify-between';
-            newItem.innerHTML = `
-              <span>New Item ${Date.now().toString().slice(-4)}</span>
-              <button data-action-id="deleteItem" data-action-description="Delete item" 
-                      class="text-red-500 hover:text-red-700 cursor-pointer hover:opacity-80 transition-opacity active:scale-95">×</button>
-            `;
-            list.appendChild(newItem);
-            hasChanges = true;
-          }
-        });
+        const addButtons = tempDiv.querySelectorAll('[data-action-id="addItem"]');
+        
+        if (addButtons.length > 0) {
+          // If there's an add button, simulate adding to the first list
+          lists.forEach((list, listIndex) => {
+            if (listIndex === 0) {
+              const newItem = document.createElement('li');
+              newItem.className = 'p-3 border-b border-gray-200 flex items-center justify-between bg-white';
+              newItem.innerHTML = `
+                <span class="flex-1">New Task ${Date.now().toString().slice(-4)}</span>
+                <input type="checkbox" class="ml-2" data-action-id="toggleItem" data-action-description="Toggle item">
+                <button data-action-id="deleteItem" data-action-description="Delete item" 
+                        class="ml-2 text-red-500 hover:text-red-700 cursor-pointer">×</button>
+              `;
+              list.appendChild(newItem);
+              hasChanges = true;
+            }
+          });
+        } else {
+          // If no add button, add to the first list directly
+          lists.forEach((list, listIndex) => {
+            if (listIndex === 0) {
+              const newItem = document.createElement('li');
+              newItem.className = 'p-3 border-b border-gray-200 flex items-center justify-between bg-white';
+              newItem.innerHTML = `
+                <span class="flex-1">New Item ${Date.now().toString().slice(-4)}</span>
+                <button data-action-id="deleteItem" data-action-description="Delete item" 
+                        class="text-red-500 hover:text-red-700 cursor-pointer">×</button>
+              `;
+              list.appendChild(newItem);
+              hasChanges = true;
+            }
+          });
+        }
         break;
         
       case 'deleteItem':
-        // Remove items from lists
+        // Real delete functionality
         const deleteButtons = tempDiv.querySelectorAll('[data-action-id="deleteItem"]');
         deleteButtons.forEach((button, index) => {
-          if (index === 0) { // Delete first item with delete button
+          if (index === 0) {
             const listItem = button.closest('li');
             if (listItem) {
-              listItem.remove();
-              hasChanges = true;
+              // Add fade-out animation
+              listItem.style.transition = 'all 0.3s ease';
+              listItem.style.opacity = '0';
+              listItem.style.transform = 'translateX(-100%)';
+              
+              setTimeout(() => {
+                listItem.remove();
+                hasChanges = true;
+              }, 300);
             }
           }
         });
@@ -750,48 +919,85 @@ const App: React.FC = () => {
         
       case 'toggleSwitch':
       case 'toggleFeature':
-        // Toggle switches and features
+        // Real switch functionality
         const switches = tempDiv.querySelectorAll('input[type="checkbox"]');
         switches.forEach((switchEl, index) => {
           if (index === 0) {
-            (switchEl as HTMLInputElement).checked = !(switchEl as HTMLInputElement).checked;
+            const isChecked = (switchEl as HTMLInputElement).checked;
+            (switchEl as HTMLInputElement).checked = !isChecked;
+            
+            // Update associated text to show switch state
+            const switchContainer = switchEl.closest('div');
+            if (switchContainer) {
+              const statusText = switchContainer.querySelector('.status-text');
+              if (statusText) {
+                statusText.textContent = !isChecked ? 'ON' : 'OFF';
+                statusText.className = statusText.className.replace(
+                  !isChecked ? 'text-gray-500' : 'text-green-600',
+                  !isChecked ? 'text-green-600' : 'text-gray-500'
+                );
+              }
+            }
             hasChanges = true;
           }
         });
         break;
         
       case 'submitForm':
-        // Show success message for form submission
+        // Real form submission
         const forms = tempDiv.querySelectorAll('form');
         forms.forEach((form, index) => {
           if (index === 0) {
-            const successDiv = document.createElement('div');
-            successDiv.className = 'mt-4 p-3 bg-green-100 text-green-700 rounded-lg';
-            successDiv.textContent = 'Form submitted successfully!';
-            form.appendChild(successDiv);
-            hasChanges = true;
-          }
-        });
-        break;
-        
-      case 'saveData':
-        // Show success message for data saving
-        const saveButtons = tempDiv.querySelectorAll('[data-action-id="saveData"]');
-        saveButtons.forEach((button, index) => {
-          if (index === 0) {
-            button.textContent = 'Saved!';
-            button.className = button.className.replace('bg-blue-500', 'bg-green-500');
-            hasChanges = true;
+            // Collect form data
+            const formData = new FormData(form as HTMLFormElement);
+            const data = Object.fromEntries(formData);
+            
+            // Show loading state
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+              const originalText = submitButton.textContent;
+              submitButton.textContent = 'Submitting...';
+              submitButton.setAttribute('disabled', 'true');
+              
+              // Simulate submission delay
+              setTimeout(() => {
+                // Show success message
+                const successDiv = document.createElement('div');
+                successDiv.className = 'mt-4 p-3 bg-green-100 text-green-700 rounded-lg border border-green-200';
+                successDiv.innerHTML = `
+                  <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    Form submitted successfully!
+                  </div>
+                `;
+                form.appendChild(successDiv);
+                
+                // Reset form
+                (form as HTMLFormElement).reset();
+                
+                // Restore button
+                submitButton.textContent = originalText;
+                submitButton.removeAttribute('disabled');
+                
+                hasChanges = true;
+              }, 1500);
+            }
           }
         });
         break;
         
       case 'inputChange':
-        // Handle text input changes
+        // Real input functionality
         const inputs = tempDiv.querySelectorAll('input[type="text"], input[type="email"], textarea');
         inputs.forEach((input, index) => {
           if (index === 0) {
-            // Add a visual indicator that input was changed
+            // Focus the input and add some sample text
+            (input as HTMLInputElement).focus();
+            (input as HTMLInputElement).value = 'Sample input text';
+            
+            // Add visual feedback
             (input as HTMLElement).style.borderColor = '#3b82f6';
             (input as HTMLElement).style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
             hasChanges = true;
@@ -800,91 +1006,130 @@ const App: React.FC = () => {
         break;
         
       case 'searchItems':
-        // Simulate search functionality
+        // Real search functionality
         const searchInputs = tempDiv.querySelectorAll('input[placeholder*="search"], input[placeholder*="Search"]');
         searchInputs.forEach((input, index) => {
           if (index === 0) {
-            (input as HTMLInputElement).value = 'Search results...';
-            hasChanges = true;
-          }
-        });
-        break;
-        
-      case 'filterResults':
-        // Simulate filter functionality
-        const filterButtons = tempDiv.querySelectorAll('[data-action-id="filterResults"]');
-        filterButtons.forEach((button, index) => {
-          if (index === 0) {
-            button.textContent = 'Filtered!';
-            button.className = button.className.replace('bg-gray-500', 'bg-purple-500');
+            const searchTerm = 'example';
+            (input as HTMLInputElement).value = searchTerm;
+            
+            // Show search results
+            const searchContainer = input.closest('.search-container') || input.parentElement;
+            if (searchContainer) {
+              // Remove existing results
+              const existingResults = searchContainer.querySelector('.search-results');
+              if (existingResults) existingResults.remove();
+              
+              // Add new results
+              const resultsDiv = document.createElement('div');
+              resultsDiv.className = 'search-results mt-2 bg-white border border-gray-200 rounded-lg shadow-sm';
+              resultsDiv.innerHTML = `
+                <div class="p-2 border-b border-gray-100 text-sm text-gray-600">Search results for "${searchTerm}"</div>
+                <div class="p-2 hover:bg-gray-50 cursor-pointer">Result 1</div>
+                <div class="p-2 hover:bg-gray-50 cursor-pointer">Result 2</div>
+                <div class="p-2 hover:bg-gray-50 cursor-pointer">Result 3</div>
+              `;
+              searchContainer.appendChild(resultsDiv);
+            }
             hasChanges = true;
           }
         });
         break;
         
       case 'viewDetails':
-        // Simulate viewing details
+        // Real detail view functionality
         const detailButtons = tempDiv.querySelectorAll('[data-action-id="viewDetails"]');
         detailButtons.forEach((button, index) => {
           if (index === 0) {
-            button.textContent = 'Viewed!';
-            button.className = button.className.replace('bg-blue-500', 'bg-gray-500');
+            // Show detail modal or expand content
+            const itemContainer = button.closest('.item-container') || button.parentElement;
+            if (itemContainer) {
+              const existingDetails = itemContainer.querySelector('.item-details');
+              if (existingDetails) {
+                existingDetails.remove();
+              } else {
+                const detailsDiv = document.createElement('div');
+                detailsDiv.className = 'item-details mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg';
+                detailsDiv.innerHTML = `
+                  <h4 class="font-medium text-gray-900">Item Details</h4>
+                  <p class="text-sm text-gray-600 mt-1">This is the detailed information for this item.</p>
+                  <div class="mt-2 text-xs text-gray-500">Created: ${new Date().toLocaleDateString()}</div>
+                `;
+                itemContainer.appendChild(detailsDiv);
+              }
+            }
             hasChanges = true;
           }
         });
         break;
         
       case 'editItem':
-        // Simulate editing an item
+        // Real edit functionality
         const editButtons = tempDiv.querySelectorAll('[data-action-id="editItem"]');
         editButtons.forEach((button, index) => {
           if (index === 0) {
-            button.textContent = 'Editing...';
-            button.className = button.className.replace('bg-blue-500', 'bg-yellow-500');
-            hasChanges = true;
-          }
-        });
-        break;
-        
-      case 'cancelAction':
-        // Simulate canceling an action
-        const cancelButtons = tempDiv.querySelectorAll('[data-action-id="cancelAction"]');
-        cancelButtons.forEach((button, index) => {
-          if (index === 0) {
-            button.textContent = 'Cancelled!';
-            button.className = button.className.replace('bg-gray-500', 'bg-red-500');
+            const itemContainer = button.closest('.item-container') || button.parentElement;
+            if (itemContainer) {
+              const textElement = itemContainer.querySelector('span, p');
+              if (textElement && !textElement.querySelector('input')) {
+                const originalText = textElement.textContent;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = originalText || '';
+                input.className = 'border border-gray-300 rounded px-2 py-1 text-sm';
+                
+                const saveButton = document.createElement('button');
+                saveButton.textContent = 'Save';
+                saveButton.className = 'ml-2 px-2 py-1 bg-blue-500 text-white rounded text-xs';
+                saveButton.onclick = () => {
+                  textElement.textContent = input.value;
+                  input.remove();
+                  saveButton.remove();
+                };
+                
+                textElement.textContent = '';
+                textElement.appendChild(input);
+                textElement.appendChild(saveButton);
+                input.focus();
+              }
+            }
             hasChanges = true;
           }
         });
         break;
         
       default:
-        // For any other interaction, try to find and interact with the element
+        // Handle any other interactions by finding the specific element
         const targetElements = tempDiv.querySelectorAll(`[data-action-id="${actionId}"]`);
         targetElements.forEach((element, index) => {
           if (index === 0) {
-            // Add visual feedback
-            if (element instanceof HTMLElement) {
-              element.style.transform = 'scale(0.95)';
-              element.style.transition = 'transform 0.1s ease';
-              setTimeout(() => {
-                element.style.transform = 'scale(1)';
-              }, 100);
-      }
-            
-            // If it's a button, change its text to show it was clicked
+            // Perform the actual action based on the element type
             if (element.tagName === 'BUTTON') {
-              const originalText = element.textContent;
-              element.textContent = 'Clicked!';
-              element.className = element.className.replace('bg-blue-500', 'bg-green-500');
-              hasChanges = true;
+              const button = element as HTMLButtonElement;
+              const originalText = button.textContent;
               
-              // Restore original text after 2 seconds
-              setTimeout(() => {
-                element.textContent = originalText;
-                element.className = element.className.replace('bg-green-500', 'bg-blue-500');
-              }, 2000);
+              // Check if it's a toggle button
+              if (button.classList.contains('toggle') || button.textContent?.toLowerCase().includes('toggle')) {
+                const isActive = button.classList.contains('active');
+                button.classList.toggle('active');
+                button.textContent = isActive ? (originalText || '').replace('ON', 'OFF') : (originalText || '').replace('OFF', 'ON');
+              } else {
+                // Regular button - show pressed state briefly
+                button.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                  button.style.transform = 'scale(1)';
+                }, 150);
+              }
+            } else if (element.tagName === 'INPUT') {
+              const input = element as HTMLInputElement;
+              if (input.type === 'checkbox') {
+                input.checked = !input.checked;
+              } else if (input.type === 'text' || input.type === 'email') {
+                input.focus();
+                input.select();
+              }
             }
+            hasChanges = true;
           }
         });
         break;
@@ -893,6 +1138,8 @@ const App: React.FC = () => {
     if (hasChanges) {
       // Update the preview with the modified HTML
       updatedHtml = tempDiv.innerHTML;
+      console.log('Updating preview HTML with changes:', actionId, actionDescription);
+      console.log('New HTML length:', updatedHtml.length);
       setPreviewHtml(updatedHtml);
       setPreviewRefreshKey(prev => prev + 1);
       
@@ -939,7 +1186,8 @@ const App: React.FC = () => {
   };
 
   const refreshPreview = () => {
-    setPreviewRefreshKey(prev => prev + 1);
+    // Toggle phone rotation instead of just refreshing
+    setIsPhoneRotated(prev => !prev);
   };
 
   // Save handler with database integration
@@ -2667,16 +2915,16 @@ class SocialFeed: ObservableObject {
                   {/* Landing Page Title and Subtitle */}
                   <div className="text-center space-y-4 max-w-4xl">
                     <h1 className="text-4xl md:text-6xl font-bold">
-                      <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                      <span className="text-black">
                         From Idea to App.
                       </span>
-                      <span className="bg-gradient-to-r from-pink-500 via-pink-600 to-pink-700 bg-clip-text text-transparent">
+                      <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent">
                         {" "}Instantly.
                       </span>
                     </h1>
-                    <p className="text-xl md:text-2xl text-gray-300 font-medium max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-xl md:text-2xl text-black font-medium max-w-3xl mx-auto leading-relaxed">
                       myPip builds full-stack mobile apps for iOS & Android from a single prompt.{" "}
-                      <span className="bg-gradient-to-r from-pink-500 via-pink-600 to-pink-700 bg-clip-text text-transparent font-semibold">
+                      <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent font-semibold">
                         No code. No limits.
                       </span>
                     </p>
@@ -2687,22 +2935,33 @@ class SocialFeed: ObservableObject {
                     {/* Left Column - Prompt Input */}
                     <div className="flex flex-col items-center justify-start space-y-4">
                       <div className="w-full max-w-[500px]">
-                        <div className="glass-card p-4 w-full transition-opacity duration-500 ease-in-out">
-                      <PromptInput
-                        prompt={prompt}
-                        setPrompt={setPrompt}
-                        onSubmit={handleSubmit}
-                        isLoading={isLoading}
-                        selectedModel={selectedModel}
-                        onModelChange={(modelId) => handleModelChange(modelId as ModelId)}
-                        isDisabled={!canSubmit || isLoading}
-                        actionText="Generate App"
-                        aiThoughtProcess={aiThoughtProcess}
-                        thinkingLog={thinkingLog}
-                        isDarkMode={isDarkMode}
-                        hasGenerated={hasGenerated}
-                      />
-                    </div>
+                        {/* Hide prompt input during first generation to give animations space */}
+                        {isLoading && !hasGenerated ? (
+                          <div className="glass-card p-8 w-full transition-opacity duration-500 ease-in-out">
+                            <div className="text-center">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-6"></div>
+                              <p className="text-white/80 text-lg font-medium mb-2">Generating your app...</p>
+                              <p className="text-white/60 text-sm">This will take a few moments</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="glass-card p-4 w-full transition-opacity duration-500 ease-in-out">
+                            <PromptInput
+                              prompt={prompt}
+                              setPrompt={setPrompt}
+                              onSubmit={handleSubmit}
+                              isLoading={isLoading}
+                              selectedModel={selectedModel}
+                              onModelChange={(modelId) => handleModelChange(modelId as ModelId)}
+                              isDisabled={!canSubmit || isLoading}
+                              actionText="Generate App"
+                              aiThoughtProcess={aiThoughtProcess}
+                              thinkingLog={thinkingLog}
+                              isDarkMode={isDarkMode}
+                              hasGenerated={hasGenerated}
+                            />
+                          </div>
+                        )}
                     {error && (
                           <div className={`mt-3 glass-card p-3 text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
                         {error}
@@ -2733,6 +2992,10 @@ class SocialFeed: ObservableObject {
                             key={previewRefreshKey}
                             size="default"
                             isLoading={isLoading}
+                            isRotated={isPhoneRotated}
+                            onRotate={refreshPreview}
+                            isGenerating={isLoading && !hasGenerated}
+                            onPreviewReady={handlePreviewReady}
                           />
                           </div>
                         </div>
@@ -2742,8 +3005,8 @@ class SocialFeed: ObservableObject {
               ) : (
                 // Refine App Layout - Clean Two Column Design
                 <div className="w-full h-full flex flex-col lg:flex-row gap-6">
-                  {/* Left Column - Controls */}
-                  <div className={`w-full lg:w-80 lg:flex-shrink-0 flex flex-col rounded-xl border ${
+                  {/* Mobile: Phone Preview on Top, Desktop: Left Column - Controls */}
+                  <div className={`w-full lg:w-80 lg:flex-shrink-0 flex flex-col rounded-xl border order-2 lg:order-1 ${
                     isDarkMode 
                       ? 'bg-gray-900 border-gray-700' 
                       : 'bg-white border-gray-200'
@@ -2757,29 +3020,115 @@ class SocialFeed: ObservableObject {
                       }`}>Refine Your App</h2>
                     </div>
 
-                    {/* AI Thinking Process */}
-                      {aiThoughtProcess && (
+                    {/* Progress Steps Animation */}
+                    {isLoading && progressSteps.length > 0 && (
                       <div className={`p-4 border-b ${
-                        isDarkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200'
+                        isDarkMode ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-gray-50/50'
                       }`}>
-                        <div className="flex items-center space-x-2 mb-3">
-                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                          <span className="text-green-400 text-xs font-medium">Processing...</span>
-                            </div>
-                        
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                                {aiThoughtProcess.split('\n').map((step, index) => (
-                            step.trim() && (
-                              <div key={index} className="flex items-start space-x-2">
-                                <div className="w-1 h-1 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                                <p className={`text-xs leading-relaxed ${
-                                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                                }`}>{step.trim()}</p>
-                                      </div>
-                            )
-                                ))}
+                        <div className="space-y-4">
+                          {progressSteps.map((step, index) => (
+                            <div key={step.id} className="relative">
+                              {/* Step Header */}
+                              <div className="flex items-center space-x-3 mb-2">
+                                {/* Step Icon */}
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
+                                  step.status === 'completed' 
+                                    ? 'bg-green-500 text-white' 
+                                    : step.status === 'active'
+                                    ? 'bg-blue-500 text-white animate-pulse'
+                                    : 'bg-gray-300 text-gray-600'
+                                }`}>
+                                  {step.status === 'completed' ? (
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  ) : (
+                                    <span className="text-xs font-medium">{step.id}</span>
+                                  )}
+                                </div>
+                                
+                                {/* Step Title */}
+                                <div className="flex-1">
+                                  <h3 className={`text-sm font-medium transition-all duration-300 ${
+                                    step.status === 'completed' 
+                                      ? (isDarkMode ? 'text-green-400' : 'text-green-600')
+                                      : step.status === 'active'
+                                      ? (isDarkMode ? 'text-blue-400' : 'text-blue-600')
+                                      : (isDarkMode ? 'text-gray-400' : 'text-gray-500')
+                                  }`}>
+                                    {step.title}
+                                  </h3>
+                                  <p className={`text-xs transition-all duration-300 ${
+                                    step.status === 'completed' 
+                                      ? (isDarkMode ? 'text-green-300' : 'text-green-500')
+                                      : step.status === 'active'
+                                      ? (isDarkMode ? 'text-blue-300' : 'text-blue-500')
+                                      : (isDarkMode ? 'text-gray-500' : 'text-gray-400')
+                                  }`}>
+                                    {step.description}
+                                  </p>
+                                </div>
                               </div>
+                              
+                              {/* Progress Bar */}
+                              <div className={`h-1 rounded-full overflow-hidden transition-all duration-500 ${
+                                isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                              }`}>
+                                <div 
+                                  className={`h-full transition-all duration-700 ease-out ${
+                                    step.status === 'completed' 
+                                      ? 'bg-green-500' 
+                                      : step.status === 'active'
+                                      ? 'bg-blue-500'
+                                      : 'bg-transparent'
+                                  }`}
+                                  style={{ 
+                                    width: `${step.progress}%`,
+                                    background: step.status === 'active' && step.progress === 90 
+                                      ? 'linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #3b82f6 100%)' 
+                                      : undefined,
+                                    backgroundSize: step.status === 'active' && step.progress === 90 ? '200% 100%' : undefined,
+                                    animation: step.status === 'active' && step.progress === 90 
+                                      ? 'pulse 2s infinite, progressShimmer 3s infinite' 
+                                      : step.status === 'active' 
+                                      ? 'pulse 2s infinite' 
+                                      : 'none'
+                                  }}
+                                />
+                              </div>
+                              
+                              {/* Active Step Animation */}
+                              {step.status === 'active' && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg animate-pulse" />
+                              )}
                             </div>
+                          ))}
+                        </div>
+                        
+                        {/* Overall Progress */}
+                        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className={`text-xs font-medium ${
+                              isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                            }`}>
+                              Overall Progress
+                            </span>
+                            <span className={`text-xs font-medium ${
+                              isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                            }`}>
+                              {Math.round((currentStep / (progressSteps.length - 1)) * 100)}%
+                            </span>
+                          </div>
+                          <div className={`h-2 rounded-full overflow-hidden ${
+                            isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                          }`}>
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-700 ease-out"
+                              style={{ width: `${(currentStep / (progressSteps.length - 1)) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     )}
                     
                     {/* Chat History */}
@@ -2803,9 +3152,10 @@ class SocialFeed: ObservableObject {
                       )}
                       
                     {/* Prompt Input */}
-                    <div className={`p-4 border-t ${
-                      isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                    }`}>
+                    {(
+                      <div className={`p-4 border-t ${
+                        isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
                       <div className={`rounded-lg border overflow-hidden ${
                         isDarkMode 
                           ? 'bg-gray-800 border-gray-600' 
@@ -2858,10 +3208,11 @@ class SocialFeed: ObservableObject {
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
 
-                                    {/* Right Column - Phone Preview or Code Files */}
-                  <div className="flex-1 flex flex-col min-w-0">
+                                    {/* Mobile: Phone Preview on Top, Desktop: Right Column - Phone Preview or Code Files */}
+                  <div className="flex-1 flex flex-col min-w-0 order-1 lg:order-2">
                     {/* Control Buttons - Always visible */}
                     <div className="flex justify-center items-center mb-4">
                       <div className="flex items-center gap-2">
@@ -2896,10 +3247,12 @@ class SocialFeed: ObservableObject {
                         {!showCode && (
                           <button
                             onClick={refreshPreview}
-                            title="Refresh Preview"
+                            title={isPhoneRotated ? "Rotate to Portrait" : "Rotate to Landscape"}
                             className="glass-button p-2 rounded-md transition-all duration-200"
                           >
-                            <RefreshIcon className="h-4 w-4" />
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
                           </button>
                         )}
                       </div>
@@ -3015,6 +3368,10 @@ class SocialFeed: ObservableObject {
                             key={previewRefreshKey} 
                             size="small"
                             isLoading={isLoading}
+                            isRotated={isPhoneRotated}
+                            onRotate={refreshPreview}
+                            isGenerating={isLoading && !hasGenerated}
+                            onPreviewReady={handlePreviewReady}
                           />
                         </div>
                       </>
@@ -3457,6 +3814,47 @@ class SocialFeed: ObservableObject {
                 <div className="text-center pt-16 md:pt-0">
                   <h1 className="text-2xl md:text-3xl font-bold mb-4 text-white">Affiliate Program</h1>
                   <p className="text-white/80 mb-6 md:mb-8 px-4 md:px-0">Earn money by referring users to myPip</p>
+                  
+                  {/* Limited Time Free Build Referral Program */}
+                  <div className="max-w-4xl mx-auto mb-8 px-4 md:px-0">
+                    <div className="glass-card p-6 md:p-8 border-2 border-gradient-to-r from-pink-500 to-blue-500 bg-gradient-to-r from-pink-500/10 to-blue-500/10">
+                      <div className="flex items-center justify-center mb-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-blue-500 flex items-center justify-center mr-4">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h2 className="text-xl md:text-2xl font-bold text-white mb-1">Limited Time Free Build Referral Program</h2>
+                          <p className="text-white/80 text-sm md:text-base">Get 10 free builds for every user you refer that signs up, even if they don't pay for a plan!</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <div className="text-2xl font-bold text-pink-400 mb-1">10</div>
+                          <div className="text-sm text-white/80">Free Builds Per Referral</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <div className="text-2xl font-bold text-blue-400 mb-1">∞</div>
+                          <div className="text-sm text-white/80">Unlimited Referrals</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <div className="text-2xl font-bold text-green-400 mb-1">$0</div>
+                          <div className="text-sm text-white/80">No Payment Required</div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <button 
+                          onClick={() => setCurrentView('main')}
+                          className="glass-button px-6 py-3 bg-gradient-to-r from-pink-500 to-blue-500 hover:from-pink-600 hover:to-blue-600 text-white font-semibold rounded-xl transition-all duration-300"
+                        >
+                          Start Referring Friends
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                   
                   {/* Referral Link Section */}
                   <div className="max-w-2xl mx-auto mb-8 px-4 md:px-0">
@@ -4981,6 +5379,89 @@ class SocialFeed: ObservableObject {
               {/* Close button */}
               <button
                 onClick={() => setShowV2WaitlistPopup(false)}
+                className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors p-2"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Referral Program Popup */}
+      {showReferralProgramPopup && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card max-w-lg w-full p-6 md:p-8 border border-white/20 backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl relative overflow-hidden">
+            {/* Liquid glass effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-500/20 via-purple-500/20 to-blue-500/20 rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-bl from-transparent via-white/3 to-transparent rounded-3xl"></div>
+            
+            {/* Content */}
+            <div className="relative z-10">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-pink-500 to-blue-500 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Limited Time Free Build Referral Program</h2>
+                <p className="text-white/80 text-sm">Get 10 free builds for every user you refer!</p>
+              </div>
+
+              {/* Message */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-white/20">
+                <p className="text-white/90 text-sm leading-relaxed mb-3">
+                  <span className="font-semibold text-pink-300">Refer friends to myPip</span> and earn 
+                  <span className="font-semibold text-blue-300"> 10 free builds</span> for every signup!
+                </p>
+                <p className="text-white/90 text-sm leading-relaxed">
+                  Even if they don't pay for a plan, you still get your free builds. <span className="font-semibold text-green-300">No limits!</span>
+                </p>
+              </div>
+
+              {/* Benefits */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                <div className="text-center p-3 bg-white/10 rounded-lg">
+                  <div className="text-xl font-bold text-pink-400 mb-1">10</div>
+                  <div className="text-xs text-white/80">Free Builds</div>
+                </div>
+                <div className="text-center p-3 bg-white/10 rounded-lg">
+                  <div className="text-xl font-bold text-blue-400 mb-1">∞</div>
+                  <div className="text-xs text-white/80">Referrals</div>
+                </div>
+                <div className="text-center p-3 bg-white/10 rounded-lg">
+                  <div className="text-xl font-bold text-green-400 mb-1">$0</div>
+                  <div className="text-xs text-white/80">Cost</div>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    setShowReferralProgramPopup(false);
+                    setCurrentView('affiliate');
+                  }}
+                  className="w-full glass-button px-6 py-3 bg-gradient-to-r from-pink-500 to-blue-500 hover:from-pink-600 hover:to-blue-600 text-white font-semibold rounded-xl transition-all duration-300"
+                >
+                  Start Referring Friends
+                </button>
+                
+                <button
+                  onClick={() => setShowReferralProgramPopup(false)}
+                  className="w-full glass-button px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl border border-white/20 transition-all duration-300"
+                >
+                  Maybe Later
+                </button>
+              </div>
+
+              {/* Close button */}
+              <button
+                onClick={() => setShowReferralProgramPopup(false)}
                 className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors p-2"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

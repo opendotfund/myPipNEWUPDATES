@@ -3,6 +3,7 @@ import { ModelId, ModelOption } from '../types';
 import { AI_MODELS } from '../constants';
 import { SendIcon } from './icons/SendIcon';
 import { LoadingSpinner } from './LoadingSpinner';
+import { AnimatedProgressSteps } from './AnimatedProgressSteps';
 
 interface PromptInputProps {
   prompt: string;
@@ -43,6 +44,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [exampleIndex, setExampleIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
 
   // Example prompts for typing animation
   const examplePrompts = [
@@ -50,6 +52,32 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     "An AI video generation app that pulls from my n8n workflow",
     "A fitness tracking app with social features and progress charts"
   ];
+
+  // Processing steps for app generation
+  const processingSteps = [
+    "Analyzing your prompt and understanding requirements...",
+    "Planning app architecture and user flow...",
+    "Designing UI components and layout...",
+    "Generating SwiftUI code with interactive elements...",
+    "Creating interactive preview...",
+    "Adding animations and polish...",
+    "Finalizing code structure and testing...",
+    "App generation complete!"
+  ];
+
+  // Update current step based on aiThoughtProcess
+  useEffect(() => {
+    if (isLoading && aiThoughtProcess) {
+      const stepIndex = processingSteps.findIndex(step => 
+        aiThoughtProcess.includes(step.replace('...', ''))
+      );
+      if (stepIndex !== -1) {
+        setCurrentStep(stepIndex + 1);
+      }
+    } else if (!isLoading) {
+      setCurrentStep(0);
+    }
+  }, [isLoading, aiThoughtProcess, processingSteps]);
 
   // Typing animation effect for example prompts
   useEffect(() => {
@@ -198,18 +226,21 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           aria-label="App description prompt"
           style={{ position: 'relative', backgroundClip: 'padding-box' }}
         />
-        {/* Overlay for thinking log and spinner */}
+        {/* Overlay for animated progress steps */}
         {isLoading && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none" style={{background: 'rgba(30,30,40,0.55)', borderRadius: '0.75rem'}}>
-            <div className="flex items-center gap-2 mb-1">
-              <LoadingSpinner className="h-4 w-4 text-white animate-spin" />
-              <span className="text-white text-xs font-medium opacity-90">Generating App...</span>
-            </div>
-            {thinkingLog && (
-              <div className="text-xs text-white/80 font-mono text-center max-w-[90%] break-words" style={{lineHeight: '1.3'}}>
-                {typedLog}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none" style={{background: 'rgba(30,30,40,0.85)', borderRadius: '0.75rem'}}>
+            <div className="w-full max-w-md p-4">
+              <div className="flex items-center gap-2 mb-4 justify-center">
+                <LoadingSpinner className="h-4 w-4 text-white animate-spin" />
+                <span className="text-white text-sm font-medium opacity-90">Generating App...</span>
               </div>
-            )}
+              <AnimatedProgressSteps
+                isLoading={isLoading}
+                currentStep={currentStep}
+                steps={processingSteps}
+                isDarkMode={isDarkMode}
+              />
+            </div>
           </div>
         )}
         {/* Bottom controls overlay */}
