@@ -6,70 +6,32 @@ interface PhonePreviewProps {
   size?: 'tiny' | 'small' | 'default' | 'mini';
   className?: string;
   isLoading?: boolean;
-  isRotated?: boolean;
-  onRotate?: () => void;
-  isGenerating?: boolean;
-  onPreviewReady?: () => void;
 }
 
-export const PhonePreview: React.FC<PhonePreviewProps> = ({ 
-  htmlContent, 
-  onPreviewInteraction, 
-  size = 'default', 
-  className, 
-  isLoading = false,
-  isRotated = false,
-  onRotate,
-  isGenerating = false,
-  onPreviewReady
-}) => {
+export const PhonePreview: React.FC<PhonePreviewProps> = ({ htmlContent, onPreviewInteraction, size = 'default', className, isLoading = false }) => {
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
-  // Size configurations for both portrait and landscape
+  // Size configurations
   const sizeConfig = {
     mini: {
-      portrait: {
-        container: 'bg-neutral-200 p-0.5 rounded-lg shadow-md w-[120px] h-[240px] md:w-[140px] md:h-[280px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-md overflow-hidden relative'
-      },
-      landscape: {
-        container: 'bg-neutral-200 p-0.5 rounded-lg shadow-md w-[240px] h-[120px] md:w-[280px] md:h-[140px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-md overflow-hidden relative'
-      }
+      container: 'bg-neutral-200 p-0.5 rounded-lg shadow-md w-[120px] h-[240px] md:w-[140px] md:h-[280px] flex-shrink-0',
+      screen: 'bg-neutral-800 w-full h-full rounded-md overflow-hidden relative'
     },
     tiny: {
-      portrait: {
-        container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[180px] h-[360px] md:w-[200px] md:h-[400px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-lg overflow-hidden relative'
-      },
-      landscape: {
-        container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[360px] h-[180px] md:w-[400px] md:h-[200px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-lg overflow-hidden relative'
-      }
+      container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[180px] h-[360px] md:w-[200px] md:h-[400px] flex-shrink-0',
+      screen: 'bg-neutral-800 w-full h-full rounded-lg overflow-hidden relative'
     },
     small: {
-      portrait: {
-        container: 'bg-neutral-200 p-1.5 rounded-2xl shadow-xl w-[240px] h-[480px] md:w-[260px] md:h-[520px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-xl overflow-hidden relative'
-      },
-      landscape: {
-        container: 'bg-neutral-200 p-1.5 rounded-2xl shadow-xl w-[480px] h-[240px] md:w-[520px] md:h-[260px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-xl overflow-hidden relative'
-      }
+      container: 'bg-neutral-200 p-1.5 rounded-2xl shadow-xl w-[240px] h-[480px] md:w-[260px] md:h-[520px] flex-shrink-0',
+      screen: 'bg-neutral-800 w-full h-full rounded-xl overflow-hidden relative'
     },
     default: {
-      portrait: {
-        container: 'bg-neutral-200 p-2 rounded-3xl shadow-2xl w-[320px] h-[650px] md:w-[350px] md:h-[700px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-2xl overflow-hidden relative'
-      },
-      landscape: {
-        container: 'bg-neutral-200 p-2 rounded-3xl shadow-2xl w-[650px] h-[320px] md:w-[700px] md:h-[350px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-2xl overflow-hidden relative'
-      }
+      container: 'bg-neutral-200 p-2 rounded-3xl shadow-2xl w-[320px] h-[650px] md:w-[350px] md:h-[700px] flex-shrink-0',
+      screen: 'bg-neutral-800 w-full h-full rounded-2xl overflow-hidden relative'
     }
   };
 
-  const config = isRotated ? sizeConfig[size].landscape : sizeConfig[size].portrait;
+  const config = sizeConfig[size];
 
   const handleInteraction = useCallback((event: MouseEvent) => {
     const target = event.target as HTMLElement;
@@ -92,7 +54,6 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
   }, [onPreviewInteraction]);
 
   useEffect(() => {
-    console.log('PhonePreview: HTML content updated, length:', htmlContent.length);
     const container = previewContainerRef.current;
     if (!container) return;
 
@@ -113,8 +74,7 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
           const eventListener = (e: Event) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log(`PhonePreview: Interaction detected:`, { actionId, actionDescription });
-            console.log(`PhonePreview: Element clicked:`, el);
+            console.log(`Interaction detected:`, { actionId, actionDescription });
             
             // Enhanced visual feedback
             if (el instanceof HTMLElement) {
@@ -192,58 +152,6 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
             input.addEventListener('blur', () => {
               input.style.outline = 'none';
             });
-            
-            // Add click handler for elements without data-action-id
-            const clickHandler = (e: Event) => {
-              e.preventDefault();
-              e.stopPropagation();
-              
-              console.log('PhonePreview: Clicked element without data-action-id:', input);
-              
-              // Determine action based on element type and content
-              let actionId = 'default';
-              let actionDescription = 'Element interaction';
-              
-              if (input.tagName === 'BUTTON') {
-                const buttonText = input.textContent?.toLowerCase() || '';
-                if (buttonText.includes('add') || buttonText.includes('new')) {
-                  actionId = 'addItem';
-                  actionDescription = 'Add new item';
-                } else if (buttonText.includes('delete') || buttonText.includes('remove')) {
-                  actionId = 'deleteItem';
-                  actionDescription = 'Delete item';
-                } else if (buttonText.includes('save')) {
-                  actionId = 'saveData';
-                  actionDescription = 'Save data';
-                } else if (buttonText.includes('submit')) {
-                  actionId = 'submitForm';
-                  actionDescription = 'Submit form';
-                } else if (buttonText.includes('edit')) {
-                  actionId = 'editItem';
-                  actionDescription = 'Edit item';
-                } else {
-                  actionId = 'buttonClick';
-                  actionDescription = `Clicked ${buttonText || 'button'}`;
-                }
-              } else if (input.tagName === 'INPUT') {
-                const inputElement = input as HTMLInputElement;
-                if (inputElement.type === 'checkbox') {
-                  actionId = 'toggleItem';
-                  actionDescription = 'Toggle checkbox';
-                } else if (inputElement.type === 'text' || inputElement.type === 'email') {
-                  actionId = 'inputChange';
-                  actionDescription = 'Text input';
-                }
-              }
-              
-              // Call the interaction handler
-              onPreviewInteraction(actionId, actionDescription);
-            };
-            
-            input.addEventListener('click', clickHandler);
-            input.addEventListener('touchstart', clickHandler, { passive: false });
-            
-            listenersToRemove.push({ el: input, listener: clickHandler });
           }
         }
       });
@@ -257,48 +165,27 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
       };
     }, 100); // Small delay to ensure content is rendered
 
-    // Notify that preview is ready after content is rendered
-    if (onPreviewReady && htmlContent && !isGenerating) {
-      const readyTimeoutId = setTimeout(() => {
-        onPreviewReady();
-      }, 200); // Small delay to ensure everything is fully rendered
-      
-      return () => {
-        clearTimeout(timeoutId);
-        clearTimeout(readyTimeoutId);
-      };
-    }
-
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [htmlContent, handleInteraction, onPreviewReady, isGenerating]);
+  }, [htmlContent, handleInteraction]);
 
   return (
-    <div className={`${config.container} ${className || ''} transition-all duration-700 ease-in-out`}>
+    <div className={`${config.container} ${className || ''}`}>
       <div className={config.screen}>
-        {/* Dynamic notch positioning based on rotation */}
-        <div className={`absolute ${isRotated ? 'top-1/2 left-0 transform -translate-y-1/2 w-5 h-24' : 'top-0 left-1/2 transform -translate-x-1/2 w-24 h-5'} bg-neutral-800 ${isRotated ? 'rounded-r-lg' : 'rounded-b-lg'} z-10`} aria-hidden="true"></div>
+        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-24 h-5 bg-neutral-800 rounded-b-lg z-10" aria-hidden="true"></div>
         
-        {isGenerating ? (
-          <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col items-center justify-center p-4 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-            <div className="text-sm text-gray-600 font-medium">Generating your app...</div>
-            <div className="text-xs text-gray-500 mt-2">This will take a few moments</div>
-          </div>
-        ) : (
-          <div 
-            ref={previewContainerRef}
-            className={`w-full h-full ${isRotated ? 'overflow-x-auto' : 'overflow-y-auto'} bg-white text-neutral-800 relative`}
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-            aria-live="polite"
-            style={{ 
-              pointerEvents: 'auto',
-              touchAction: 'manipulation',
-              WebkitOverflowScrolling: 'touch'
-            }}
-          />
-        )}
+        <div 
+          ref={previewContainerRef}
+          className="w-full h-full overflow-y-auto bg-white text-neutral-800 relative"
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
+          aria-live="polite"
+          style={{ 
+            pointerEvents: 'auto',
+            touchAction: 'manipulation',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        />
         
         {/* Loading Overlay - Only show for AI interactions, not initial generation */}
         {isLoading && (
@@ -310,8 +197,7 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
           </div>
         )}
         
-        {/* Dynamic home indicator positioning based on rotation */}
-        <div className={`absolute ${isRotated ? 'bottom-1/2 right-2 transform translate-y-1/2 w-1 h-28' : 'bottom-2 left-1/2 transform -translate-x-1/2 w-28 h-1'} bg-neutral-500 rounded-full`} aria-hidden="true"></div>
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-28 h-1 bg-neutral-500 rounded-full" aria-hidden="true"></div>
       </div>
     </div>
   );
