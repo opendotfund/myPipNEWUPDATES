@@ -7,7 +7,7 @@ export const MAX_FREE_PROMPTS = 3;
 export const CONTACT_EMAIL = 'm3stastn@uwaterloo.ca';
 
 // Claude API key
-export const CLAUDE_API_KEY = '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';
+export const CLAUDE_API_KEY = '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';
 
 // Early bird code that grants unlimited access
 export const EARLY_BIRD_CODE = 'EARLYBIRD2024';

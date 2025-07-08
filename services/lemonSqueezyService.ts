@@ -33,6 +33,7 @@ export interface LemonSqueezyWebhook {
     custom_data?: {
       user_id?: string;
       email?: string;
+      referral_code?: string;
     };
   };
 }
@@ -50,6 +51,21 @@ export interface SubscriptionTier {
     pay_per_use?: boolean;
     unlimited_remixes?: boolean;
   };
+}
+
+export interface AffiliateStats {
+  totalVisits: number;
+  totalConversions: number;
+  totalEarnings: number;
+  conversionRate: number;
+  averageOrderValue: number;
+  recentConversions: Array<{
+    id: string;
+    converted_at: string;
+    order_value: number;
+    commission_amount: number;
+    status: string;
+  }>;
 }
 
 export class LemonSqueezyService {
@@ -201,45 +217,56 @@ export class LemonSqueezyService {
     }
   }
 
-  // Handle webhook from Lemon Squeezy
+  // Handle Lemon Squeezy webhooks
   async handleWebhook(webhook: LemonSqueezyWebhook): Promise<void> {
     const { event_name, data, meta } = webhook;
     const userId = meta.custom_data?.user_id;
     const email = meta.custom_data?.email;
+    const referralCode = meta.custom_data?.referral_code;
 
-    if (!userId) {
-      console.error('No user_id in webhook custom_data');
-      return;
-    }
+    console.log('Processing webhook:', event_name, { userId, email, referralCode });
 
-    switch (event_name) {
-      case 'subscription_created':
-        await this.handleSubscriptionCreated(data, userId, email);
-        break;
-      case 'subscription_updated':
-        await this.handleSubscriptionUpdated(data, userId);
-        break;
-      case 'subscription_cancelled':
-        await this.handleSubscriptionCancelled(data, userId);
-        break;
-      case 'order_created':
-        await this.handleOrderCreated(data, userId, email);
-        break;
-      default:
-        console.log(`Unhandled webhook event: ${event_name}`);
+    try {
+      switch (event_name) {
+        case 'subscription_created':
+          if (userId) {
+            await this.handleSubscriptionCreated(data, userId, email, referralCode);
+          }
+          break;
+        case 'subscription_updated':
+          if (userId) {
+            await this.handleSubscriptionUpdated(data, userId);
+          }
+          break;
+        case 'subscription_cancelled':
+          if (userId) {
+            await this.handleSubscriptionCancelled(data, userId);
+          }
+          break;
+        case 'order_created':
+          if (userId) {
+            await this.handleOrderCreated(data, userId, email, referralCode);
+          }
+          break;
+        default:
+          console.log('Unhandled webhook event:', event_name);
+      }
+    } catch (error) {
+      console.error('Error handling webhook:', error);
+      throw error;
     }
   }
 
-  private async handleSubscriptionCreated(data: any, userId: string, email?: string) {
+  private async handleSubscriptionCreated(data: any, userId: string, email?: string, referralCode?: string) {
     const { attributes } = data;
     
-    // Determine tier based on product_id or variant_id
+    // Get tier ID from product mapping
     const tierId = await this.getTierIdFromProduct(attributes.product_id, attributes.variant_id);
     
     const subscriptionData = {
       user_id: userId,
       tier_id: tierId,
-      lemon_squeezy_subscription_id: attributes.id,
+      lemon_squeezy_subscription_id: attributes.id.toString(),
       status: attributes.status,
       current_period_start: new Date(attributes.created_at).toISOString(),
       current_period_end: new Date(attributes.renews_at).toISOString(),
@@ -253,6 +280,11 @@ export class LemonSqueezyService {
     if (error) {
       console.error('Error creating subscription:', error);
       throw error;
+    }
+
+    // Track referral conversion if referral code exists
+    if (referralCode && userId) {
+      await this.trackReferralConversion(referralCode, userId, this.getOrderValue(attributes), attributes.id.toString());
     }
   }
 
@@ -288,9 +320,19 @@ export class LemonSqueezyService {
     }
   }
 
-  private async handleOrderCreated(data: any, userId: string, email?: string) {
-    // Handle one-time purchases if needed
-    console.log('Order created:', data);
+  private async handleOrderCreated(data: any, userId: string, email?: string, referralCode?: string) {
+    const { attributes } = data;
+    
+    // Track referral conversion if referral code exists
+    if (referralCode && userId) {
+      await this.trackReferralConversion(referralCode, userId, this.getOrderValue(attributes), attributes.id.toString());
+    }
+  }
+
+  private getOrderValue(attributes: any): number {
+    // Extract order value from attributes
+    // This might need adjustment based on your Lemon Squeezy setup
+    return parseFloat(attributes.total_formatted?.replace(/[^0-9.]/g, '') || '0');
   }
 
   private async getTierIdFromProduct(productId: number, variantId: number): Promise<number> {
@@ -313,8 +355,8 @@ export class LemonSqueezyService {
     return tierId;
   }
 
-  // Create checkout URL for a specific tier
-  createCheckoutUrl(tierId: number, userId: string, email: string): string {
+  // Create checkout URL for a specific tier with referral tracking
+  createCheckoutUrl(tierId: number, userId: string, email: string, referralCode?: string): string {
     // Validate required parameters
     if (!userId || !email) {
       throw new Error('User ID and email are required to create checkout URL');
@@ -342,103 +384,314 @@ export class LemonSqueezyService {
       throw new Error(`Unknown tier ID: ${tierId}`);
     }
 
-    // Add custom data to track user
+    // Add custom data to track user and referral
     const url = new URL(baseUrl);
     url.searchParams.set('checkout[custom][user_id]', userId);
     url.searchParams.set('checkout[custom][email]', email);
-
-      return url.toString();
-}
-
-// Sign up user as an affiliate
-async signupAffiliate(userId: string, email: string, name: string) {
-  try {
-    // First, create the affiliate in our database
-    const { data: affiliateData, error: dbError } = await supabase
-      .from('user_affiliates')
-      .insert({
-        user_id: userId,
-        email: email,
-        name: name,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error('Error creating affiliate in database:', dbError);
-      throw new Error('Failed to create affiliate record');
+    
+    if (referralCode) {
+      url.searchParams.set('checkout[custom][referral_code]', referralCode);
+      url.searchParams.set('aff', referralCode); // Lemon Squeezy affiliate parameter
     }
 
-    // Then, redirect to Lemon Squeezy affiliate signup
-    const affiliateUrl = `https://app.lemonsqueezy.com/affiliates/apply?store=myPip&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`;
-    
-    // Open the affiliate signup in a new window
-    window.open(affiliateUrl, '_blank', 'width=800,height=600');
-
-    return {
-      success: true,
-      affiliateId: affiliateData.id,
-      message: 'Affiliate signup initiated! Please complete the process in the new window.'
-    };
-  } catch (error) {
-    console.error('Error signing up affiliate:', error);
-    throw error;
+    return url.toString();
   }
-}
 
-// Check affiliate status
-async getAffiliateStatus(userId: string) {
-  try {
-    const { data, error } = await supabase
-      .from('user_affiliates')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+  // Generate or get user's referral code
+  async generateUserReferralCode(userId: string): Promise<string> {
+    try {
+      // Check if user already has a referral code
+      const { data: existingCode } = await supabase
+        .from('user_referral_codes')
+        .select('referral_code')
+        .eq('user_id', userId)
+        .single();
 
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching affiliate status:', error);
+      if (existingCode) {
+        return existingCode.referral_code;
+      }
+
+      // Generate new referral code using database function
+      const { data, error } = await supabase
+        .rpc('generate_referral_code', { user_uuid: userId });
+
+      if (error) {
+        console.error('Error generating referral code:', error);
+        throw error;
+      }
+
+      const referralCode = data;
+
+      // Save to database
+      const { error: insertError } = await supabase
+        .from('user_referral_codes')
+        .insert({
+          user_id: userId,
+          referral_code: referralCode,
+          is_active: true
+        });
+
+      if (insertError) {
+        console.error('Error saving referral code:', error);
+        throw insertError;
+      }
+
+      return referralCode;
+    } catch (error) {
+      console.error('Error generating user referral code:', error);
       throw error;
     }
-
-    return data || null;
-  } catch (error) {
-    console.error('Error getting affiliate status:', error);
-    throw error;
   }
-}
 
-// Update affiliate status
-async updateAffiliateStatus(userId: string, status: string, affiliateId?: string) {
-  try {
-    const updateData: any = {
-      status: status,
-      updated_at: new Date().toISOString()
-    };
+  // Track referral visit
+  async trackReferralVisit(referralCode: string, visitorData?: {
+    ip?: string;
+    userAgent?: string;
+    referrer?: string;
+  }): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('referral_visits')
+        .insert({
+          referral_code: referralCode,
+          visitor_ip: visitorData?.ip || null,
+          user_agent: visitorData?.userAgent || null,
+          referrer: visitorData?.referrer || null
+        });
 
-    if (affiliateId) {
-      updateData.lemon_squeezy_affiliate_id = affiliateId;
+      if (error) {
+        console.error('Error tracking referral visit:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error tracking referral visit:', error);
+      return false;
     }
+  }
 
-    const { data, error } = await supabase
-      .from('user_affiliates')
-      .update(updateData)
-      .eq('user_id', userId)
-      .select()
-      .single();
+  // Track referral conversion
+  async trackReferralConversion(
+    referralCode: string, 
+    convertedUserId: string, 
+    orderValue: number, 
+    lemonSqueezyOrderId?: string
+  ): Promise<string> {
+    try {
+      const { data, error } = await supabase
+        .rpc('track_referral_conversion', {
+          p_referral_code: referralCode,
+          p_converted_user_id: convertedUserId,
+          p_order_value: orderValue,
+          p_lemon_squeezy_order_id: lemonSqueezyOrderId
+        });
 
-    if (error) {
+      if (error) {
+        console.error('Error tracking referral conversion:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error tracking referral conversion:', error);
+      throw error;
+    }
+  }
+
+  // Get comprehensive affiliate stats
+  async getAffiliateStats(userId: string): Promise<AffiliateStats> {
+    try {
+      // Get user's referral code
+      const { data: referralCode } = await supabase
+        .from('user_referral_codes')
+        .select('referral_code')
+        .eq('user_id', userId)
+        .single();
+
+      if (!referralCode) {
+        return {
+          totalVisits: 0,
+          totalConversions: 0,
+          totalEarnings: 0,
+          conversionRate: 0,
+          averageOrderValue: 0,
+          recentConversions: []
+        };
+      }
+
+      // Get visit count
+      const { count: visits } = await supabase
+        .from('referral_visits')
+        .select('*', { count: 'exact' })
+        .eq('referral_code', referralCode.referral_code);
+
+      // Get conversion count and details
+      const { data: conversions, count: conversionCount } = await supabase
+        .from('referral_conversions')
+        .select('*', { count: 'exact' })
+        .eq('referral_code', referralCode.referral_code)
+        .order('converted_at', { ascending: false })
+        .limit(10);
+
+      // Get total earnings
+      const { data: earnings } = await supabase
+        .from('affiliate_earnings')
+        .select('amount')
+        .eq('affiliate_user_id', userId)
+        .eq('status', 'paid');
+
+      const totalEarnings = earnings?.reduce((sum, earning) => sum + parseFloat(earning.amount), 0) || 0;
+      const totalVisits = visits || 0;
+      const totalConversions = conversionCount || 0;
+      const conversionRate = totalVisits > 0 ? (totalConversions / totalVisits) * 100 : 0;
+      const averageOrderValue = totalConversions > 0 ? 
+        conversions?.reduce((sum, conv) => sum + parseFloat(conv.order_value), 0) / totalConversions : 0;
+
+      const recentConversions = conversions?.map(conv => ({
+        id: conv.id,
+        converted_at: conv.converted_at,
+        order_value: parseFloat(conv.order_value),
+        commission_amount: parseFloat(conv.commission_amount),
+        status: conv.status
+      })) || [];
+
+      return {
+        totalVisits,
+        totalConversions,
+        totalEarnings,
+        conversionRate,
+        averageOrderValue,
+        recentConversions
+      };
+    } catch (error) {
+      console.error('Error getting affiliate stats:', error);
+      throw error;
+    }
+  }
+
+  // Sign up user as an affiliate
+  async signupAffiliate(userId: string, email: string, name: string) {
+    try {
+      // Generate referral code first
+      const referralCode = await this.generateUserReferralCode(userId);
+
+      // Create the affiliate in our database
+      const { data: affiliateData, error: dbError } = await supabase
+        .from('user_affiliates')
+        .insert({
+          user_id: userId,
+          email: email,
+          name: name,
+          status: 'pending',
+          referral_code: referralCode,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.error('Error creating affiliate in database:', dbError);
+        throw new Error('Failed to create affiliate record');
+      }
+
+      // Then, redirect to Lemon Squeezy affiliate signup
+      const affiliateUrl = `https://app.lemonsqueezy.com/affiliates/apply?store=myPip&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`;
+      
+      // Open the affiliate signup in a new window
+      if (typeof window !== 'undefined') {
+        window.open(affiliateUrl, '_blank', 'width=800,height=600');
+      }
+
+      return {
+        success: true,
+        affiliateId: affiliateData.id,
+        referralCode: referralCode,
+        message: 'Affiliate signup initiated! Please complete the process in the new window.'
+      };
+    } catch (error) {
+      console.error('Error signing up affiliate:', error);
+      throw error;
+    }
+  }
+
+  // Check affiliate status
+  async getAffiliateStatus(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('user_affiliates')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching affiliate status:', error);
+        throw error;
+      }
+
+      return data || null;
+    } catch (error) {
+      console.error('Error getting affiliate status:', error);
+      throw error;
+    }
+  }
+
+  // Update affiliate status
+  async updateAffiliateStatus(userId: string, status: string, affiliateId?: string) {
+    try {
+      const updateData: any = {
+        status: status,
+        updated_at: new Date().toISOString()
+      };
+
+      if (affiliateId) {
+        updateData.lemon_squeezy_affiliate_id = affiliateId;
+      }
+
+      const { data, error } = await supabase
+        .from('user_affiliates')
+        .update(updateData)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating affiliate status:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
       console.error('Error updating affiliate status:', error);
       throw error;
     }
-
-    return data;
-  } catch (error) {
-    console.error('Error updating affiliate status:', error);
-    throw error;
   }
-}
+
+  // Build referral link for sharing
+  buildReferralLink(referralCode: string, baseUrl?: string): string {
+    const url = baseUrl || window.location.origin;
+    return `${url}?aff=${referralCode}`;
+  }
+
+  // Get current affiliate ID from URL
+  getCurrentAffiliateId(): string | null {
+    if (typeof window === 'undefined') return null;
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('aff');
+  }
+
+  // Initialize referral tracking on page load
+  async initializeReferralTracking(): Promise<void> {
+    const affiliateId = this.getCurrentAffiliateId();
+    
+    if (affiliateId) {
+      console.log('Tracking referral visit for:', affiliateId);
+      await this.trackReferralVisit(affiliateId, {
+        userAgent: navigator.userAgent,
+        referrer: document.referrer
+      });
+    }
+  }
 }
 
 export const lemonSqueezyService = LemonSqueezyService.getInstance(); 

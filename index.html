@@ -198,6 +198,9 @@
     .glass-button:hover {
       background: rgba(255, 255, 255, 0.3);
       transform: translateY(-2px) scale(1.05);
+    }
+
+    /* Line clamp utilities */
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     }
 
@@ -375,6 +378,28 @@
 
     .light-mode-text-secondary {
       color: var(--text-dark-secondary) !important;
+    }
+
+    /* Line clamp utilities */
+    .line-clamp-1 {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 1;
+    }
+
+    .line-clamp-2 {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .line-clamp-3 {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
     }
 
     /* Comprehensive Light Mode Fixes */

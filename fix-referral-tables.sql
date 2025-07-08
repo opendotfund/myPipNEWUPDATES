@@ -1,134 +1,13 @@
--- Create User Usage Tables for Build Tracking
+-- Fix Referral Tables and Handle Existing Conflicts
 -- Run this in your Supabase SQL editor
 
--- 1. Create user_usage table to track monthly usage
-CREATE TABLE IF NOT EXISTS user_usage (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  month TEXT NOT NULL, -- Format: YYYY-MM
-  builds_used INTEGER DEFAULT 0,
-  remixes_used INTEGER DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id, month)
-);
+-- 1. Drop existing functions that might conflict
+DROP FUNCTION IF EXISTS track_referral_conversion(TEXT, UUID, DECIMAL, TEXT);
+DROP FUNCTION IF EXISTS generate_referral_code(UUID);
+DROP FUNCTION IF EXISTS get_or_create_user_usage(UUID);
+DROP FUNCTION IF EXISTS increment_user_usage(UUID, TEXT);
 
--- 2. Create user_subscriptions table for subscription management
-CREATE TABLE IF NOT EXISTS user_subscriptions (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-  tier_id INTEGER NOT NULL,
-  lemon_squeezy_subscription_id TEXT,
-  status TEXT DEFAULT 'active',
-  current_period_start TIMESTAMP WITH TIME ZONE,
-  current_period_end TIMESTAMP WITH TIME ZONE,
-  cancel_at_period_end BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 3. Create subscription_tiers table
-CREATE TABLE IF NOT EXISTS subscription_tiers (
-  id SERIAL PRIMARY KEY,
-  tier_name TEXT NOT NULL UNIQUE,
-  builds_per_month INTEGER NOT NULL,
-  remixes_per_month INTEGER NOT NULL,
-  price_monthly DECIMAL(10,2) NOT NULL,
-  price_yearly DECIMAL(10,2) NOT NULL,
-  features JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 4. Insert default subscription tiers
-INSERT INTO subscription_tiers (tier_name, builds_per_month, remixes_per_month, price_monthly, price_yearly, features) VALUES
-  ('Basic', 5, 2, 0.00, 0.00, '{"support": "Community", "ai_models": ["Gemini Flash"]}'),
-  ('Pro', 50, 20, 19.99, 199.99, '{"support": "Email", "ai_models": ["Gemini Flash", "Claude 3.5"], "unlimited_remixes": true}'),
-  ('Pro Plus', 200, 100, 39.99, 399.99, '{"support": "Priority", "ai_models": ["Gemini Flash", "Claude 3.5"], "unlimited_remixes": true}'),
-  ('Enterprise', 1000, 500, 199.99, 1999.99, '{"support": "Dedicated", "ai_models": ["Gemini Flash", "Claude 3.5"], "unlimited_remixes": true, "pay_per_use": true}')
-ON CONFLICT (tier_name) DO NOTHING;
-
--- 5. Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_user_usage_user_id ON user_usage(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_usage_month ON user_usage(month);
-CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_id ON user_subscriptions(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_subscriptions_status ON user_subscriptions(status);
-
--- 6. Create user_affiliates table for affiliate management
-CREATE TABLE IF NOT EXISTS user_affiliates (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-  email TEXT NOT NULL,
-  name TEXT NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'active')),
-  lemon_squeezy_affiliate_id TEXT,
-  referral_code TEXT UNIQUE,
-  total_earnings DECIMAL(10,2) DEFAULT 0.00,
-  total_referrals INTEGER DEFAULT 0,
-  commission_rate DECIMAL(5,2) DEFAULT 10.00, -- Default 10% commission
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 7. Create user_referral_codes table for unique referral codes
-CREATE TABLE IF NOT EXISTS user_referral_codes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-  referral_code TEXT UNIQUE NOT NULL,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 8. Create referral_visits table to track visits
-CREATE TABLE IF NOT EXISTS referral_visits (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  referral_code TEXT NOT NULL,
-  visitor_ip TEXT,
-  user_agent TEXT,
-  referrer TEXT,
-  visited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  converted BOOLEAN DEFAULT false,
-  conversion_value DECIMAL(10,2) DEFAULT 0.00
-);
-
--- 9. Create referral_conversions table to track successful conversions
-CREATE TABLE IF NOT EXISTS referral_conversions (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  referral_code TEXT NOT NULL,
-  referrer_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  converted_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  lemon_squeezy_order_id TEXT,
-  order_value DECIMAL(10,2) NOT NULL,
-  commission_amount DECIMAL(10,2) NOT NULL,
-  conversion_type TEXT DEFAULT 'subscription', -- subscription, one_time, etc.
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'cancelled')),
-  converted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  paid_at TIMESTAMP WITH TIME ZONE
-);
-
--- 10. Create affiliate_earnings table to track earnings
-CREATE TABLE IF NOT EXISTS affiliate_earnings (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  affiliate_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  conversion_id UUID REFERENCES referral_conversions(id) ON DELETE CASCADE,
-  amount DECIMAL(10,2) NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'cancelled')),
-  paid_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 11. Enable RLS on all tables
-ALTER TABLE user_usage ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_subscriptions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subscription_tiers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_affiliates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_referral_codes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE referral_visits ENABLE ROW LEVEL SECURITY;
-ALTER TABLE referral_conversions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE affiliate_earnings ENABLE ROW LEVEL SECURITY;
-
--- 12. Drop existing policies if they exist (to avoid conflicts)
+-- 2. Drop existing policies that might conflict
 DROP POLICY IF EXISTS "Users can view their own usage" ON user_usage;
 DROP POLICY IF EXISTS "Users can insert their own usage" ON user_usage;
 DROP POLICY IF EXISTS "Users can update their own usage" ON user_usage;
@@ -149,8 +28,131 @@ DROP POLICY IF EXISTS "Users can view their own conversions" ON referral_convers
 DROP POLICY IF EXISTS "Users can view their own earnings" ON affiliate_earnings;
 DROP POLICY IF EXISTS "Users can insert their own earnings" ON affiliate_earnings;
 
--- 13. Create RLS policies
--- User usage policies
+-- 3. Drop existing tables if they exist (be careful with this in production!)
+DROP TABLE IF EXISTS affiliate_earnings CASCADE;
+DROP TABLE IF EXISTS referral_conversions CASCADE;
+DROP TABLE IF EXISTS referral_visits CASCADE;
+DROP TABLE IF EXISTS user_referral_codes CASCADE;
+DROP TABLE IF EXISTS user_affiliates CASCADE;
+DROP TABLE IF EXISTS user_subscriptions CASCADE;
+DROP TABLE IF EXISTS user_usage CASCADE;
+DROP TABLE IF EXISTS subscription_tiers CASCADE;
+
+-- 4. Create tables with proper structure
+CREATE TABLE IF NOT EXISTS user_usage (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  month TEXT NOT NULL, -- Format: YYYY-MM
+  builds_used INTEGER DEFAULT 0,
+  remixes_used INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, month)
+);
+
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+  tier_id INTEGER NOT NULL,
+  lemon_squeezy_subscription_id TEXT,
+  status TEXT DEFAULT 'active',
+  current_period_start TIMESTAMP WITH TIME ZONE,
+  current_period_end TIMESTAMP WITH TIME ZONE,
+  cancel_at_period_end BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS subscription_tiers (
+  id SERIAL PRIMARY KEY,
+  tier_name TEXT NOT NULL UNIQUE,
+  builds_per_month INTEGER NOT NULL,
+  remixes_per_month INTEGER NOT NULL,
+  price_monthly DECIMAL(10,2) NOT NULL,
+  price_yearly DECIMAL(10,2) NOT NULL,
+  features JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_affiliates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+  email TEXT NOT NULL,
+  name TEXT NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'active')),
+  lemon_squeezy_affiliate_id TEXT,
+  referral_code TEXT UNIQUE,
+  total_earnings DECIMAL(10,2) DEFAULT 0.00,
+  total_referrals INTEGER DEFAULT 0,
+  commission_rate DECIMAL(5,2) DEFAULT 10.00, -- Default 10% commission
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_referral_codes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+  referral_code TEXT UNIQUE NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS referral_visits (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  referral_code TEXT NOT NULL,
+  visitor_ip TEXT,
+  user_agent TEXT,
+  referrer TEXT,
+  visited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  converted BOOLEAN DEFAULT false,
+  conversion_value DECIMAL(10,2) DEFAULT 0.00
+);
+
+CREATE TABLE IF NOT EXISTS referral_conversions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  referral_code TEXT NOT NULL,
+  referrer_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  converted_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  lemon_squeezy_order_id TEXT,
+  order_value DECIMAL(10,2) NOT NULL,
+  commission_amount DECIMAL(10,2) NOT NULL,
+  conversion_type TEXT DEFAULT 'subscription', -- subscription, one_time, etc.
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'cancelled')),
+  converted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  paid_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS affiliate_earnings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  affiliate_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  conversion_id UUID REFERENCES referral_conversions(id) ON DELETE CASCADE,
+  amount DECIMAL(10,2) NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'cancelled')),
+  paid_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 5. Insert default subscription tiers
+INSERT INTO subscription_tiers (tier_name, builds_per_month, remixes_per_month, price_monthly, price_yearly, features) VALUES
+  ('Basic', 5, 2, 0.00, 0.00, '{"support": "Community", "ai_models": ["Gemini Flash"]}'),
+  ('Pro', 50, 20, 19.99, 199.99, '{"support": "Email", "ai_models": ["Gemini Flash", "Claude 3.5"], "unlimited_remixes": true}'),
+  ('Pro Plus', 200, 100, 39.99, 399.99, '{"support": "Priority", "ai_models": ["Gemini Flash", "Claude 3.5"], "unlimited_remixes": true}'),
+  ('Enterprise', 1000, 500, 199.99, 1999.99, '{"support": "Dedicated", "ai_models": ["Gemini Flash", "Claude 3.5"], "unlimited_remixes": true, "pay_per_use": true}')
+ON CONFLICT (tier_name) DO NOTHING;
+
+-- 6. Enable RLS on all tables
+ALTER TABLE user_usage ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscription_tiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_affiliates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_referral_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE referral_visits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE referral_conversions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE affiliate_earnings ENABLE ROW LEVEL SECURITY;
+
+-- 7. Create RLS policies
 CREATE POLICY "Users can view their own usage" ON user_usage
   FOR SELECT USING (auth.role() = 'authenticated');
 
@@ -160,7 +162,6 @@ CREATE POLICY "Users can insert their own usage" ON user_usage
 CREATE POLICY "Users can update their own usage" ON user_usage
   FOR UPDATE USING (auth.role() = 'authenticated');
 
--- User subscriptions policies
 CREATE POLICY "Users can view their own subscription" ON user_subscriptions
   FOR SELECT USING (auth.role() = 'authenticated');
 
@@ -170,11 +171,9 @@ CREATE POLICY "Users can insert their own subscription" ON user_subscriptions
 CREATE POLICY "Users can update their own subscription" ON user_subscriptions
   FOR UPDATE USING (auth.role() = 'authenticated');
 
--- Subscription tiers policies (read-only for all authenticated users)
 CREATE POLICY "Authenticated users can view subscription tiers" ON subscription_tiers
   FOR SELECT USING (auth.role() = 'authenticated');
 
--- User affiliates policies
 CREATE POLICY "Users can view their own affiliate data" ON user_affiliates
   FOR SELECT USING (auth.role() = 'authenticated');
 
@@ -184,7 +183,6 @@ CREATE POLICY "Users can insert their own affiliate data" ON user_affiliates
 CREATE POLICY "Users can update their own affiliate data" ON user_affiliates
   FOR UPDATE USING (auth.role() = 'authenticated');
 
--- User referral codes policies
 CREATE POLICY "Users can view their own referral codes" ON user_referral_codes
   FOR SELECT USING (auth.role() = 'authenticated');
 
@@ -194,7 +192,6 @@ CREATE POLICY "Users can insert their own referral codes" ON user_referral_codes
 CREATE POLICY "Users can update their own referral codes" ON user_referral_codes
   FOR UPDATE USING (auth.role() = 'authenticated');
 
--- Referral visits policies (anyone can create, users can view their own)
 CREATE POLICY "Anyone can create referral visits" ON referral_visits
   FOR INSERT WITH CHECK (true);
 
@@ -207,7 +204,6 @@ CREATE POLICY "Users can view visits to their referral codes" ON referral_visits
     )
   );
 
--- Referral conversions policies
 CREATE POLICY "Anyone can create referral conversions" ON referral_conversions
   FOR INSERT WITH CHECK (true);
 
@@ -217,14 +213,13 @@ CREATE POLICY "Users can view their own conversions" ON referral_conversions
     converted_user_id::text = auth.jwt() ->> 'user_id'
   );
 
--- Affiliate earnings policies
 CREATE POLICY "Users can view their own earnings" ON affiliate_earnings
   FOR SELECT USING (affiliate_user_id::text = auth.jwt() ->> 'user_id');
 
 CREATE POLICY "Users can insert their own earnings" ON affiliate_earnings
   FOR INSERT WITH CHECK (affiliate_user_id::text = auth.jwt() ->> 'user_id');
 
--- 14. Grant necessary permissions
+-- 8. Grant necessary permissions
 GRANT ALL ON user_usage TO authenticated;
 GRANT ALL ON user_subscriptions TO authenticated;
 GRANT SELECT ON subscription_tiers TO authenticated;
@@ -234,7 +229,11 @@ GRANT ALL ON referral_visits TO authenticated;
 GRANT ALL ON referral_conversions TO authenticated;
 GRANT ALL ON affiliate_earnings TO authenticated;
 
--- 15. Create indexes for referral tables
+-- 9. Create indexes
+CREATE INDEX IF NOT EXISTS idx_user_usage_user_id ON user_usage(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_usage_month ON user_usage(month);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_id ON user_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_status ON user_subscriptions(status);
 CREATE INDEX IF NOT EXISTS idx_user_referral_codes_user_id ON user_referral_codes(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_referral_codes_code ON user_referral_codes(referral_code);
 CREATE INDEX IF NOT EXISTS idx_referral_visits_code ON referral_visits(referral_code);
@@ -244,7 +243,7 @@ CREATE INDEX IF NOT EXISTS idx_referral_conversions_referrer ON referral_convers
 CREATE INDEX IF NOT EXISTS idx_referral_conversions_converted ON referral_conversions(converted_user_id);
 CREATE INDEX IF NOT EXISTS idx_affiliate_earnings_affiliate ON affiliate_earnings(affiliate_user_id);
 
--- 16. Create function to get or create user usage for current month
+-- 10. Create functions
 CREATE OR REPLACE FUNCTION get_or_create_user_usage(user_uuid UUID)
 RETURNS user_usage AS $$
 DECLARE
@@ -269,7 +268,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 17. Create function to increment usage
 CREATE OR REPLACE FUNCTION increment_user_usage(user_uuid UUID, usage_type TEXT)
 RETURNS user_usage AS $$
 DECLARE
@@ -295,7 +293,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 18. Create function to generate unique referral code
 CREATE OR REPLACE FUNCTION generate_referral_code(user_uuid UUID)
 RETURNS TEXT AS $$
 DECLARE
@@ -323,7 +320,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 19. Create function to track referral conversion
 CREATE OR REPLACE FUNCTION track_referral_conversion(
   p_referral_code TEXT,
   p_converted_user_id UUID,
@@ -404,7 +400,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 20. Verify the tables were created
+-- 11. Verify the tables were created
 SELECT 
   table_name, 
   column_name, 

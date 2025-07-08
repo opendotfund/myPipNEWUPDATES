@@ -1,19 +1,25 @@
 import { useState, useEffect } from 'react'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import { projectService } from '../services/databaseService'
 import type { Project } from '../types/database'
+import { useUserData } from './useUserData'
 
 export function useProjects() {
   const { user } = useUser()
+  const { getToken } = useAuth()
+  const { userData } = useUserData()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(false)
 
   const loadUserProjects = async () => {
-    if (!user) return
+    if (!user || !userData) return
 
     setLoading(true)
     try {
-      const userProjects = await projectService.getUserProjects(user.id)
+      // Get the JWT token from Clerk (uses default claims)
+      const token = await getToken()
+      
+      const userProjects = await projectService.getUserProjects(user.id, token || undefined)
       setProjects(userProjects)
     } catch (error) {
       console.error('Error loading user projects:', error)
@@ -35,13 +41,22 @@ export function useProjects() {
     category: string
     original_project_id?: string
   }) => {
-    if (!user) return null
+    if (!user || !userData) {
+      console.error('User or userData not available:', { user: !!user, userData: !!userData });
+      return null;
+    }
 
     try {
+      console.log('Creating project in useProjects hook:', { userData: userData.id, projectName: projectData.name });
+      
+      // Get the JWT token from Clerk
+      const token = await getToken()
+      console.log('Got token:', !!token);
+      
       const newProject = await projectService.createProject({
         ...projectData,
-        user_id: user.id
-      })
+        user_id: user.id // Use Clerk ID, not Supabase user ID
+      }, token || undefined)
       
       if (newProject) {
         setProjects(prev => [newProject, ...prev])
@@ -55,8 +70,11 @@ export function useProjects() {
   }
 
   const updateProject = async (projectId: string, updates: Partial<Project>) => {
+    if (!user || !userData) return null
+
     try {
-      const updatedProject = await projectService.updateProject(projectId, updates)
+      const token = await getToken()
+      const updatedProject = await projectService.updateProject(projectId, updates, token || undefined)
       
       if (updatedProject) {
         setProjects(prev => 
@@ -74,8 +92,11 @@ export function useProjects() {
   }
 
   const deleteProject = async (projectId: string) => {
+    if (!user || !userData) return false
+
     try {
-      const success = await projectService.deleteProject(projectId)
+      const token = await getToken()
+      const success = await projectService.deleteProject(projectId, token || undefined)
       
       if (success) {
         setProjects(prev => prev.filter(project => project.id !== projectId))
@@ -89,10 +110,11 @@ export function useProjects() {
   }
 
   const remixProject = async (originalProjectId: string, newName?: string) => {
-    if (!user) return null
+    if (!user || !userData) return null
 
     try {
-      const remixedProject = await projectService.remixProject(originalProjectId, user.id, newName)
+      const token = await getToken()
+      const remixedProject = await projectService.remixProject(originalProjectId, user.id, newName, token || undefined)
       
       if (remixedProject) {
         setProjects(prev => [remixedProject, ...prev])
@@ -106,12 +128,12 @@ export function useProjects() {
   }
 
   useEffect(() => {
-    if (user) {
+    if (user && userData) {
       loadUserProjects()
     } else {
       setProjects([])
     }
-  }, [user])
+  }, [user, userData])
 
   return {
     projects,
@@ -125,6 +147,7 @@ export function useProjects() {
 }
 
 export function usePublicProjects() {
+  const { user } = useUser()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -143,7 +166,6 @@ export function usePublicProjects() {
   }
 
   const likeProject = async (projectId: string) => {
-    const { user } = useUser()
     if (!user) return false
 
     try {
@@ -160,7 +182,6 @@ export function usePublicProjects() {
   }
 
   const recordView = async (projectId: string) => {
-    const { user } = useUser()
     try {
       await projectService.recordProjectView(projectId, user?.id)
     } catch (error) {

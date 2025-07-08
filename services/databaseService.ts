@@ -13,39 +13,92 @@ export const userService = {
     bio?: string
   }, token?: string): Promise<User | null> {
     console.log('Upserting user to database:', { clerk_id: userData.clerk_id, email: userData.email });
+    console.log('Token provided:', !!token);
     
     try {
       // Always use the authenticated client for user operations
-      const client = createAuthenticatedSupabaseClient(token || '')
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      console.log('Using authenticated client:', !!token);
       
-      const { data, error } = await client
+      // First, check if user already exists
+      const { data: existingUser } = await client
         .from('users')
-        .upsert({
-          clerk_id: userData.clerk_id,
-          email: userData.email,
-          full_name: userData.full_name || null,
-          username: userData.username || null,
-          avatar_url: userData.avatar_url || null,
-          bio: userData.bio || null,
-          subscription_tier: 'basic', // Default to basic tier
-          subscription_status: 'active',
-          builds_used: 0,
-          remixes_used: 0,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'clerk_id',
-          ignoreDuplicates: false
-        })
-        .select()
+        .select('*')
+        .eq('clerk_id', userData.clerk_id)
         .single();
 
-      if (error) {
-        console.error('Error upserting user:', error);
-        return null;
-      }
+      if (existingUser) {
+        // Update existing user - preserve subscription data
+        const { data, error } = await client
+          .from('users')
+          .update({
+            email: userData.email,
+            full_name: userData.full_name || existingUser.full_name,
+            username: userData.username || existingUser.username,
+            avatar_url: userData.avatar_url || existingUser.avatar_url,
+            bio: userData.bio || existingUser.bio,
+            updated_at: new Date().toISOString()
+          })
+          .eq('clerk_id', userData.clerk_id)
+          .select()
+          .single();
 
-      console.log('User upserted successfully:', data);
-      return data;
+        if (error) {
+          console.error('Error updating user:', error);
+          console.error('Error details:', error.message, error.details, error.hint);
+          return null;
+        }
+
+        console.log('User updated successfully:', data);
+        return data;
+      } else {
+        // Create new user with default subscription tier
+        const { data, error } = await client
+          .from('users')
+          .insert({
+            clerk_id: userData.clerk_id,
+            email: userData.email,
+            full_name: userData.full_name || null,
+            username: userData.username || null,
+            avatar_url: userData.avatar_url || null,
+            bio: userData.bio || null,
+            subscription_tier: 'free', // Default to free tier
+            subscription_status: 'active',
+            builds_used: 0,
+            remixes_used: 0,
+            builds_limit: 5, // Free tier limit
+            remixes_limit: 3, // Free tier limit
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating user:', error);
+          console.error('Error details:', error.message, error.details, error.hint);
+          return null;
+        }
+
+        console.log('User created successfully with free tier:', data);
+        
+        // Initialize user usage for current month
+        try {
+          await client
+            .from('user_usage')
+            .insert({
+              user_id: userData.clerk_id, // Use clerk_id (TEXT) instead of UUID
+              month: new Date().toISOString().slice(0, 7), // Format: YYYY-MM
+              builds_used: 0,
+              remixes_used: 0
+            });
+          console.log('User usage initialized for new user');
+        } catch (usageError) {
+          console.warn('Could not initialize user usage:', usageError);
+        }
+
+        return data;
+      }
     } catch (error) {
       console.error('Exception during user upsert:', error);
       return null;
@@ -165,7 +218,7 @@ export const userService = {
 
   // Record subscription transaction
   async recordSubscriptionTransaction(transactionData: {
-    user_id: string
+    user_id: string // This is clerk_id (TEXT)
     lemon_squeezy_order_id: string
     lemon_squeezy_subscription_id?: string
     plan_tier: string
@@ -178,7 +231,12 @@ export const userService = {
       const { error } = await client
         .from('subscription_transactions')
         .insert({
-          ...transactionData,
+          user_id: transactionData.user_id, // Use clerk_id directly (TEXT)
+          lemon_squeezy_order_id: transactionData.lemon_squeezy_order_id,
+          lemon_squeezy_subscription_id: transactionData.lemon_squeezy_subscription_id,
+          plan_tier: transactionData.plan_tier,
+          amount: transactionData.amount,
+          status: transactionData.status,
           transaction_date: new Date().toISOString()
         });
 
@@ -284,6 +342,170 @@ export const userService = {
     }
 
     return { success, failed };
+  },
+
+  // Check if user can perform action (build/remix)
+  async canUserPerformAction(clerkId: string, actionType: 'build' | 'remix', token?: string): Promise<boolean> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      // Get user with current usage
+      const { data: user } = await client
+        .from('users')
+        .select('*')
+        .eq('clerk_id', clerkId)
+        .single();
+
+      if (!user) {
+        console.error('User not found for action check:', clerkId);
+        return false;
+      }
+
+      // Check limits based on action type
+      if (actionType === 'build') {
+        return user.builds_used < user.builds_limit;
+      } else if (actionType === 'remix') {
+        return user.remixes_used < user.remixes_limit;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error checking user action limits:', error);
+      return false;
+    }
+  },
+
+  // Increment user usage
+  async incrementUserUsage(clerkId: string, actionType: 'build' | 'remix', token?: string): Promise<boolean> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      // Get user
+      const { data: user } = await client
+        .from('users')
+        .select('*')
+        .eq('clerk_id', clerkId)
+        .single();
+
+      if (!user) {
+        console.error('User not found for usage increment:', clerkId);
+        return false;
+      }
+
+      // Check if user can perform action
+      if (!(await this.canUserPerformAction(clerkId, actionType, token))) {
+        console.error(`User ${clerkId} has reached their ${actionType} limit`);
+        return false;
+      }
+
+      // Update user usage
+      const updateData: any = {};
+      if (actionType === 'build') {
+        updateData.builds_used = user.builds_used + 1;
+      } else if (actionType === 'remix') {
+        updateData.remixes_used = user.remixes_used + 1;
+      }
+
+      const { error: userError } = await client
+        .from('users')
+        .update(updateData)
+        .eq('clerk_id', clerkId);
+
+      if (userError) {
+        console.error('Error updating user usage:', userError);
+        return false;
+      }
+
+      // Update monthly usage tracking
+      const currentMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+      const { data: existingUsage } = await client
+        .from('user_usage')
+        .select('*')
+        .eq('user_id', clerkId) // Use clerk_id (TEXT) instead of user.id (UUID)
+        .eq('month', currentMonth)
+        .single();
+
+      if (existingUsage) {
+        // Update existing usage
+        const usageUpdateData: any = {};
+        if (actionType === 'build') {
+          usageUpdateData.builds_used = existingUsage.builds_used + 1;
+        } else if (actionType === 'remix') {
+          usageUpdateData.remixes_used = existingUsage.remixes_used + 1;
+        }
+
+        const { error: usageError } = await client
+          .from('user_usage')
+          .update(usageUpdateData)
+          .eq('id', existingUsage.id);
+
+        if (usageError) {
+          console.error('Error updating daily usage:', usageError);
+        }
+      } else {
+        // Create new usage record for current month
+        const usageData: any = {
+          user_id: clerkId, // Use clerk_id (TEXT) instead of user.id (UUID)
+          month: currentMonth,
+          builds_used: actionType === 'build' ? 1 : 0,
+          remixes_used: actionType === 'remix' ? 1 : 0
+        };
+
+        const { error: usageError } = await client
+          .from('user_usage')
+          .insert(usageData);
+
+        if (usageError) {
+          console.error('Error creating daily usage:', usageError);
+        }
+      }
+
+      console.log(`Incremented ${actionType} usage for user ${clerkId}`);
+      return true;
+    } catch (error) {
+      console.error('Error incrementing user usage:', error);
+      return false;
+    }
+  },
+
+  // Get user subscription info
+  async getUserSubscriptionInfo(clerkId: string, token?: string): Promise<{
+    tier: string;
+    status: string;
+    buildsUsed: number;
+    buildsLimit: number;
+    remixesUsed: number;
+    remixesLimit: number;
+    canBuild: boolean;
+    canRemix: boolean;
+  } | null> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data: user } = await client
+        .from('users')
+        .select('*')
+        .eq('clerk_id', clerkId)
+        .single();
+
+      if (!user) {
+        return null;
+      }
+
+      return {
+        tier: user.subscription_tier,
+        status: user.subscription_status,
+        buildsUsed: user.builds_used,
+        buildsLimit: user.builds_limit,
+        remixesUsed: user.remixes_used,
+        remixesLimit: user.remixes_limit,
+        canBuild: user.builds_used < user.builds_limit,
+        canRemix: user.remixes_used < user.remixes_limit
+      };
+    } catch (error) {
+      console.error('Error getting user subscription info:', error);
+      return null;
+    }
   }
 };
 
@@ -396,308 +618,522 @@ export const projectService = {
     allow_remix: boolean
     category: string
     original_project_id?: string
-  }): Promise<Project | null> {
-    const { data, error } = await supabase
-      .from('projects')
-      .insert(projectData)
-      .select()
-      .single()
+  }, token?: string): Promise<Project | null> {
+    try {
+      console.log('Creating project with data:', { ...projectData, generated_code: projectData.generated_code?.substring(0, 100) + '...' });
+      console.log('Token provided:', !!token);
+      
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      // Get user to check usage limits
+      const { data: user, error: userError } = await client
+        .from('users')
+        .select('clerk_id, builds_used, builds_limit')
+        .eq('clerk_id', projectData.user_id) // Use clerk_id instead of id
+        .single();
 
-    if (error) {
-      console.error('Error creating project:', error)
-      return null
+      if (userError) {
+        console.error('Error fetching user:', userError);
+        return null;
+      }
+
+      if (!user) {
+        console.error('User not found for project creation, clerk_id:', projectData.user_id);
+        return null;
+      }
+
+      // Check if user can create a project
+      if (user.builds_used >= user.builds_limit) {
+        console.error(`User ${user.clerk_id} has reached their build limit (${user.builds_used}/${user.builds_limit})`);
+        throw new Error('You have reached your build limit for this subscription tier. Please upgrade to create more projects.');
+      }
+
+      // Create the project
+      const { data, error } = await client
+        .from('projects')
+        .insert({
+          ...projectData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating project:', error);
+        console.error('Error details:', error.message, error.details, error.hint);
+        return null;
+      }
+
+      // Increment user usage
+      await userService.incrementUserUsage(user.clerk_id, 'build', token);
+
+      console.log('Project created successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Exception during project creation:', error);
+      throw error; // Re-throw to handle in the UI
     }
-
-    return data
   },
 
-  // Get user's projects
-  async getUserProjects(userId: string): Promise<Project[]> {
-    console.log('Loading user projects for:', userId);
-    
-    const { data, error } = await supabase
-      .from('projects')
-      .select()
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+  // Get user projects
+  async getUserProjects(userId: string, token?: string): Promise<Project[]> {
+    try {
+      console.log('Getting user projects for user:', userId);
+      
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data, error } = await client
+        .from('projects')
+        .select('*')
+        .eq('user_id', userId) // This is now the Clerk ID
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error getting user projects:', error)
-      return []
+      if (error) {
+        console.error('Error getting user projects:', error);
+        return [];
+      }
+
+      console.log('User projects data:', data?.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        generated_code_length: p.generated_code?.length || 0,
+        preview_html_length: p.preview_html?.length || 0,
+        generated_code_preview: p.generated_code?.substring(0, 100) + '...',
+        preview_html_preview: p.preview_html?.substring(0, 100) + '...'
+      })));
+
+      return data || [];
+    } catch (error) {
+      console.error('Exception getting user projects:', error);
+      return [];
     }
-
-    console.log('User projects loaded:', data?.length || 0, 'projects');
-    return data || []
   },
 
-  // Get public projects for community feed
+  // Get public projects
   async getPublicProjects(category?: string, search?: string): Promise<Project[]> {
-    console.log('Loading public projects...', { category, search });
-    
-    let query = supabase
-      .from('projects')
-      .select()
-      .eq('is_public', true)
-      .order('created_at', { ascending: false })
+    try {
+      console.log('Getting public projects with category:', category, 'search:', search);
+      
+      let query = supabase
+        .from('projects')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false });
 
-    if (category && category !== 'All Categories') {
-      query = query.eq('category', category)
+      if (category && category !== 'All Categories') {
+        query = query.eq('category', category);
+      }
+
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error getting public projects:', error);
+        return [];
+      }
+
+      console.log('Public projects data:', data?.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        generated_code_length: p.generated_code?.length || 0,
+        preview_html_length: p.preview_html?.length || 0,
+        generated_code_preview: p.generated_code?.substring(0, 100) + '...',
+        preview_html_preview: p.preview_html?.substring(0, 100) + '...'
+      })));
+
+      return data || [];
+    } catch (error) {
+      console.error('Exception getting public projects:', error);
+      return [];
     }
-
-    if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
-    }
-
-    const { data, error } = await query
-
-    if (error) {
-      console.error('Error getting public projects:', error)
-      return []
-    }
-
-    console.log('Public projects loaded:', data?.length || 0, 'projects');
-    return data || []
   },
 
   // Get project by ID
   async getProjectById(projectId: string): Promise<Project | null> {
-    const { data, error } = await supabase
-      .from('projects')
-      .select()
-      .eq('id', projectId)
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
 
-    if (error) {
-      console.error('Error getting project:', error)
-      return null
+      if (error) {
+        console.error('Error getting project by ID:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Exception getting project by ID:', error);
+      return null;
     }
-
-    return data
   },
 
   // Update project
-  async updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
-    const { data, error } = await supabase
-      .from('projects')
-      .update(updates)
-      .eq('id', projectId)
-      .select()
-      .single()
+  async updateProject(projectId: string, updates: Partial<Project>, token?: string): Promise<Project | null> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data, error } = await client
+        .from('projects')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', projectId)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error updating project:', error)
-      return null
+      if (error) {
+        console.error('Error updating project:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Exception updating project:', error);
+      return null;
     }
-
-    return data
   },
 
   // Delete project
-  async deleteProject(projectId: string): Promise<boolean> {
-    const { error } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', projectId)
+  async deleteProject(projectId: string, token?: string): Promise<boolean> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { error } = await client
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
 
-    if (error) {
-      console.error('Error deleting project:', error)
-      return false
+      if (error) {
+        console.error('Error deleting project:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Exception deleting project:', error);
+      return false;
     }
-
-    return true
   },
 
-  // Like/unlike project
+  // Toggle project like
   async toggleProjectLike(projectId: string, userId: string): Promise<boolean> {
-    // Check if user already liked the project
-    const { data: existingLike } = await supabase
-      .from('project_likes')
-      .select()
-      .eq('project_id', projectId)
-      .eq('user_id', userId)
-      .single()
-
-    if (existingLike) {
-      // Unlike
-      const { error } = await supabase
+    try {
+      // Check if user already liked the project
+      const { data: existingLike } = await supabase
         .from('project_likes')
-        .delete()
-        .eq('id', existingLike.id)
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+        .single();
 
-      if (error) {
-        console.error('Error unliking project:', error)
-        return false
-      }
+      if (existingLike) {
+        // Unlike the project
+        const { error } = await supabase
+          .from('project_likes')
+          .delete()
+          .eq('id', existingLike.id);
 
-      // Decrease likes count
-      const currentProject = await this.getProjectById(projectId)
-      if (currentProject) {
-        await this.updateProject(projectId, {
-          likes_count: Math.max(0, currentProject.likes_count - 1)
-        })
-      }
-    } else {
-      // Like
-      const { error } = await supabase
-        .from('project_likes')
-        .insert({ project_id: projectId, user_id: userId })
+        if (error) {
+          console.error('Error unliking project:', error);
+          return false;
+        }
 
-      if (error) {
-        console.error('Error liking project:', error)
-        return false
-      }
+        // Decrement likes_count
+        const { data: currentProject } = await supabase
+          .from('projects')
+          .select('likes_count')
+          .eq('id', projectId)
+          .single();
+        
+        if (currentProject) {
+          await supabase
+            .from('projects')
+            .update({ 
+              likes_count: Math.max(0, (currentProject.likes_count || 0) - 1),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', projectId);
+        }
 
-      // Increase likes count
-      const currentProject = await this.getProjectById(projectId)
-      if (currentProject) {
-        await this.updateProject(projectId, {
-          likes_count: currentProject.likes_count + 1
-        })
+        return true;
+      } else {
+        // Like the project
+        const { error } = await supabase
+          .from('project_likes')
+          .insert({
+            project_id: projectId,
+            user_id: userId
+          });
+
+        if (error) {
+          console.error('Error liking project:', error);
+          return false;
+        }
+
+        // Increment likes_count
+        const { data: currentProject } = await supabase
+          .from('projects')
+          .select('likes_count')
+          .eq('id', projectId)
+          .single();
+        
+        if (currentProject) {
+          await supabase
+            .from('projects')
+            .update({ 
+              likes_count: (currentProject.likes_count || 0) + 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', projectId);
+        }
+
+        return true;
       }
+    } catch (error) {
+      console.error('Exception toggling project like:', error);
+      return false;
     }
-
-    return true
   },
 
   // Record project view
   async recordProjectView(projectId: string, userId?: string, ipAddress?: string): Promise<void> {
-    const { error } = await supabase
-      .from('project_views')
-      .insert({
-        project_id: projectId,
-        user_id: userId,
-        ip_address: ipAddress
-      })
-
-    if (error) {
-      console.error('Error recording project view:', error)
-      return
-    }
-
-    // Increase views count
-    const currentProject = await this.getProjectById(projectId)
-    if (currentProject) {
-      await this.updateProject(projectId, {
-        views_count: currentProject.views_count + 1
-      })
+    try {
+      await supabase
+        .from('project_views')
+        .insert({
+          project_id: projectId,
+          user_id: userId || null,
+          ip_address: ipAddress || null
+        });
+    } catch (error) {
+      console.error('Exception recording project view:', error);
     }
   },
 
-  // Save project to user's account
+  // Save project to user's saved list
   async saveProject(projectId: string, userId: string): Promise<boolean> {
-    const { error } = await supabase
-      .from('user_saved_projects')
-      .insert({ project_id: projectId, user_id: userId })
+    try {
+      const { error } = await supabase
+        .from('user_saved_projects')
+        .insert({
+          project_id: projectId,
+          user_id: userId
+        });
 
-    if (error) {
-      console.error('Error saving project:', error)
-      return false
+      if (error) {
+        console.error('Error saving project:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Exception saving project:', error);
+      return false;
     }
-
-    return true
   },
 
-  // Remove project from user's saved projects
+  // Remove project from user's saved list
   async unsaveProject(projectId: string, userId: string): Promise<boolean> {
-    const { error } = await supabase
-      .from('user_saved_projects')
-      .delete()
-      .eq('project_id', projectId)
-      .eq('user_id', userId)
+    try {
+      const { error } = await supabase
+        .from('user_saved_projects')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('user_id', userId);
 
-    if (error) {
-      console.error('Error removing saved project:', error)
-      return false
+      if (error) {
+        console.error('Error unsaving project:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Exception unsaving project:', error);
+      return false;
     }
-
-    return true
   },
 
   // Get user's saved projects
   async getUserSavedProjects(userId: string): Promise<Project[]> {
-    console.log('Loading saved projects for user:', userId);
-    
-    const { data, error } = await supabase
-      .from('user_saved_projects')
-      .select(`
-        project_id,
-        projects (
-          id,
-          user_id,
-          name,
-          description,
-          prompt,
-          generated_code,
-          preview_html,
-          is_public,
-          allow_remix,
-          category,
-          likes_count,
-          views_count,
-          remix_count,
-          original_project_id,
-          created_at,
-          updated_at
-        )
-      `)
-      .eq('user_id', userId)
-      .order('saved_at', { ascending: false })
+    try {
+      console.log('Getting saved projects for user:', userId);
+      
+      const { data, error } = await supabase
+        .from('user_saved_projects')
+        .select(`
+          project_id,
+          projects (
+            id,
+            name,
+            description,
+            category,
+            is_public,
+            allow_remix,
+            likes_count,
+            views_count,
+            remix_count,
+            created_at,
+            updated_at,
+            generated_code,
+            preview_html,
+            prompt,
+            original_project_id,
+            users (
+              id,
+              clerk_id,
+              full_name,
+              username
+            )
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error getting saved projects:', error)
-      return []
+      if (error) {
+        console.error('Error getting user saved projects:', error);
+        return [];
+      }
+
+      console.log('Raw saved projects data:', data);
+
+      // Transform the data to match Project type
+      const transformedProjects = (data || []).map((item: any) => {
+        const project = {
+          id: item.projects.id,
+          user_id: item.projects.users.clerk_id, // Use clerk_id instead of id
+          name: item.projects.name,
+          description: item.projects.description,
+          prompt: item.projects.prompt || '',
+          generated_code: item.projects.generated_code || '',
+          preview_html: item.projects.preview_html || '',
+          is_public: item.projects.is_public,
+          allow_remix: item.projects.allow_remix,
+          category: item.projects.category,
+          original_project_id: item.projects.original_project_id,
+          likes_count: item.projects.likes_count,
+          views_count: item.projects.views_count,
+          remix_count: item.projects.remix_count,
+          created_at: item.projects.created_at,
+          updated_at: item.projects.updated_at
+        };
+        
+        console.log('Transformed project:', {
+          id: project.id,
+          name: project.name,
+          generated_code_length: project.generated_code?.length || 0,
+          preview_html_length: project.preview_html?.length || 0,
+          generated_code_preview: project.generated_code?.substring(0, 100) + '...',
+          preview_html_preview: project.preview_html?.substring(0, 100) + '...'
+        });
+        
+        return project;
+      });
+
+      console.log('Returning', transformedProjects.length, 'saved projects');
+      return transformedProjects;
+    } catch (error) {
+      console.error('Exception getting user saved projects:', error);
+      return [];
     }
-
-    const projects = data?.map(item => item.projects).filter(Boolean) || []
-    console.log('Saved projects loaded:', projects.length, 'projects');
-    return projects as unknown as Project[]
   },
 
-  // Check if user has saved a project
+  // Check if project is saved by user
   async isProjectSaved(projectId: string, userId: string): Promise<boolean> {
-    const { data, error } = await supabase
-      .from('user_saved_projects')
-      .select()
-      .eq('project_id', projectId)
-      .eq('user_id', userId)
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('user_saved_projects')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+        .single();
 
-    if (error) {
-      return false
+      if (error) {
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      return false;
     }
-
-    return !!data
   },
 
-  // Remix a project (create a copy)
-  async remixProject(originalProjectId: string, userId: string, newName?: string): Promise<Project | null> {
-    // Get the original project
-    const originalProject = await this.getProjectById(originalProjectId)
-    if (!originalProject) {
-      console.error('Original project not found')
-      return null
+  // Remix a project
+  async remixProject(originalProjectId: string, userId: string, newName?: string, token?: string): Promise<Project | null> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      // Get the original project
+      const originalProject = await this.getProjectById(originalProjectId);
+      if (!originalProject) {
+        console.error('Original project not found for remix');
+        return null;
+      }
+
+      // Get user to check usage limits
+      const { data: user } = await client
+        .from('users')
+        .select('clerk_id, remixes_used, remixes_limit')
+        .eq('clerk_id', userId) // Use clerk_id instead of id
+        .single();
+
+      if (!user) {
+        console.error('User not found for remix creation, clerk_id:', userId);
+        return null;
+      }
+
+      // Check if user can remix
+      if (user.remixes_used >= user.remixes_limit) {
+        console.error(`User ${user.clerk_id} has reached their remix limit (${user.remixes_used}/${user.remixes_limit})`);
+        throw new Error('You have reached your remix limit for this subscription tier. Please upgrade to create more remixes.');
+      }
+
+      // Create a new project based on the original
+      const remixedProject = await this.createProject({
+        user_id: userId,
+        name: newName || `${originalProject.name} (Remix)`,
+        description: originalProject.description,
+        prompt: originalProject.prompt,
+        generated_code: originalProject.generated_code,
+        preview_html: originalProject.preview_html,
+        is_public: false, // Remixes are private by default
+        allow_remix: originalProject.allow_remix,
+        category: originalProject.category,
+        original_project_id: originalProjectId
+      }, token);
+
+      if (remixedProject) {
+        // Increment user usage
+        await userService.incrementUserUsage(user.clerk_id, 'remix', token);
+        
+        // Increment remix_count on the original project
+        const { data: originalProject } = await supabase
+          .from('projects')
+          .select('remix_count')
+          .eq('id', originalProjectId)
+          .single();
+        
+        if (originalProject) {
+          await supabase
+            .from('projects')
+            .update({ 
+              remix_count: (originalProject.remix_count || 0) + 1,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', originalProjectId);
+        }
+      }
+
+      return remixedProject;
+    } catch (error) {
+      console.error('Exception during project remix:', error);
+      throw error; // Re-throw to handle in the UI
     }
-
-    // Check if remixing is allowed
-    if (!originalProject.allow_remix) {
-      console.error('Remixing not allowed for this project')
-      return null
-    }
-
-    // Create a new project based on the original
-    const remixedProject = await this.createProject({
-      user_id: userId,
-      name: newName || `${originalProject.name} (Remix)`,
-      description: originalProject.description,
-      prompt: originalProject.prompt,
-      generated_code: originalProject.generated_code,
-      preview_html: originalProject.preview_html,
-      is_public: false, // Remixes start as private
-      allow_remix: true,
-      category: originalProject.category,
-      original_project_id: originalProjectId
-    })
-
-    return remixedProject
   }
 } 

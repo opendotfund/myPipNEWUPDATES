@@ -73,33 +73,32 @@ export const setExternalApiKey = async (newApiKey: string): Promise<boolean> => 
 };
 
 const parseClaudeJsonResponse = (responseText: string): ClaudeResponse => {
-  let jsonStr = responseText.trim();
-    
-  // First, try to extract JSON from code fences
-  const fenceRegex = /^```(?:json)?\s*\n?(.*?)\n?\s*```$/s;
-  const match = jsonStr.match(fenceRegex);
-  if (match && match[1]) {
-    jsonStr = match[1].trim();
-  }
-
-  // If no code fences, try to find JSON object boundaries
-  if (!jsonStr.startsWith('{')) {
-    const jsonStart = jsonStr.indexOf('{');
-    if (jsonStart !== -1) {
-      jsonStr = jsonStr.substring(jsonStart);
-    }
-  }
-
-  // Clean up common escape sequences
-  jsonStr = jsonStr.replace(/\\n/g, "\\n")
-                   .replace(/\\'/g, "\\'")
-                   .replace(/\\"/g, '\\"')
-                   .replace(/\\&/g, "\\&")
-                   .replace(/\\r/g, "\\r")
-                   .replace(/\\t/g, "\\t")
-                   .replace(/\\b/g, "\\b")
-                   .replace(/\\f/g, "\\f");
+  console.log('Parsing Claude response:', responseText.substring(0, 200) + '...');
   
+  // First, try to extract JSON from the response
+  let jsonStr = responseText.trim();
+  
+  // Remove any markdown code blocks
+  jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
+  
+  // Try to find JSON object boundaries
+  const jsonStart = jsonStr.indexOf('{');
+  const jsonEnd = jsonStr.lastIndexOf('}');
+  
+  if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+    jsonStr = jsonStr.substring(jsonStart, jsonEnd + 1);
+  }
+  
+  // Clean up common JSON issues
+  jsonStr = jsonStr
+    .replace(/\\n/g, '\\n')
+    .replace(/\\r/g, '\\r')
+    .replace(/\\t/g, '\\t')
+    .replace(/\\"/g, '\\"')
+    .replace(/\\\\/g, '\\\\')
+    .replace(/\\b/g, "\\b")
+    .replace(/\\f/g, "\\f");
+
   try {
     const parsedData = JSON.parse(jsonStr) as ClaudeResponse;
     if (!parsedData.swiftCode || !parsedData.previewHtml) {
@@ -109,38 +108,103 @@ const parseClaudeJsonResponse = (responseText: string): ClaudeResponse => {
     if (parsedData.previewHtml.trim() === "") {
         parsedData.previewHtml = '<div class="p-4 text-center text-neutral-500">AI returned an empty preview. Try adjusting your prompt.</div>';
     }
+    
+    // Ensure the preview HTML has proper structure
+    if (!parsedData.previewHtml.includes('<div') && !parsedData.previewHtml.includes('<html')) {
+        parsedData.previewHtml = `<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100">
+            <div class="max-w-xs">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">App Preview</h3>
+                <p class="text-sm text-gray-600">Your app preview will appear here</p>
+            </div>
+        </div>`;
+    }
     if (parsedData.swiftCode.trim() === "") {
         parsedData.swiftCode = "// AI returned empty code. Try adjusting your prompt.";
     }
     return parsedData;
   } catch(e) {
-    console.error("Failed to parse JSON string:", jsonStr, e);
+    console.error("Failed to parse JSON string:", jsonStr.substring(0, 500) + '...', e);
     
-    // Try to provide more helpful error information
-    const errorMessage = e instanceof Error ? e.message : 'Unknown parsing error';
-    const jsonPreview = jsonStr.length > 500 ? jsonStr.substring(0, 500) + '...' : jsonStr;
+    // Try multiple fallback extraction methods
+    console.log("Attempting fallback extraction methods...");
     
-    // Fallback: try to extract SwiftUI code and HTML manually
-    console.log("Attempting fallback extraction...");
+    // Method 1: Try to extract using regex with better handling of escaped quotes
     try {
-      const swiftMatch = jsonStr.match(/"swiftCode"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
-      const htmlMatch = jsonStr.match(/"previewHtml"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+      const swiftMatch = jsonStr.match(/"swiftCode"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      const htmlMatch = jsonStr.match(/"previewHtml"\s*:\s*"((?:[^"\\]|\\.)*)"/);
       
       if (swiftMatch && htmlMatch) {
-        const swiftCode = swiftMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
-        const previewHtml = htmlMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+        const swiftCode = swiftMatch[1]
+          .replace(/\\"/g, '"')
+          .replace(/\\n/g, '\n')
+          .replace(/\\t/g, '\t')
+          .replace(/\\\\/g, '\\');
+        const previewHtml = htmlMatch[1]
+          .replace(/\\"/g, '"')
+          .replace(/\\n/g, '\n')
+          .replace(/\\t/g, '\t')
+          .replace(/\\\\/g, '\\');
         
-        console.log("Fallback extraction successful");
+        console.log("Fallback extraction method 1 successful");
         return {
           swiftCode: swiftCode || "// Fallback: Could not extract SwiftUI code",
           previewHtml: previewHtml || '<div class="p-4 text-center text-neutral-500">Fallback: Could not extract HTML preview</div>'
         };
       }
     } catch (fallbackError) {
-      console.error("Fallback extraction also failed:", fallbackError);
+      console.error("Fallback extraction method 1 failed:", fallbackError);
     }
     
-    throw new Error(`Failed to parse AI's JSON response. Error: ${errorMessage}. Raw preview: ${jsonPreview}`);
+    // Method 2: Try to find code blocks in the response
+    try {
+      const swiftBlockMatch = responseText.match(/```swift\s*([\s\S]*?)\s*```/);
+      const htmlBlockMatch = responseText.match(/```html\s*([\s\S]*?)\s*```/);
+      
+      if (swiftBlockMatch || htmlBlockMatch) {
+        const swiftCode = swiftBlockMatch ? swiftBlockMatch[1].trim() : "// No Swift code found";
+        const previewHtml = htmlBlockMatch ? htmlBlockMatch[1].trim() : '<div class="p-4 text-center text-neutral-500">No HTML preview found</div>';
+        
+        console.log("Fallback extraction method 2 successful");
+        return {
+          swiftCode: swiftCode,
+          previewHtml: previewHtml
+        };
+      }
+    } catch (fallbackError) {
+      console.error("Fallback extraction method 2 failed:", fallbackError);
+    }
+    
+    // Method 3: Try to extract from the original response text
+    try {
+      // Look for JSON-like structure in the original text
+      const jsonLikeMatch = responseText.match(/\{[^{}]*"swiftCode"[^{}]*"previewHtml"[^{}]*\}/);
+      if (jsonLikeMatch) {
+        const partialJson = jsonLikeMatch[0];
+        // Try to fix common issues
+        const fixedJson = partialJson
+          .replace(/([^\\])"/g, '$1\\"') // Escape unescaped quotes
+          .replace(/,\s*}/g, '}') // Remove trailing commas
+          .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
+        
+        const parsed = JSON.parse(fixedJson);
+        if (parsed.swiftCode || parsed.previewHtml) {
+          console.log("Fallback extraction method 3 successful");
+          return {
+            swiftCode: parsed.swiftCode || "// Fallback: Could not extract SwiftUI code",
+            previewHtml: parsed.previewHtml || '<div class="p-4 text-center text-neutral-500">Fallback: Could not extract HTML preview</div>'
+          };
+        }
+      }
+    } catch (fallbackError) {
+      console.error("Fallback extraction method 3 failed:", fallbackError);
+    }
+    
+    // Final fallback: return a basic structure
+    console.log("Using final fallback - returning basic structure");
+    return {
+      swiftCode: "// Error: Could not parse AI response. Please try again.\n\nimport SwiftUI\n\nstruct ContentView: View {\n    var body: some View {\n        Text(\"Error loading app code\")\n    }\n}",
+      previewHtml: '<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-red-50"><div class="max-w-xs"><h3 class="text-lg font-semibold text-red-800 mb-2">Error</h3><p class="text-sm text-red-600">Could not parse AI response. Please try again.</p></div></div>'
+    };
   }
 };
 
@@ -305,71 +369,79 @@ Do not include any other text, explanations, or formatting outside of the JSON o
 };
 
 const callClaudeApi = async (prompt: string): Promise<ClaudeResponse> => {
-  console.log("🔍 callClaudeApi called");
-  console.log("Anthropic client available:", !!anthropic);
-  
   if (!anthropic) {
-    console.error("❌ Claude client is not initialized. Attempting to re-initialize...");
+    console.error('Claude client not initialized. Attempting to re-initialize...');
     initializeClaudeClient();
     
     if (!anthropic) {
-      console.error("❌ Re-initialization failed. Claude client still not available.");
-    throw new Error("Claude client is not initialized. Please check your API key.");
+      throw new Error('Claude client not initialized. Please check your API key.');
     }
   }
 
+  console.log('Calling Claude API with prompt length:', prompt.length);
+  console.log('Prompt preview:', prompt.substring(0, 200) + '...');
+
   try {
-    console.log("📡 Calling Claude API...");
-    console.log("Model:", CLAUDE_MODEL_NAME);
-    console.log("Prompt length:", prompt.length);
-    
     const response = await anthropic.messages.create({
       model: CLAUDE_MODEL_NAME,
       max_tokens: 4000,
       temperature: 0.7,
       messages: [
         {
-          role: "user",
+          role: 'user',
           content: prompt
         }
       ]
     });
 
-    console.log("✅ Claude API response received");
-    console.log("Response content length:", response.content?.length || 0);
+    const responseText = response.content[0]?.type === 'text' ? response.content[0].text : '';
     
-    if (!response.content || response.content.length === 0) {
-      throw new Error("Empty response from Claude API");
-    }
-
-    const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+    console.log('Claude API response received, length:', responseText.length);
+    console.log('Response preview:', responseText.substring(0, 500) + '...');
     
     if (!responseText) {
-      throw new Error("No text content in Claude API response");
+      throw new Error('Empty response from Claude API');
     }
 
-    console.log("📝 Parsing Claude response...");
-    console.log("Response text length:", responseText.length);
-    console.log("Response preview:", responseText.substring(0, 200) + "...");
+    // Check if response contains JSON
+    if (!responseText.includes('{') || !responseText.includes('}')) {
+      console.error('Response does not contain JSON structure:', responseText);
+      throw new Error('Invalid response format from Claude API - no JSON found');
+    }
+
+    // Check for common JSON structure issues
+    const hasSwiftCode = responseText.includes('"swiftCode"');
+    const hasPreviewHtml = responseText.includes('"previewHtml"');
     
-    return parseClaudeJsonResponse(responseText);
+    if (!hasSwiftCode || !hasPreviewHtml) {
+      console.error('Response missing required fields:', { hasSwiftCode, hasPreviewHtml });
+      console.error('Response content:', responseText);
+      throw new Error('Invalid response structure from Claude API - missing required fields');
+    }
+
+    const parsedResponse = parseClaudeJsonResponse(responseText);
     
+    console.log('Successfully parsed Claude response:', {
+      swiftCodeLength: parsedResponse.swiftCode.length,
+      previewHtmlLength: parsedResponse.previewHtml.length
+    });
+    
+    return parsedResponse;
   } catch (error) {
-    console.error("❌ Error calling Claude API:", error);
+    console.error('Error calling Claude API:', error);
     
+    // Provide more specific error messages
     if (error instanceof Error) {
-      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-        throw new Error("Invalid API key. Please check your Claude API key.");
-      } else if (error.message.includes('429') || error.message.includes('Rate limit')) {
-        throw new Error("Rate limit exceeded. Please try again in a moment.");
-      } else if (error.message.includes('500') || error.message.includes('Internal server error')) {
-        throw new Error("Claude API server error. Please try again.");
-      } else if (error.message.includes('timeout')) {
-        throw new Error("Request timed out. Please try again.");
+      if (error.message.includes('401')) {
+        throw new Error('Invalid Claude API key. Please check your API key in the settings.');
+      } else if (error.message.includes('429')) {
+        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+      } else if (error.message.includes('500')) {
+        throw new Error('Claude API server error. Please try again in a moment.');
       }
     }
     
-    throw new Error(`Claude API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw error;
   }
 };
 

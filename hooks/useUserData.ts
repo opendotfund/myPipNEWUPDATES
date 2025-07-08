@@ -24,9 +24,12 @@ export function useUserData() {
         setLoading(true)
         setError(null)
 
-        // Get the JWT token from Clerk
-        const token = await getToken({ template: 'supabase' })
+        // Get the JWT token from Clerk (uses default claims)
+        const token = await getToken()
         console.log('Got JWT token from Clerk:', !!token)
+        if (!token) {
+          console.warn('No JWT token received from Clerk')
+        }
 
         // Sync user to database
         const syncedUser = await userService.upsertUser({
@@ -37,6 +40,25 @@ export function useUserData() {
           avatar_url: user.imageUrl || undefined,
           bio: user.publicMetadata?.bio as string || undefined
         }, token || undefined)
+
+        if (!syncedUser && !token) {
+          console.warn('User sync failed - trying without token as fallback')
+          // Try again without token as fallback
+          const fallbackUser = await userService.upsertUser({
+            clerk_id: user.id,
+            email: user.primaryEmailAddress?.emailAddress || '',
+            full_name: user.fullName || undefined,
+            username: user.username || undefined,
+            avatar_url: user.imageUrl || undefined,
+            bio: user.publicMetadata?.bio as string || undefined
+          })
+          
+          if (fallbackUser) {
+            console.log('User synced successfully with fallback method:', fallbackUser)
+            setUserData(fallbackUser)
+            return
+          }
+        }
 
         if (syncedUser) {
           console.log('User synced successfully:', syncedUser)

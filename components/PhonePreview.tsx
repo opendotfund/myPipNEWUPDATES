@@ -93,6 +93,8 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
 
   useEffect(() => {
     console.log('PhonePreview: HTML content updated, length:', htmlContent.length);
+    console.log('PhonePreview: HTML content preview:', htmlContent.substring(0, 200) + '...');
+    
     const container = previewContainerRef.current;
     if (!container) return;
 
@@ -289,13 +291,16 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
         ) : (
           <div 
             ref={previewContainerRef}
-            className={`w-full h-full ${isRotated ? 'overflow-x-auto' : 'overflow-y-auto'} bg-white text-neutral-800 relative`}
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
+            className={`w-full h-full overflow-y-auto overflow-x-hidden bg-white text-neutral-800 relative`}
+            dangerouslySetInnerHTML={{ __html: htmlContent || '<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"><h3 class="text-lg font-semibold text-gray-800 mb-2">App Preview</h3><p class="text-sm text-gray-600">Your app preview will appear here</p></div></div>' }}
             aria-live="polite"
             style={{ 
               pointerEvents: 'auto',
               touchAction: 'manipulation',
-              WebkitOverflowScrolling: 'touch'
+              WebkitOverflowScrolling: 'touch',
+              transform: 'scale(1)',
+              transformOrigin: 'top left',
+              minHeight: '100%'
             }}
           />
         )}

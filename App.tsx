@@ -22,9 +22,7 @@ import { convertSwiftToFlutter, convertSwiftToReact, convertFlutterToSwift, conv
 import { GitHubModal } from './components/GitHubModal';
 import { waitlistService } from './services/databaseService';
 import { WaitlistAdmin } from './components/WaitlistAdmin';
-import ReferralDashboard from './components/ReferralDashboard';
-import { referralService } from './services/referralService';
-import { lemonSqueezyService } from './services/lemonSqueezyService';
+import { ProjectPreview } from './components/ProjectPreview';
 
 type AppView = 'main' | 'community' | 'myPips' | 'affiliate';
 
@@ -49,11 +47,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<AppView>('main');
-  // Replace static build counter with dynamic subscription-based system
-  const [buildsUsed, setBuildsUsed] = useState<number>(0);
-  const [buildsLimit, setBuildsLimit] = useState<number>(MAX_FREE_PROMPTS);
-  const [subscriptionTier, setSubscriptionTier] = useState<string>('basic');
-  const [isLoadingBuilds, setIsLoadingBuilds] = useState<boolean>(true);
+  const [freePromptsRemaining, setFreePromptsRemaining] = useState<number>(MAX_FREE_PROMPTS);
   const [chatHistory, setChatHistory] = useState<{ type: 'user' | 'ai' | 'interaction'; content: string }[]>([]);
   
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState<boolean>(false);
@@ -96,98 +90,31 @@ const App: React.FC = () => {
   // Profile editing states
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
   const [appName, setAppName] = useState<string>('myPip');
-  const [appLogo, setAppLogo] = useState<string>('/plus-orb.png');
+  const [appLogo, setAppLogo] = useState<string>('https://i.postimg.cc/QCGLyzyj/temp-Imagec-Se0jt.avif');
   const [tempAppName, setTempAppName] = useState<string>('myPip');
-  const [tempAppLogo, setTempAppLogo] = useState<string>('/plus-orb.png');
+  const [tempAppLogo, setTempAppLogo] = useState<string>('https://i.postimg.cc/QCGLyzyj/temp-Imagec-Se0jt.avif');
 
   const chatHistoryRef = useRef<HTMLDivElement>(null);
 
-  // Update canSubmit logic to use subscription-based limits
-  const canSubmit = isEarlyBirdKeyApplied || buildsUsed < buildsLimit;
+  const canSubmit = isEarlyBirdKeyApplied || freePromptsRemaining > 0; // Updated
 
   const { user } = useUser();
   
-  // Initialize referral tracking when component mounts
-  useEffect(() => {
-    if (user) {
-      referralService.initializeReferralTracking();
-    }
-  }, [user]);
-
-  // Track affiliate visits on page load (for non-logged in users too)
-  useEffect(() => {
-    const affiliateId = referralService.getCurrentAffiliateId();
-    if (affiliateId) {
-      referralService.trackReferralVisit(affiliateId);
-    }
-  }, []);
-  
   // Database hooks with error handling
-  const { userData: dbUser, loading: userLoading, error: userError } = useUserData();
+  const { userData, loading: userDataLoading, error: userDataError } = useUserData(); // Enable user sync
   const { projects, createProject, updateProject, deleteProject, refreshProjects, remixProject } = useProjects();
-
-  // Load user's build usage and subscription data
-  useEffect(() => {
-    const loadUserBuildData = async () => {
-      if (!user) {
-        setBuildsUsed(0);
-        setBuildsLimit(MAX_FREE_PROMPTS);
-        setSubscriptionTier('basic');
-        setIsLoadingBuilds(false);
-        return;
-      }
-
-      try {
-        setIsLoadingBuilds(true);
-        
-        // Get user subscription and usage data
-        const [subscription, usage] = await Promise.all([
-          lemonSqueezyService.getUserSubscription(user.id),
-          lemonSqueezyService.getUserUsage(user.id)
-        ]);
-
-        if (subscription) {
-          setSubscriptionTier(subscription.subscription_tiers.tier_name.toLowerCase());
-          setBuildsLimit(subscription.subscription_tiers.builds_per_month);
-        } else {
-          setSubscriptionTier('basic');
-          setBuildsLimit(MAX_FREE_PROMPTS);
-        }
-
-        if (usage) {
-          setBuildsUsed(usage.builds_used);
-        } else {
-          setBuildsUsed(0);
-        }
-      } catch (error) {
-        console.error('Error loading user build data:', error);
-        // Fallback to basic tier
-        setSubscriptionTier('basic');
-        setBuildsLimit(MAX_FREE_PROMPTS);
-        setBuildsUsed(0);
-      } finally {
-        setIsLoadingBuilds(false);
-      }
-    };
-
-    loadUserBuildData();
-  }, [user]);
-
-  // Function to increment build usage in database
-  const incrementBuildUsage = async () => {
-    if (!user || isEarlyBirdKeyApplied) return;
-
-    try {
-      await lemonSqueezyService.incrementUsage(user.id, 'build');
-      setBuildsUsed(prev => prev + 1);
-    } catch (error) {
-      console.error('Error incrementing build usage:', error);
-      // Still increment locally even if database update fails
-      setBuildsUsed(prev => prev + 1);
-    }
-  };
   const { projects: publicProjects, loadPublicProjects, likeProject, recordView } = usePublicProjects();
   const { savedProjects, saveProject, unsaveProject, isProjectSaved } = useSavedProjects();
+
+  // Log user sync status for debugging
+  useEffect(() => {
+    if (userDataError) {
+      console.error('User data sync error:', userDataError);
+    }
+    if (userData) {
+      console.log('User data synced successfully:', userData.clerk_id);
+    }
+  }, [userData, userDataError]);
 
   // Fallback data in case database is not set up
   const fallbackProjects = projects || [];
@@ -199,12 +126,11 @@ const App: React.FC = () => {
 
   // Add new state for share modal, remix permission, and layout
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [isFreeTierUploadModalOpen, setIsFreeTierUploadModalOpen] = useState(false);
   const [allowRemix, setAllowRemix] = useState(true);
   const [isHorizontal, setIsHorizontal] = useState(false);
 
   // Add new state for My Pips page
-  const [myPipsTab, setMyPipsTab] = useState<'recent' | 'public' | 'saved'>('recent');
+  const [myPipsTab, setMyPipsTab] = useState<'recent' | 'public' | 'remixed'>('recent');
   const [selectedPips, setSelectedPips] = useState<Set<string>>(new Set());
   const [editingPipId, setEditingPipId] = useState<string | null>(null);
   const [editingPipName, setEditingPipName] = useState<string>('');
@@ -273,9 +199,8 @@ const App: React.FC = () => {
   });
   const [hasSeenReferralPopup, setHasSeenReferralPopup] = useState(false);
 
-  // Admin state
+  // Waitlist admin state
   const [isWaitlistAdminOpen, setIsWaitlistAdminOpen] = useState(false);
-  const [isReferralDashboardOpen, setIsReferralDashboardOpen] = useState(false);
 
   // Claude password protection state
   const [showClaudePasswordPopup, setShowClaudePasswordPopup] = useState<boolean>(false);
@@ -682,7 +607,7 @@ const App: React.FC = () => {
     ];
     setProgressSteps(steps);
     setCurrentStep(0);
-
+    
     setIsLoading(true);
     setError(null);
     setGeneratedCode('// Generating Swift code...');
@@ -724,7 +649,7 @@ const App: React.FC = () => {
         setTimeout(() => updateProgressStep(4, 'active', 0), 7200);
         setTimeout(() => updateProgressStep(4, 'completed'), 8700);
         setTimeout(() => updateProgressStep(5, 'active', 0), 9000);
-        // Keep the last step at 90% until the preview is actually ready
+        // Keep the last step at 90% until generation is actually complete
         setTimeout(() => {
           setProgressSteps(prev => prev.map((step, index) => {
             if (index === 5) {
@@ -769,11 +694,11 @@ const App: React.FC = () => {
           }
         } else {
           // Generate new app
-        if (selectedModel === ModelId.CLAUDE) {
-          result = await generateClaudeCode(processedPrompt);
-        } else {
+          if (selectedModel === ModelId.CLAUDE) {
+            result = await generateClaudeCode(processedPrompt);
+          } else {
             try {
-          result = await generateGeminiCode(processedPrompt);
+              result = await generateGeminiCode(processedPrompt);
             } catch (geminiError) {
               console.log('Gemini generation failed, falling back to Claude:', geminiError);
               setError('Gemini API failed, automatically switching to Claude for better reliability.');
@@ -802,6 +727,12 @@ const App: React.FC = () => {
         }
         
         // Success - set the results
+        console.log('AI generation successful:', {
+          swiftCodeLength: result.swiftCode?.length || 0,
+          previewHtmlLength: result.previewHtml?.length || 0,
+          previewHtmlPreview: result.previewHtml?.substring(0, 200) + '...'
+        });
+        
         setGeneratedCode(result.swiftCode);
         setPreviewHtml(result.previewHtml);
         
@@ -813,7 +744,7 @@ const App: React.FC = () => {
           setThinkingLog('Refined the SwiftUI app based on your request. Updated the design and functionality.');
         } else {
           setAiThoughtProcess('App generated successfully!\nYour SwiftUI app is ready to use!\nInteractive preview available\nCode ready for download\nReady for deployment');
-        setThinkingLog('Generated a SwiftUI app based on your prompt. Used a list and add button for tasks. The design follows modern iOS guidelines.');
+          setThinkingLog('Generated a SwiftUI app based on your prompt. Used a list and add button for tasks. The design follows modern iOS guidelines.');
         }
         
 
@@ -837,12 +768,12 @@ const App: React.FC = () => {
         setCurrentFileId('main-swift');
         
         if (!isEarlyBirdKeyApplied) {
-          await incrementBuildUsage();
+          setFreePromptsRemaining(prev => Math.max(0, prev - 1));
         }
         if (!isFirstGeneration) {
           setChatHistory(prev => [...prev, { type: 'user', content: `Refinement request: ${prompt}` }, { type: 'ai', content: 'App refined successfully.' }]);
         } else {
-        setChatHistory([{ type: 'user', content: `App idea: ${prompt}` }, { type: 'ai', content: 'App generated successfully.' }]);
+          setChatHistory([{ type: 'user', content: `App idea: ${prompt}` }, { type: 'ai', content: 'App generated successfully.' }]);
         }
         setPrompt('');
         setPreviewRefreshKey(prev => prev + 1);
@@ -950,20 +881,20 @@ const App: React.FC = () => {
         
         if (addButtons.length > 0) {
           // If there's an add button, simulate adding to the first list
-        lists.forEach((list, listIndex) => {
+          lists.forEach((list, listIndex) => {
             if (listIndex === 0) {
-            const newItem = document.createElement('li');
+              const newItem = document.createElement('li');
               newItem.className = 'p-3 border-b border-gray-200 flex items-center justify-between bg-white';
-            newItem.innerHTML = `
+              newItem.innerHTML = `
                 <span class="flex-1">New Task ${Date.now().toString().slice(-4)}</span>
                 <input type="checkbox" class="ml-2" data-action-id="toggleItem" data-action-description="Toggle item">
-              <button data-action-id="deleteItem" data-action-description="Delete item" 
+                <button data-action-id="deleteItem" data-action-description="Delete item" 
                         class="ml-2 text-red-500 hover:text-red-700 cursor-pointer">×</button>
-            `;
-            list.appendChild(newItem);
-            hasChanges = true;
-          }
-        });
+              `;
+              list.appendChild(newItem);
+              hasChanges = true;
+            }
+          });
         } else {
           // If no add button, add to the first list directly
           lists.forEach((list, listIndex) => {
@@ -995,8 +926,8 @@ const App: React.FC = () => {
               listItem.style.transform = 'translateX(-100%)';
               
               setTimeout(() => {
-              listItem.remove();
-              hasChanges = true;
+                listItem.remove();
+                hasChanges = true;
               }, 300);
             }
           }
@@ -1048,7 +979,7 @@ const App: React.FC = () => {
               // Simulate submission delay
               setTimeout(() => {
                 // Show success message
-            const successDiv = document.createElement('div');
+                const successDiv = document.createElement('div');
                 successDiv.className = 'mt-4 p-3 bg-green-100 text-green-700 rounded-lg border border-green-200';
                 successDiv.innerHTML = `
                   <div class="flex items-center">
@@ -1058,7 +989,7 @@ const App: React.FC = () => {
                     Form submitted successfully!
                   </div>
                 `;
-            form.appendChild(successDiv);
+                form.appendChild(successDiv);
                 
                 // Reset form
                 (form as HTMLFormElement).reset();
@@ -1067,7 +998,7 @@ const App: React.FC = () => {
                 submitButton.textContent = originalText;
                 submitButton.removeAttribute('disabled');
                 
-            hasChanges = true;
+                hasChanges = true;
               }, 1500);
             }
           }
@@ -1202,7 +1133,7 @@ const App: React.FC = () => {
               } else {
                 // Regular button - show pressed state briefly
                 button.style.transform = 'scale(0.95)';
-              setTimeout(() => {
+                setTimeout(() => {
                   button.style.transform = 'scale(1)';
                 }, 150);
               }
@@ -1238,373 +1169,20 @@ const App: React.FC = () => {
     }
   }, [previewHtml]);
   
-  const downloadProjectZip = async () => {
+  const downloadSwiftCode = () => {
     if (!generatedCode || generatedCode.startsWith('//') || generatedCode.startsWith('Error:')) {
       setError("No valid code to download.");
       return;
     }
-
-    try {
-      // Import JSZip dynamically to avoid SSR issues
-      const JSZip = (await import('jszip')).default;
-      const zip = new JSZip();
-
-      // Create project folder structure
-      const zipProjectName = projectName || 'MyPipApp';
-      const projectFolder = zip.folder(zipProjectName);
-      
-      if (!projectFolder) {
-        throw new Error('Failed to create project folder');
-      }
-
-      // Add main Swift files
-      projectFolder.file('ContentView.swift', generatedCode);
-      projectFolder.file('App.swift', `import SwiftUI
-
-@main
-struct ${zipProjectName}App: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
-}`);
-
-      // Add Info.plist
-      projectFolder.file('Info.plist', `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>$(DEVELOPMENT_LANGUAGE)</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
-    <key>UIApplicationSceneManifest</key>
-    <dict>
-        <key>UIApplicationSupportsMultipleScenes</key>
-        <false/>
-    </dict>
-    <key>UILaunchScreen</key>
-    <dict/>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-        <string>armv7</string>
-    </array>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
-    <key>UISupportedInterfaceOrientations~ipad</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationPortraitUpsideDown</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
-</dict>
-</plist>`);
-
-      // Add Assets.xcassets folder structure
-      const assetsFolder = projectFolder.folder('Assets.xcassets');
-      const appIconFolder = assetsFolder.folder('AppIcon.appiconset');
-      
-      if (!assetsFolder || !appIconFolder) {
-        throw new Error('Failed to create assets folders');
-      }
-      
-      // Add Contents.json for Assets.xcassets
-      assetsFolder.file('Contents.json', `{
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
-  }
-}`);
-
-      // Add Contents.json for AppIcon.appiconset
-      appIconFolder.file('Contents.json', `{
-  "images" : [
-    {
-      "idiom" : "iphone",
-      "scale" : "2x",
-      "size" : "20x20"
-    },
-    {
-      "idiom" : "iphone",
-      "scale" : "3x",
-      "size" : "20x20"
-    },
-    {
-      "idiom" : "iphone",
-      "scale" : "2x",
-      "size" : "29x29"
-    },
-    {
-      "idiom" : "iphone",
-      "scale" : "3x",
-      "size" : "29x29"
-    },
-    {
-      "idiom" : "iphone",
-      "scale" : "2x",
-      "size" : "40x40"
-    },
-    {
-      "idiom" : "iphone",
-      "scale" : "3x",
-      "size" : "40x40"
-    },
-    {
-      "idiom" : "iphone",
-      "scale" : "2x",
-      "size" : "60x60"
-    },
-    {
-      "idiom" : "iphone",
-      "scale" : "3x",
-      "size" : "60x60"
-    },
-    {
-      "idiom" : "ipad",
-      "scale" : "1x",
-      "size" : "20x20"
-    },
-    {
-      "idiom" : "ipad",
-      "scale" : "2x",
-      "size" : "20x20"
-    },
-    {
-      "idiom" : "ipad",
-      "scale" : "1x",
-      "size" : "29x29"
-    },
-    {
-      "idiom" : "ipad",
-      "scale" : "2x",
-      "size" : "29x29"
-    },
-    {
-      "idiom" : "ipad",
-      "scale" : "1x",
-      "size" : "40x40"
-    },
-    {
-      "idiom" : "ipad",
-      "scale" : "2x",
-      "size" : "40x40"
-    },
-    {
-      "idiom" : "ipad",
-      "scale" : "2x",
-      "size" : "60x60"
-    },
-    {
-      "idiom" : "ipad",
-      "scale" : "2x",
-      "size" : "76x76"
-    },
-    {
-      "idiom" : "ipad",
-      "scale" : "2x",
-      "size" : "83.5x83.5"
-    },
-    {
-      "idiom" : "ios-marketing",
-      "scale" : "1x",
-      "size" : "1024x1024"
-    }
-  ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
-  }
-}`);
-
-      // Add HTML preview
-      projectFolder.file('preview.html', previewHtml);
-
-      // Add README file
-      projectFolder.file('README.md', `# ${zipProjectName}
-
-This iOS app was generated using myPip AI App Builder.
-
-## Features
-- Built with SwiftUI
-- Modern iOS design patterns
-- Ready for App Store deployment
-
-## Getting Started
-1. Open the project in Xcode
-2. Build and run on your device or simulator
-3. Customize the app as needed
-
-## Requirements
-- iOS 14.0+
-- Xcode 12.0+
-- Swift 5.3+
-
-Generated by myPip - From Idea to App. Instantly.`);
-
-      // Add app-specific model files based on app type
-      // For now, we'll include all model types for completeness
-      const modelsFolder = projectFolder.folder('Models');
-      if (modelsFolder) {
-        modelsFolder.file('MusicModel.swift', `import Foundation
-
-struct MusicTrack: Identifiable, Codable {
-    let id = UUID()
-    let title: String
-    let artist: String
-    let album: String
-    let duration: TimeInterval
-    let artworkURL: String?
-}
-
-class MusicModel: ObservableObject {
-    @Published var tracks: [MusicTrack] = []
-    @Published var currentTrack: MusicTrack?
-    @Published var isPlaying: Bool = false
-    
-    func loadTracks() {
-        // Load your music tracks here
-    }
-    
-    func playTrack(_ track: MusicTrack) {
-        currentTrack = track
-        isPlaying = true
-    }
-    
-    func pause() {
-        isPlaying = false
-    }
-    
-    func resume() {
-        isPlaying = true
-    }
-}`);
-
-        modelsFolder.file('TaskModel.swift', `import Foundation
-
-struct Task: Identifiable, Codable {
-    let id = UUID()
-    var title: String
-    var isCompleted: Bool
-    var priority: Priority
-    var dueDate: Date?
-    
-    enum Priority: String, CaseIterable, Codable {
-        case low = "Low"
-        case medium = "Medium"
-        case high = "High"
-    }
-}
-
-class TaskModel: ObservableObject {
-    @Published var tasks: [Task] = []
-    
-    func addTask(_ task: Task) {
-        tasks.append(task)
-    }
-    
-    func removeTask(_ task: Task) {
-        tasks.removeAll { $0.id == task.id }
-    }
-    
-    func toggleTask(_ task: Task) {
-        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-            tasks[index].isCompleted.toggle()
-        }
-    }
-}`);
-
-        modelsFolder.file('SocialModel.swift', `import Foundation
-
-struct Post: Identifiable, Codable {
-    let id = UUID()
-    let author: String
-    let content: String
-    let timestamp: Date
-    var likes: Int
-    var comments: [Comment]
-}
-
-struct Comment: Identifiable, Codable {
-    let id = UUID()
-    let author: String
-    let content: String
-    let timestamp: Date
-}
-
-class SocialModel: ObservableObject {
-    @Published var posts: [Post] = []
-    @Published var currentUser: String = "User"
-    
-    func addPost(_ content: String) {
-        let post = Post(
-            author: currentUser,
-            content: content,
-            timestamp: Date(),
-            likes: 0,
-            comments: []
-        )
-        posts.insert(post, at: 0)
-    }
-    
-    func likePost(_ post: Post) {
-        if let index = posts.firstIndex(where: { $0.id == post.id }) {
-            posts[index].likes += 1
-        }
-    }
-    
-    func addComment(to post: Post, content: String) {
-        if let index = posts.firstIndex(where: { $0.id == post.id }) {
-            let comment = Comment(
-                author: currentUser,
-                content: content,
-                timestamp: Date()
-            )
-            posts[index].comments.append(comment)
-        }
-    }
-}`);
-      }
-
-      // Generate the zip file
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(zipBlob);
+    const blob = new Blob([generatedCode], { type: 'text/swift' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-      a.download = `${zipProjectName.replace(/[^a-zA-Z0-9]/g, '-')}.zip`;
+    a.download = 'MyPipApp.swift';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-      setError(`Downloaded complete project as ${zipProjectName.replace(/[^a-zA-Z0-9]/g, '-')}.zip`);
-    } catch (error) {
-      console.error('Error creating zip file:', error);
-      setError('Failed to create zip file. Please try again.');
-    }
-  };
-
-  const downloadSwiftCode = () => {
-    downloadProjectZip();
   };
 
   const getChatItemBackgroundClass = (type: 'user' | 'ai' | 'interaction') => {
@@ -1628,6 +1206,8 @@ class SocialModel: ObservableObject {
     // Toggle phone rotation instead of just refreshing
     setIsPhoneRotated(prev => !prev);
   };
+
+
 
   // Save handler with database integration
   const handleSave = async () => {
@@ -1655,16 +1235,6 @@ class SocialModel: ObservableObject {
 
     if (!generatedCode || generatedCode === '// Code will appear here once generated...') {
       setError('No code to share. Please generate an app first.');
-      return;
-    }
-
-    // Check if user is on free tier (no subscription or basic tier)
-    const userSubscription = user?.publicMetadata?.subscription as any;
-    const isFreeTier = !userSubscription || userSubscription.tier === 'basic' || userSubscription.tier === 'free';
-    
-    if (isFreeTier) {
-      setIsShareModalOpen(false);
-      setIsFreeTierUploadModalOpen(true);
       return;
     }
 
@@ -1728,6 +1298,12 @@ class SocialModel: ObservableObject {
     }
     
     const pipsToDelete = Array.from(selectedPips);
+    
+    // Add confirmation dialog
+    if (!confirm(`Are you sure you want to delete ${pipsToDelete.length} project(s)? This action cannot be undone.`)) {
+      return;
+    }
+    
     try {
       for (const projectId of pipsToDelete) {
         await deleteProject(projectId);
@@ -1836,6 +1412,8 @@ class SocialModel: ObservableObject {
       if (success) {
         setError('Project liked!');
         setTimeout(() => setError(null), 2000);
+        // Refresh public projects to update like counts
+        await loadPublicProjects();
       }
     } catch (error) {
       console.error('Error liking project:', error);
@@ -1863,6 +1441,135 @@ class SocialModel: ObservableObject {
       console.error('Error remixing project:', error);
       setError('Database not set up yet. This feature will work once you set up the database.');
       setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // New function to remix and immediately open project
+  const handleRemixAndOpenProject = async (projectId: string) => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+    
+    try {
+      // First remix the project
+      const remixedProject = await remixProject(projectId);
+      if (remixedProject) {
+        // Refresh public projects to update remix counts
+        await loadPublicProjects();
+        // Immediately open the remixed project for editing
+        await handleOpenProject(remixedProject.id);
+        setError('Project remixed and opened for editing!');
+        setTimeout(() => setError(null), 3000);
+      } else {
+        setError('Failed to remix project');
+        setTimeout(() => setError(null), 2000);
+      }
+    } catch (error) {
+      console.error('Error remixing and opening project:', error);
+      setError('Failed to remix and open project');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // Function to open a project in the editor
+  const handleOpenProject = async (projectId: string) => {
+    try {
+      // Get the project data from all available sources
+      const allProjects = [...fallbackProjects, ...fallbackSavedProjects, ...fallbackPublicProjects];
+      const project = allProjects.find(p => p.id === projectId);
+      
+      if (!project) {
+        setError('Project not found');
+        setTimeout(() => setError(null), 2000);
+        return;
+      }
+
+      // Load the project into the editor with all necessary state
+      console.log('Loading project data:', {
+        id: project.id,
+        name: project.name,
+        generated_code_length: project.generated_code?.length || 0,
+        preview_html_length: project.preview_html?.length || 0,
+        prompt: project.prompt
+      });
+      
+      setGeneratedCode(project.generated_code || '// Code will appear here once generated...');
+      setPreviewHtml(project.preview_html || '<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"></div></div>');
+      setPrompt(project.prompt || '');
+      setProjectName(project.name || '');
+      
+      // Set the project as generated so the UI shows the correct state
+      setHasGenerated(true);
+      setHasConfirmedFirstPrompt(true);
+      
+      // Reset chat history and thinking state for a clean start
+      setChatHistory([]);
+      setAiThoughtProcess('');
+      setThinkingLog('');
+      
+      // Force refresh the preview and code display
+      setPreviewRefreshKey(prev => prev + 1);
+      
+      // Generate app files from the loaded code
+      const generatedFiles = generateAppFiles(
+        project.generated_code || '// Code will appear here once generated...',
+        project.preview_html || '<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"></div></div>',
+        'general'
+      );
+      setAppFiles(generatedFiles);
+      setCurrentFileId('main-swift');
+      
+      // Force update the code display by triggering a re-render
+      setTimeout(() => {
+        setPreviewRefreshKey(prev => prev + 1);
+        console.log('Code loaded and display refreshed:', {
+          generatedCode: project.generated_code?.substring(0, 100) + '...',
+          currentFileId: 'main-swift',
+          appFilesLength: generatedFiles.length
+        });
+      }, 200);
+      
+      // Switch to main view (app builder)
+      setCurrentView('main');
+      
+      // Show success message
+      setError('Project loaded successfully! You can now edit and refine your app.');
+      setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error('Error opening project:', error);
+      setError('Failed to open project');
+      setTimeout(() => setError(null), 2000);
+    }
+  };
+
+  // Function to toggle project publish status
+  const handleTogglePublish = async (projectId: string) => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+
+    try {
+      const project = fallbackProjects.find(p => p.id === projectId);
+      if (!project) {
+        setError('Project not found');
+        setTimeout(() => setError(null), 2000);
+        return;
+      }
+
+      const success = await updateProject(projectId, { is_public: !project.is_public });
+      if (success) {
+        setError(project.is_public ? 'Project unpublished!' : 'Project published!');
+        setTimeout(() => setError(null), 2000);
+        // Refresh projects
+        await refreshProjects();
+      }
+    } catch (error) {
+      console.error('Error toggling publish status:', error);
+      setError('Failed to update project status');
+      setTimeout(() => setError(null), 2000);
     }
   };
 
@@ -1991,7 +1698,7 @@ class SocialModel: ObservableObject {
       setTimeout(() => setError(null), 2000);
       
       if (!isEarlyBirdKeyApplied) {
-        await incrementBuildUsage();
+        setFreePromptsRemaining(prev => Math.max(0, prev - 1));
       }
       
     } catch (error) {
@@ -2018,7 +1725,7 @@ class SocialModel: ObservableObject {
       setTimeout(() => setError(null), 2000);
       
       if (!isEarlyBirdKeyApplied) {
-        await incrementBuildUsage();
+        setFreePromptsRemaining(prev => Math.max(0, prev - 1));
       }
       
     } catch (error) {
@@ -2085,7 +1792,7 @@ class SocialModel: ObservableObject {
       setTimeout(() => setError(null), 2000);
       
       if (!isEarlyBirdKeyApplied) {
-        await incrementBuildUsage();
+        setFreePromptsRemaining(prev => Math.max(0, prev - 1));
       }
       
     } catch (error) {
@@ -3166,9 +2873,9 @@ class SocialFeed: ObservableObject {
                 </svg>
               </button>
               <img 
-                src={isDarkMode ? '/robot-dark-logo.png' : appLogo} 
+                src="/plus-orb.png" 
                 alt={`${appName} Logo`} 
-                className="hidden md:block h-14 w-auto rounded-lg cursor-pointer md:cursor-default transition-all hover:scale-105"
+                className="hidden md:block h-14 w-14 rounded-lg cursor-pointer md:cursor-default transition-all hover:scale-105 object-contain"
                 onClick={() => setIsSidebarOpen(true)}
               />
             </div>
@@ -3179,11 +2886,7 @@ class SocialFeed: ObservableObject {
                 </div>
               ) : (
                 <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white">
-                  {isLoadingBuilds ? (
-                    'Loading...'
-                  ) : (
-                    `Builds: ${buildsUsed}/${buildsLimit}`
-                  )}
+                  Builds: {freePromptsRemaining}/{MAX_FREE_PROMPTS}
                 </div>
               )}
               <button
@@ -3218,11 +2921,10 @@ class SocialFeed: ObservableObject {
                   <span className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500 text-white">
                     {user?.fullName || user?.username || user?.primaryEmailAddress?.emailAddress}
                   </span>
-                  {/* Admin buttons - only show for specific admin emails */}
+                  {/* Admin button - only show for specific admin emails */}
                   {(user?.primaryEmailAddress?.emailAddress === 'm3stastn@uwaterloo.ca' || 
                     user?.primaryEmailAddress?.emailAddress === 'admin@mypip.com' || 
                     user?.primaryEmailAddress?.emailAddress === 'your-admin-email@example.com') && (
-                    <div className="flex space-x-2">
                     <button
                       onClick={() => setIsWaitlistAdminOpen(true)}
                       className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 text-white"
@@ -3231,10 +2933,8 @@ class SocialFeed: ObservableObject {
                       <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                        Waitlist
+                      Admin
                     </button>
-
-                    </div>
                   )}
                 </div>
               </SignedIn>
@@ -3362,7 +3062,7 @@ class SocialFeed: ObservableObject {
           </div>
         )}
 
-        <main className={`flex-grow ${currentView === 'main' && hasConfirmedFirstPrompt ? 'w-full h-full' : 'container mx-auto p-4'} ${currentView === 'main' && hasConfirmedFirstPrompt ? 'flex flex-col' : isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
+        <main className={`flex-grow ${currentView === 'main' && hasConfirmedFirstPrompt ? 'w-full h-full p-4' : 'container mx-auto p-4'} ${currentView === 'main' && hasConfirmedFirstPrompt ? 'flex flex-col' : isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
           {currentView === 'main' ? (
             <>
               {!hasConfirmedFirstPrompt ? (
@@ -3371,19 +3071,29 @@ class SocialFeed: ObservableObject {
                   {/* Landing Page Title and Subtitle */}
                   <div className="text-center space-y-4 max-w-4xl">
                     <h1 className="text-4xl md:text-6xl font-bold">
-                      <span className="text-black">
-                        From Idea to App.
-                      </span>
-                      <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent">
-                        {" "}Instantly.
-                      </span>
+                      {isDarkMode ? (
+                        <span className="bg-gradient-to-r from-pink-400 to-blue-400 bg-clip-text text-transparent">
+                          From Idea to App. Instantly.
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-black">From Idea to App.</span>
+                          <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent"> Instantly.</span>
+                        </>
+                      )}
                     </h1>
-                    <p className="text-xl md:text-2xl text-black font-medium max-w-3xl mx-auto leading-relaxed">
-                      myPip builds full-stack mobile apps for iOS & Android from a single prompt.{" "}
-                      <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent font-semibold">
-                        No code. No limits.
-                      </span>
-                    </p>
+                    {isDarkMode ? (
+                      <p className="text-xl md:text-2xl font-medium max-w-3xl mx-auto leading-relaxed bg-gradient-to-r from-pink-400 to-blue-400 bg-clip-text text-transparent">
+                        myPip builds full-stack mobile apps for iOS & Android from a single prompt. No code. No limits.
+                      </p>
+                    ) : (
+                      <p className="text-xl md:text-2xl text-black font-medium max-w-3xl mx-auto leading-relaxed">
+                        myPip builds full-stack mobile apps for iOS & Android from a single prompt.{" "}
+                        <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent font-semibold">
+                          No code. No limits.
+                        </span>
+                      </p>
+                    )}
                     </div>
                   
                   {/* Main Content Area - Two Column Layout */}
@@ -3401,22 +3111,22 @@ class SocialFeed: ObservableObject {
                             </div>
                           </div>
                         ) : (
-                        <div className="glass-card p-4 w-full transition-opacity duration-500 ease-in-out">
-                      <PromptInput
-                        prompt={prompt}
-                        setPrompt={setPrompt}
-                        onSubmit={handleSubmit}
-                        isLoading={isLoading}
-                        selectedModel={selectedModel}
-                        onModelChange={(modelId) => handleModelChange(modelId as ModelId)}
-                        isDisabled={!canSubmit || isLoading}
-                        actionText="Generate App"
-                        aiThoughtProcess={aiThoughtProcess}
-                        thinkingLog={thinkingLog}
-                        isDarkMode={isDarkMode}
-                        hasGenerated={hasGenerated}
-                      />
-                    </div>
+                          <div className="glass-card p-4 w-full transition-opacity duration-500 ease-in-out">
+                            <PromptInput
+                              prompt={prompt}
+                              setPrompt={setPrompt}
+                              onSubmit={handleSubmit}
+                              isLoading={isLoading}
+                              selectedModel={selectedModel}
+                              onModelChange={(modelId) => handleModelChange(modelId as ModelId)}
+                              isDisabled={!canSubmit || isLoading}
+                              actionText="Generate App"
+                              aiThoughtProcess={aiThoughtProcess}
+                              thinkingLog={thinkingLog}
+                              isDarkMode={isDarkMode}
+                              hasGenerated={hasGenerated}
+                            />
+                          </div>
                         )}
                     {error && (
                           <div className={`mt-3 glass-card p-3 text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
@@ -3438,7 +3148,7 @@ class SocialFeed: ObservableObject {
                           <h2 className="text-xl font-semibold text-white">
                             App Preview
                           </h2>
-                              </div>
+                        </div>
                         
                         {/* Phone Preview - Hyper Realistic */}
                         <div className="flex justify-center mb-6">
@@ -3453,16 +3163,130 @@ class SocialFeed: ObservableObject {
                             isGenerating={isLoading && !hasGenerated}
                             onPreviewReady={handlePreviewReady}
                           />
-                          </div>
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Recent Projects Section */}
+                  {user && (fallbackProjects.length > 0 || fallbackSavedProjects.length > 0) && (
+                    <div className="col-span-1 md:col-span-2 mt-12">
+                      <div className="text-center mb-8">
+                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                          Your Recent Projects
+                        </h2>
+                        <p className="text-white/80 text-lg">
+                          Continue working on your apps or start something new
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* Show recent projects (limit to 6) */}
+                        {[...fallbackProjects, ...fallbackSavedProjects]
+                          .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                          .slice(0, 6)
+                          .map(project => (
+                            <ProjectPreview
+                              key={project.id}
+                              project={project}
+                              onOpen={handleOpenProject}
+                              showPublishButton={false}
+                              showRemoveButton={false}
+                              className="h-full"
+                            />
+                          ))}
+                      </div>
+                      
+                      {/* View All Projects Button */}
+                      <div className="text-center mt-8">
+                        <button
+                          onClick={() => setCurrentView('myPips')}
+                          className="glass-button px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300"
+                        >
+                          View All Projects
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Community Showcase Section */}
+                  {fallbackPublicProjects.length > 0 && (
+                    <div className="col-span-1 md:col-span-2 mt-12">
+                      <div className="text-center mb-8">
+                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                          Community Showcase
+                        </h2>
+                        <p className="text-white/80 text-lg">
+                          Discover amazing apps built by the myPip community
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* Show featured public projects (limit to 6) */}
+                        {fallbackPublicProjects
+                          .sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))
+                          .slice(0, 6)
+                          .map(project => (
+                            <div key={project.id} className="relative">
+                              <ProjectPreview
+                                project={project}
+                                onOpen={handleOpenProject}
+                                showPublishButton={false}
+                                showRemoveButton={false}
+                                className="h-full"
+                              />
+                              
+                              {/* Community action buttons */}
+                              <div className="flex gap-2 mt-4 px-4 md:px-6">
+                                <SignedIn>
+                                  <button
+                                    onClick={async () => {
+                                      await handleLikeProject(project.id);
+                                    }}
+                                    className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
+                                  >
+                                    ❤️ Like ({project.likes_count || 0})
+                                  </button>
+                                  {project.allow_remix && (
+                                    <button
+                                      onClick={async () => {
+                                        await handleRemixAndOpenProject(project.id);
+                                      }}
+                                      className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
+                                    >
+                                      🔄 Remix ({project.remix_count || 0})
+                                    </button>
+                                  )}
+                                </SignedIn>
+                                <SignedOut>
+                                  <SignInButton mode="modal">
+                                    <button className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
+                                      Sign in to interact
+                                    </button>
+                                  </SignInButton>
+                                </SignedOut>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          ))}
+                      </div>
+                      
+                      {/* View Community Button */}
+                      <div className="text-center mt-8">
+                        <button
+                          onClick={() => setCurrentView('community')}
+                          className="glass-button px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300"
+                        >
+                          Explore Community
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 // Refine App Layout - Clean Two Column Design
-                <div className="w-full h-full flex flex-col lg:flex-row gap-6">
+                <div className="w-full h-full flex flex-col lg:flex-row gap-8">
                   {/* Mobile: Phone Preview on Top, Desktop: Left Column - Controls */}
-                  <div className={`w-full lg:w-80 lg:flex-shrink-0 flex flex-col rounded-xl border order-2 lg:order-1 ${
+                  <div className={`w-full lg:w-96 xl:w-[420px] lg:flex-shrink-0 flex flex-col rounded-xl border order-2 lg:order-1 ${
                     isDarkMode 
                       ? 'bg-gray-900 border-gray-700' 
                       : 'bg-white border-gray-200'
@@ -3501,8 +3325,8 @@ class SocialFeed: ObservableObject {
                                   ) : (
                                     <span className="text-xs font-medium">{step.id}</span>
                                   )}
-                            </div>
-                        
+                                </div>
+                                
                                 {/* Step Title */}
                                 <div className="flex-1">
                                   <h3 className={`text-sm font-medium transition-all duration-300 ${
@@ -3523,7 +3347,7 @@ class SocialFeed: ObservableObject {
                                   }`}>
                                     {step.description}
                                   </p>
-                                      </div>
+                                </div>
                               </div>
                               
                               {/* Progress Bar */}
@@ -3558,8 +3382,8 @@ class SocialFeed: ObservableObject {
                                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg animate-pulse" />
                               )}
                             </div>
-                                ))}
-                              </div>
+                          ))}
+                        </div>
                         
                         {/* Overall Progress */}
                         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -3584,7 +3408,7 @@ class SocialFeed: ObservableObject {
                             />
                           </div>
                         </div>
-                            </div>
+                      </div>
                     )}
                     
                     {/* Chat History */}
@@ -3834,16 +3658,6 @@ class SocialFeed: ObservableObject {
                     {/* Action Buttons */}
                     <div className="flex justify-center gap-2 mt-4 p-4">
                         <button
-                          onClick={downloadSwiftCode}
-                          title="Download Complete Project"
-                          className="glass-button px-3 py-1.5 rounded-md transition-all duration-200 text-xs font-medium bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-                        >
-                          <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          Download
-                        </button>
-                        <button
                           onClick={handleSave}
                           title="Save Pip"
                         className="glass-button px-3 py-1.5 rounded-md transition-all duration-200 text-xs font-medium"
@@ -3991,19 +3805,16 @@ class SocialFeed: ObservableObject {
                          p.description.toLowerCase().includes(communitySearch.toLowerCase()))
                       )
                       .map(project => (
-                        <div key={project.id} className="glass-card p-4 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:mb-2">
-                            <span className="text-base md:text-lg font-semibold text-white flex-1">{project.name}</span>
-                            <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-1 rounded-full self-start sm:self-auto sm:ml-2">{project.category}</span>
-                          </div>
-                          <p className="text-white/80 text-sm mt-2 sm:mt-0">{project.description}</p>
-                          <div className="flex items-center gap-4 mt-3 text-xs text-white/60">
-                            <span>❤️ {project.likes_count} likes</span>
-                            <span>👁️ {project.views_count} views</span>
-                            <span>🔄 {project.remix_count} remixes</span>
-                            <span>📅 {new Date(project.created_at).toLocaleDateString()}</span>
-                          </div>
-                          <div className="flex gap-2 mt-4">
+                        <div key={project.id} className="relative">
+                          <ProjectPreview
+                            project={project}
+                            onOpen={handleOpenProject}
+                            showPublishButton={false}
+                            showRemoveButton={false}
+                          />
+                          
+                          {/* Community-specific action buttons */}
+                          <div className="flex gap-2 mt-4 px-4 md:px-6">
                             <SignedIn>
                               <button
                                 onClick={async () => {
@@ -4011,24 +3822,16 @@ class SocialFeed: ObservableObject {
                                 }}
                                 className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
                               >
-                                ❤️ Like
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  await handleSaveProject(project.id);
-                                }}
-                                className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300"
-                              >
-                                💾 Save
+                                ❤️ Like ({project.likes_count || 0})
                               </button>
                               {project.allow_remix && (
                                 <button
                                   onClick={async () => {
-                                    await handleRemixProject(project.id);
+                                    await handleRemixAndOpenProject(project.id);
                                   }}
                                   className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
                                 >
-                                  🔄 Remix
+                                  🔄 Remix ({project.remix_count || 0})
                                 </button>
                               )}
                             </SignedIn>
@@ -4050,7 +3853,7 @@ class SocialFeed: ObservableObject {
                         <div className="text-white/60 text-center py-8 md:py-12 text-base md:text-lg">
                           No projects found.
                         </div>
-                    )}
+                      )}
                   </div>
                 </div>
               </div>
@@ -4102,14 +3905,14 @@ class SocialFeed: ObservableObject {
                           Public
                         </button>
                         <button
-                          onClick={() => setMyPipsTab('saved')}
+                          onClick={() => setMyPipsTab('remixed')}
                           className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-all duration-300 text-sm md:text-base ${
-                            myPipsTab === 'saved' 
+                            myPipsTab === 'remixed' 
                               ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' 
                               : 'text-white/80 hover:text-white'
                           }`}
                         >
-                          Saved
+                          Remixed
                         </button>
                       </div>
                     </div>
@@ -4120,7 +3923,7 @@ class SocialFeed: ObservableObject {
                         <label className="flex items-center">
                           <input
                             type="checkbox"
-                            checked={selectedPips.size === (myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
+                            checked={selectedPips.size === (myPipsTab === 'remixed' ? fallbackProjects.filter(p => p.original_project_id) : fallbackProjects).filter(project => 
                               myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
                             ).length && selectedPips.size > 0}
                             onChange={handleSelectAll}
@@ -4138,118 +3941,94 @@ class SocialFeed: ObservableObject {
                         )}
                       </div>
                       <div className="text-sm text-white/60 text-center sm:text-left">
-                        {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
-                          myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
-                        ).length} {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'saved'} builds
+                        {(myPipsTab === 'remixed' ? fallbackProjects.filter(p => p.original_project_id) : fallbackProjects).filter(project => 
+                          myPipsTab === 'recent' ? true : myPipsTab === 'public' ? project.is_public : true
+                        ).length} {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'remixed'} builds
                       </div>
                     </div>
                     
                     {/* Pip List */}
                     <div className="space-y-3 md:space-y-4">
-                      {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects)
-                        .filter(project => myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true)
+                      {(myPipsTab === 'remixed' ? fallbackProjects.filter(p => p.original_project_id) : fallbackProjects)
+                        .filter(project => myPipsTab === 'recent' ? true : myPipsTab === 'public' ? project.is_public : true)
                         .map(project => (
-                          <div key={project.id} className="glass-card p-4 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
-                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
-                              <div className="flex items-start gap-3 flex-1">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedPips.has(project.id.toString())}
-                                  onChange={() => handleSelectPip(project.id.toString())}
-                                  className="mt-1"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  {editingPipId === project.id.toString() ? (
-                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                      <input
-                                        type="text"
-                                        value={editingPipName}
-                                        onChange={(e) => setEditingPipName(e.target.value)}
-                                        className="glass-input px-2 py-1 rounded text-white text-sm"
-                                        onKeyPress={(e) => {
-                                          if (e.key === 'Enter') {
-                                            handleRenamePip(project.id.toString(), editingPipName);
-                                          }
-                                        }}
-                                      />
-                                      <div className="flex gap-2">
-                                        <button
-                                          onClick={() => handleRenamePip(project.id.toString(), editingPipName)}
-                                          className="text-green-400 hover:text-green-300 text-sm transition-colors"
-                                        >
-                                          ✓
-                                        </button>
-                                        <button
-                                          onClick={handleCancelRename}
-                                          className="text-red-400 hover:text-red-300 text-sm transition-colors"
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-start gap-2">
-                                      <span className="text-base md:text-lg font-semibold text-white break-words">{project.name}</span>
-                                      {myPipsTab !== 'saved' && (
-                                        <button
-                                          onClick={() => handleStartRename(project.id.toString(), project.name)}
-                                          className="text-white/60 hover:text-white text-sm flex-shrink-0 mt-1 transition-colors"
-                                        >
-                                          ✏️
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
-                                    <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-1 rounded-full self-start">{project.category}</span>
-                                    <span className="text-xs text-white/60">Last modified: {new Date(project.updated_at).toLocaleDateString()}</span>
-                                  </div>
-                                  <p className="text-white/80 text-sm mt-2">{project.description}</p>
-                                  {myPipsTab === 'saved' && (
-                                    <div className="flex items-center gap-4 mt-3 text-xs text-white/60">
-                                      <span>❤️ {project.likes_count} likes</span>
-                                      <span>👁️ {project.views_count} views</span>
-                                      <span>🔄 {project.remix_count} remixes</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex flex-col sm:flex-row gap-2 lg:flex-shrink-0">
-                                <button className="glass-button px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
-                                  Open
-                                </button>
-                                {myPipsTab !== 'saved' && (
-                                  <button className="glass-button px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded text-sm transition-all duration-300">
-                                    {project.is_public ? 'Unpublish' : 'Publish'}
-                                  </button>
-                                )}
-                                {myPipsTab === 'saved' && (
-                                  <button
-                                    onClick={async () => {
-                                      if (!user) {
-                                        setIsLoginPromptOpen(true);
-                                        return;
-                                      }
-                                      const success = await unsaveProject(project.id);
-                                      if (success) {
-                                        setError('Project removed from saved');
-                                        setTimeout(() => setError(null), 2000);
-                                      }
-                                    }}
-                                    className="glass-button px-3 py-1 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
-                                  >
-                                    Remove
-                                  </button>
-                                )}
-                              </div>
+                          <div key={project.id} className="relative">
+                            {/* Checkbox for bulk selection */}
+                            <div className="absolute top-4 left-4 z-10">
+                              <input
+                                type="checkbox"
+                                checked={selectedPips.has(project.id.toString())}
+                                onChange={() => handleSelectPip(project.id.toString())}
+                                className="w-4 h-4"
+                              />
                             </div>
+                            
+                            <ProjectPreview
+                              project={project}
+                              onOpen={handleOpenProject}
+                              onPublish={myPipsTab !== 'remixed' ? handleTogglePublish : undefined}
+                              onUnpublish={myPipsTab !== 'remixed' ? handleTogglePublish : undefined}
+                              onRemove={myPipsTab === 'remixed' ? async (projectId) => {
+                                if (!user) {
+                                  setIsLoginPromptOpen(true);
+                                  return;
+                                }
+                                // For remixed projects, we can delete them since they're copies
+                                const success = await deleteProject(projectId);
+                                if (success) {
+                                  setError('Remixed project deleted');
+                                  setTimeout(() => setError(null), 2000);
+                                  await refreshProjects();
+                                }
+                              } : undefined}
+                              onDelete={myPipsTab !== 'remixed' ? async (projectId) => {
+                                if (!user) {
+                                  setIsLoginPromptOpen(true);
+                                  return;
+                                }
+                                // Add confirmation dialog
+                                if (!confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+                                  return;
+                                }
+                                const success = await deleteProject(projectId);
+                                if (success) {
+                                  setError('Project deleted');
+                                  setTimeout(() => setError(null), 2000);
+                                  await refreshProjects();
+                                }
+                              } : undefined}
+                              onRename={async (projectId, newName) => {
+                                if (!user) {
+                                  setIsLoginPromptOpen(true);
+                                  return;
+                                }
+                                try {
+                                  const updatedProject = await updateProject(projectId, { name: newName });
+                                  if (updatedProject) {
+                                    setError(`Renamed pip to "${newName}"`);
+                                    setTimeout(() => setError(null), 2000);
+                                    await refreshProjects();
+                                  } else {
+                                    setError('Failed to rename pip');
+                                  }
+                                } catch (error) {
+                                  console.error('Error renaming project:', error);
+                                  setError('Failed to rename pip');
+                                }
+                              }}
+                              showPublishButton={myPipsTab !== 'remixed'}
+                              showRemoveButton={myPipsTab === 'remixed'}
+                              showDeleteButton={myPipsTab !== 'remixed'}
+                              showRenameButton={true}
+                              className="pl-12 group" // Add left padding for checkbox and group hover
+                            />
                           </div>
                         ))}
-                      {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
-                        myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
+                      {(myPipsTab === 'remixed' ? fallbackProjects.filter(p => p.original_project_id) : fallbackProjects).filter(project => 
+                        myPipsTab === 'recent' ? true : myPipsTab === 'public' ? project.is_public : true
                       ).length === 0 && (
                         <div className="text-white/60 text-center py-8 md:py-12 text-base md:text-lg">
-                          No {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'saved'} builds found.
+                          No {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'remixed'} builds found.
                         </div>
                       )}
                     </div>
@@ -4259,7 +4038,164 @@ class SocialFeed: ObservableObject {
             </div>
           ) : currentView === 'affiliate' ? (
             <div className="col-span-1 md:col-span-2">
-              <ReferralDashboard />
+              {/* Affiliate Page Content */}
+              <div className="glass-card p-4 md:p-8 min-h-[600px] relative">
+                {/* Back Button */}
+                <div className="absolute left-4 md:left-8 top-4 md:top-8">
+                  <button
+                    onClick={() => setCurrentView('main')}
+                    className="glass-button flex items-center px-3 md:px-4 py-2 text-white/80 hover:text-white rounded-lg transition-all duration-300 shadow-sm text-sm md:text-base"
+                  >
+                    <svg className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span className="hidden sm:inline">Back to App Builder</span>
+                    <span className="sm:hidden">Back</span>
+                  </button>
+                </div>
+                
+                <div className="text-center pt-16 md:pt-0">
+                  <h1 className="text-2xl md:text-3xl font-bold mb-4 text-white">Affiliate Program</h1>
+                  <p className="text-white/80 mb-6 md:mb-8 px-4 md:px-0">Earn money by referring users to myPip</p>
+                  
+                  {/* Limited Time Free Build Referral Program */}
+                  <div className="max-w-4xl mx-auto mb-8 px-4 md:px-0">
+                    <div className="glass-card p-6 md:p-8 border-2 border-gradient-to-r from-pink-500 to-blue-500 bg-gradient-to-r from-pink-500/10 to-blue-500/10">
+                      <div className="flex items-center justify-center mb-4">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-blue-500 flex items-center justify-center mr-4">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h2 className="text-xl md:text-2xl font-bold text-white mb-1">Limited Time Free Build Referral Program</h2>
+                          <p className="text-white/80 text-sm md:text-base">Get 10 free builds for every user you refer that signs up, even if they don't pay for a plan!</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <div className="text-2xl font-bold text-pink-400 mb-1">10</div>
+                          <div className="text-sm text-white/80">Free Builds Per Referral</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <div className="text-2xl font-bold text-blue-400 mb-1">∞</div>
+                          <div className="text-sm text-white/80">Unlimited Referrals</div>
+                        </div>
+                        <div className="text-center p-4 bg-white/10 rounded-lg">
+                          <div className="text-2xl font-bold text-green-400 mb-1">$0</div>
+                          <div className="text-sm text-white/80">No Payment Required</div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-center">
+                        <button 
+                          onClick={() => setCurrentView('main')}
+                          className="glass-button px-6 py-3 bg-gradient-to-r from-pink-500 to-blue-500 hover:from-pink-600 hover:to-blue-600 text-white font-semibold rounded-xl transition-all duration-300"
+                        >
+                          Start Referring Friends
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Referral Link Section */}
+                  <div className="max-w-2xl mx-auto mb-8 px-4 md:px-0">
+                    <div className="glass-card p-4 md:p-6">
+                      <h2 className="text-lg font-semibold mb-3 text-white">Your Referral Link</h2>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <input
+                          type="text"
+                          value="https://mypip.com/ref/your-unique-id"
+                          readOnly
+                          className="glass-input flex-1 px-3 py-2 text-white text-sm"
+                        />
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText('https://mypip.com/ref/your-unique-id');
+                            setError('Referral link copied to clipboard!');
+                            setTimeout(() => setError(null), 2000);
+                          }}
+                          className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-md text-sm font-medium transition-all duration-300"
+                        >
+                          Copy Link
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Commission Structure */}
+                  <div className="max-w-4xl mx-auto mb-8 px-4 md:px-0">
+                    <h2 className="text-lg font-semibold mb-4 text-white">Commission Structure</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
+                        <div className="text-2xl font-bold mb-2 text-blue-400">5%</div>
+                        <div className="text-sm text-white/80">Default Commission</div>
+                        <div className="text-xs text-white/60 mt-1">Available to all users</div>
+                      </div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 opacity-50 cursor-not-allowed">
+                        <div className="text-2xl font-bold mb-2 text-gray-400">10%</div>
+                        <div className="text-sm text-white/60">10+ Referrals</div>
+                        <div className="text-xs text-white/40 mt-1">myPip Subscribers Only</div>
+                      </div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 opacity-50 cursor-not-allowed">
+                        <div className="text-2xl font-bold mb-2 text-gray-400">15%</div>
+                        <div className="text-sm text-white/60">100+ Referrals</div>
+                        <div className="text-xs text-white/40 mt-1">myPip Subscribers Only</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 text-center">
+                      <p className="text-sm text-white/60 mb-2">Want higher commissions?</p>
+                      <button 
+                        onClick={() => setIsSubscriptionModalOpen(true)}
+                        className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-md text-sm font-medium transition-all duration-300"
+                      >
+                        Upgrade Plan
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Stats Section */}
+                  <div className="max-w-2xl mx-auto mb-8 px-4 md:px-0">
+                    <h2 className="text-lg font-semibold mb-4 text-white">Your Stats</h2>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
+                        <div className="text-2xl font-bold mb-1 text-blue-400">0</div>
+                        <div className="text-sm text-white/80">Total Referrals</div>
+                      </div>
+                      <div className="glass-card p-4 text-center transition-all duration-300 hover:scale-105">
+                        <div className="text-2xl font-bold mb-1 text-green-400">$0.00</div>
+                        <div className="text-sm text-white/80">Total Earnings</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* How It Works */}
+                  <div className="max-w-2xl mx-auto px-4 md:px-0">
+                    <h2 className="text-lg font-semibold mb-4 text-white">How It Works</h2>
+                    <div className="glass-card p-4 md:p-6">
+                      <ol className="space-y-3 text-sm text-white/80">
+                        <li className="flex items-start">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white">1</span>
+                          Share your referral link with friends, family, or on social media
+                        </li>
+                        <li className="flex items-start">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white">2</span>
+                          When someone signs up using your link, they get a special discount
+                        </li>
+                        <li className="flex items-start">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white">3</span>
+                          You earn a commission on their subscription payments
+                        </li>
+                        <li className="flex items-start">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white">4</span>
+                          Payouts are processed monthly via PayPal or bank transfer
+                        </li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : null}
         </main>
@@ -4497,51 +4433,6 @@ class SocialFeed: ObservableObject {
             </div>
           </div>
         )}
-
-        {/* Free Tier Upload Modal */}
-        {isFreeTierUploadModalOpen && (
-          <div className="modal-overlay">
-            <div className="modal-content">
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mr-3">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
-                <h2 className="text-lg font-semibold text-white">Upgrade Required</h2>
-              </div>
-              <p className="mb-4 text-white/80">
-                Only paid tier accounts can post to the community. However, you can still remix and explore community pips!
-              </p>
-              <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-lg p-4 mb-4">
-                <h3 className="text-sm font-medium text-white mb-2">What you can do with a free account:</h3>
-                <ul className="text-sm text-white/80 space-y-1">
-                  <li>• Generate unlimited apps</li>
-                  <li>• Remix community pips</li>
-                  <li>• Save projects to your account</li>
-                  <li>• Download complete project files</li>
-                </ul>
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setIsFreeTierUploadModalOpen(false)}
-                  className="glass-button px-4 py-2 text-white/80 hover:text-white"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    setIsFreeTierUploadModalOpen(false);
-                    setCurrentView('community');
-                  }}
-                  className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white"
-                >
-                  Explore Community
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
         {/* Xcode/Apple Modal */}
         {isXcodeModalOpen && (
           <div className="modal-overlay" onClick={() => setIsXcodeModalOpen(false)}>
@@ -4554,13 +4445,13 @@ class SocialFeed: ObservableObject {
               <div className="flex flex-col items-center">
                 <AppleIcon className="h-10 w-10 mb-2 text-white" />
                 <h3 className="text-lg font-semibold mb-2 text-white">Open in Xcode</h3>
-                <p className="text-sm text-white/80 mb-4 text-center">Download your complete project as a ZIP file or open the Xcode download page to get started.</p>
+                <p className="text-sm text-white/80 mb-4 text-center">Download your Swift code or open the Xcode download page to get started.</p>
                 <div className="flex flex-col gap-3 w-full">
                   <button
                     onClick={() => { setIsXcodeModalOpen(false); downloadSwiftCode(); }}
                     className="glass-button w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium transition-all duration-300"
                   >
-                    Download Project
+                    Download Code
                   </button>
                   <a
                     href="https://developer.apple.com/xcode/"
@@ -5912,8 +5803,6 @@ class SocialFeed: ObservableObject {
         onClose={() => setIsWaitlistAdminOpen(false)}
         isDarkMode={isDarkMode}
       />
-
-
     </div>
   );
 };
