@@ -29,21 +29,21 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
   const sizeConfig = {
     mini: {
       portrait: {
-        container: 'bg-neutral-200 p-0.5 rounded-lg shadow-md w-[120px] h-[240px] md:w-[140px] md:h-[280px] flex-shrink-0',
+        container: 'bg-neutral-200 p-1 rounded-lg shadow-md w-[180px] h-[360px] md:w-[200px] md:h-[400px] flex-shrink-0',
         screen: 'bg-neutral-800 w-full h-full rounded-md overflow-hidden relative'
       },
       landscape: {
-        container: 'bg-neutral-200 p-0.5 rounded-lg shadow-md w-[240px] h-[120px] md:w-[280px] md:h-[140px] flex-shrink-0',
+        container: 'bg-neutral-200 p-1 rounded-lg shadow-md w-[360px] h-[180px] md:w-[400px] md:h-[200px] flex-shrink-0',
         screen: 'bg-neutral-800 w-full h-full rounded-md overflow-hidden relative'
       }
     },
     tiny: {
       portrait: {
-        container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[180px] h-[360px] md:w-[200px] md:h-[400px] flex-shrink-0',
+        container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[160px] h-[320px] md:w-[180px] md:h-[360px] flex-shrink-0',
         screen: 'bg-neutral-800 w-full h-full rounded-lg overflow-hidden relative'
       },
       landscape: {
-        container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[360px] h-[180px] md:w-[400px] md:h-[200px] flex-shrink-0',
+        container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[320px] h-[160px] md:w-[360px] md:h-[180px] flex-shrink-0',
         screen: 'bg-neutral-800 w-full h-full rounded-lg overflow-hidden relative'
       }
     },
@@ -291,16 +291,17 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
         ) : (
           <div 
             ref={previewContainerRef}
-            className={`w-full h-full overflow-y-auto overflow-x-hidden bg-white text-neutral-800 relative`}
+            className={`w-full h-full ${size === 'mini' ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'} bg-white text-neutral-800 relative`}
             dangerouslySetInnerHTML={{ __html: htmlContent || '<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"><h3 class="text-lg font-semibold text-gray-800 mb-2">App Preview</h3><p class="text-sm text-gray-600">Your app preview will appear here</p></div></div>' }}
             aria-live="polite"
             style={{ 
               pointerEvents: 'auto',
               touchAction: 'manipulation',
               WebkitOverflowScrolling: 'touch',
-              transform: 'scale(1)',
+              transform: size === 'mini' ? 'scale(0.35)' : 'scale(1)',
               transformOrigin: 'top left',
-              minHeight: '100%'
+              minHeight: size === 'mini' ? '285.71%' : '100%',
+              width: size === 'mini' ? '285.71%' : '100%'
             }}
           />
         )}

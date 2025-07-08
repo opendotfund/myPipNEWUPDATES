@@ -39,6 +39,9 @@ export interface Project {
   original_project_id?: string
   created_at: string
   updated_at: string
+  // For display
+  user_full_name?: string;
+  user_name?: string;
 }
 
 export interface ProjectLike {

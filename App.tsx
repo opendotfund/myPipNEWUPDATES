@@ -16,7 +16,7 @@ import { SparklesIcon } from './components/icons/SparklesIcon';
 import { EarlyBirdApiInput } from './components/EarlyBirdApiInput'; // Added
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser, SignUpButton } from '@clerk/clerk-react';
 import { useUserData } from './hooks/useUserData';
-import { useProjects, usePublicProjects, useSavedProjects } from './hooks/useProjects';
+import { useProjects, usePublicProjects, useSavedProjects, useTopLikedProjects } from './hooks/useProjects';
 import { AppleIcon } from './components/icons/AppleIcon';
 import { convertSwiftToFlutter, convertSwiftToReact, convertFlutterToSwift, convertReactToSwift } from './services/conversionService.ts';
 import { GitHubModal } from './components/GitHubModal';
@@ -105,6 +105,7 @@ const App: React.FC = () => {
   const { projects, createProject, updateProject, deleteProject, refreshProjects, remixProject } = useProjects();
   const { projects: publicProjects, loadPublicProjects, likeProject, recordView } = usePublicProjects();
   const { savedProjects, saveProject, unsaveProject, isProjectSaved } = useSavedProjects();
+  const { projects: topLikedProjects, refreshTopLikedProjects, likeProject: likeTopProject } = useTopLikedProjects();
 
   // Log user sync status for debugging
   useEffect(() => {
@@ -123,6 +124,13 @@ const App: React.FC = () => {
 
   const [communitySearch, setCommunitySearch] = useState('');
   const [communityCategory, setCommunityCategory] = useState('All Categories');
+
+  // Load public projects when Community page is opened
+  useEffect(() => {
+    if (currentView === 'community') {
+      loadPublicProjects(communityCategory, communitySearch);
+    }
+  }, [currentView, communityCategory, communitySearch]);
 
   // Add new state for share modal, remix permission, and layout
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -1408,12 +1416,19 @@ const App: React.FC = () => {
     }
     
     try {
+      console.log('Liking project:', projectId);
       const success = await likeProject(projectId);
+      console.log('Like result:', success);
       if (success) {
         setError('Project liked!');
         setTimeout(() => setError(null), 2000);
         // Refresh public projects to update like counts
+        console.log('Refreshing public projects...');
         await loadPublicProjects();
+        console.log('Public projects refreshed');
+      } else {
+        setError('Failed to like project');
+        setTimeout(() => setError(null), 2000);
       }
     } catch (error) {
       console.error('Error liking project:', error);
@@ -1437,10 +1452,17 @@ const App: React.FC = () => {
         setError('Failed to remix project');
         setTimeout(() => setError(null), 2000);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error remixing project:', error);
-      setError('Database not set up yet. This feature will work once you set up the database.');
-      setTimeout(() => setError(null), 3000);
+      
+      // Check if it's a remix limit error
+      if (error.message && error.message.includes('remix limit')) {
+        setError('You have reached your remix limit. Please upgrade your subscription to create more remixes.');
+        setTimeout(() => setError(null), 5000);
+      } else {
+        setError('Failed to remix project. Please try again.');
+        setTimeout(() => setError(null), 3000);
+      }
     }
   };
 
@@ -1453,10 +1475,14 @@ const App: React.FC = () => {
     
     try {
       // First remix the project
+      console.log('Remixing project:', projectId);
       const remixedProject = await remixProject(projectId);
+      console.log('Remix result:', remixedProject);
       if (remixedProject) {
         // Refresh public projects to update remix counts
+        console.log('Refreshing public projects after remix...');
         await loadPublicProjects();
+        console.log('Public projects refreshed after remix');
         // Immediately open the remixed project for editing
         await handleOpenProject(remixedProject.id);
         setError('Project remixed and opened for editing!');
@@ -1465,10 +1491,17 @@ const App: React.FC = () => {
         setError('Failed to remix project');
         setTimeout(() => setError(null), 2000);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error remixing and opening project:', error);
-      setError('Failed to remix and open project');
-      setTimeout(() => setError(null), 3000);
+      
+      // Check if it's a remix limit error
+      if (error.message && error.message.includes('remix limit')) {
+        setError('You have reached your remix limit. Please upgrade your subscription to create more remixes.');
+        setTimeout(() => setError(null), 5000);
+      } else {
+        setError('Failed to remix and open project');
+        setTimeout(() => setError(null), 3000);
+      }
     }
   };
 
@@ -3098,8 +3131,9 @@ class SocialFeed: ObservableObject {
                   
                   {/* Main Content Area - Two Column Layout */}
                   <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                    {/* Left Column - Prompt Input */}
-                    <div className="flex flex-col items-center justify-start space-y-4">
+                    {/* Left Column - Prompt Input + Community Showcase */}
+                    <div className="flex flex-col items-center justify-start space-y-8">
+                      {/* Prompt Input */}
                       <div className="w-full max-w-[500px]">
                         {/* Hide prompt input during first generation to give animations space */}
                         {isLoading && !hasGenerated ? (
@@ -3128,18 +3162,124 @@ class SocialFeed: ObservableObject {
                             />
                           </div>
                         )}
-                    {error && (
+                        {error && (
                           <div className={`mt-3 glass-card p-3 text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
-                        {error}
-                      </div>
-                    )}
-                    {!canSubmit && !isEarlyBirdKeyApplied && (
+                            {error}
+                          </div>
+                        )}
+                        {!canSubmit && !isEarlyBirdKeyApplied && (
                           <div className="mt-3 glass-card p-3 text-sm text-center bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-400/30">
-                        You've used all your free prompts. Subscribe to a credit plan or an unlimited access plan for more prompts!
+                            You've used all your free prompts. Subscribe to a credit plan or an unlimited access plan for more prompts!
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
+                      
+                      {/* Community Showcase - Built with myPip */}
+                      <div className="w-full max-w-[500px]">
+                        <div className="text-center mb-6">
+                          <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+                            Built with myPip
+                          </h2>
+                          <p className="text-white/80 text-sm">
+                            Top community creations
+                          </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Show top 4 liked projects */}
+                          {(topLikedProjects || []).slice(0, 4).map(project => (
+                            <div key={project.id} className="relative">
+                              <div className="glass-card p-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
+                                {/* Project Info */}
+                                <div className="mb-3">
+                                  <h3 className="text-sm font-semibold text-white break-words mb-1">
+                                    {project.name}
+                                  </h3>
+                                  
+                                  {/* Author display */}
+                                  {(project.user_full_name || project.user_name) && (
+                                    <div className="text-xs text-white/60 mb-2">
+                                      by {project.user_full_name || project.user_name}
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex items-center gap-1 mb-2">
+                                    <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-0.5 rounded-full">
+                                      {project.category}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                {/* Mini Phone Preview */}
+                                <div className="flex justify-center mb-3">
+                                  <div className="w-20 h-40 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-1 shadow-lg">
+                                    <div className="w-full h-full bg-white rounded-xl overflow-hidden">
+                                      <PhonePreview 
+                                        htmlContent={project.preview_html || ''}
+                                        onPreviewInteraction={() => {}}
+                                        size="mini"
+                                        onPreviewReady={() => {}}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Action Buttons */}
+                                <div className="flex flex-col gap-1">
+                                  <button
+                                    onClick={() => handleOpenProject(project.id)}
+                                    className="glass-button px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-xs transition-all duration-300 font-medium"
+                                  >
+                                    Open
+                                  </button>
+                                  
+                                  <div className="flex gap-1">
+                                    <SignedIn>
+                                      <button
+                                        onClick={async () => {
+                                          await handleLikeProject(project.id);
+                                          refreshTopLikedProjects();
+                                        }}
+                                        className="glass-button flex-1 flex items-center justify-center px-1 py-1 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-xs transition-all duration-300"
+                                      >
+                                        ❤️ ({project.likes_count || 0})
+                                      </button>
+                                      {project.allow_remix && (
+                                        <button
+                                          onClick={async () => {
+                                            await handleRemixAndOpenProject(project.id);
+                                          }}
+                                          className="glass-button flex-1 flex items-center justify-center px-1 py-1 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-xs transition-all duration-300"
+                                        >
+                                          🔄 ({project.remix_count || 0})
+                                        </button>
+                                      )}
+                                    </SignedIn>
+                                    <SignedOut>
+                                      <SignInButton mode="modal">
+                                        <button className="glass-button w-full flex items-center justify-center px-1 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-xs transition-all duration-300">
+                                          Sign in
+                                        </button>
+                                      </SignInButton>
+                                    </SignedOut>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* View Community Button */}
+                        <div className="text-center mt-4">
+                          <button
+                            onClick={() => setCurrentView('community')}
+                            className="glass-button px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium rounded-lg transition-all duration-300 text-sm"
+                          >
+                            View All
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                     
                     {/* Right Column - Phone Preview */}
                     <div className="flex flex-col items-center justify-start">
@@ -3209,78 +3349,7 @@ class SocialFeed: ObservableObject {
                     </div>
                   )}
                   
-                  {/* Community Showcase Section */}
-                  {fallbackPublicProjects.length > 0 && (
-                    <div className="col-span-1 md:col-span-2 mt-12">
-                      <div className="text-center mb-8">
-                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                          Community Showcase
-                        </h2>
-                        <p className="text-white/80 text-lg">
-                          Discover amazing apps built by the myPip community
-                        </p>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Show featured public projects (limit to 6) */}
-                        {fallbackPublicProjects
-                          .sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))
-                          .slice(0, 6)
-                          .map(project => (
-                            <div key={project.id} className="relative">
-                              <ProjectPreview
-                                project={project}
-                                onOpen={handleOpenProject}
-                                showPublishButton={false}
-                                showRemoveButton={false}
-                                className="h-full"
-                              />
-                              
-                              {/* Community action buttons */}
-                              <div className="flex gap-2 mt-4 px-4 md:px-6">
-                                <SignedIn>
-                                  <button
-                                    onClick={async () => {
-                                      await handleLikeProject(project.id);
-                                    }}
-                                    className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
-                                  >
-                                    ❤️ Like ({project.likes_count || 0})
-                                  </button>
-                                  {project.allow_remix && (
-                                    <button
-                                      onClick={async () => {
-                                        await handleRemixAndOpenProject(project.id);
-                                      }}
-                                      className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
-                                    >
-                                      🔄 Remix ({project.remix_count || 0})
-                                    </button>
-                                  )}
-                                </SignedIn>
-                                <SignedOut>
-                                  <SignInButton mode="modal">
-                                    <button className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
-                                      Sign in to interact
-                                    </button>
-                                  </SignInButton>
-                                </SignedOut>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                      
-                      {/* View Community Button */}
-                      <div className="text-center mt-8">
-                        <button
-                          onClick={() => setCurrentView('community')}
-                          className="glass-button px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300"
-                        >
-                          Explore Community
-                        </button>
-                      </div>
-                    </div>
-                  )}
+
                 </div>
               ) : (
                 // Refine App Layout - Clean Two Column Design
@@ -3797,7 +3866,7 @@ class SocialFeed: ObservableObject {
                     </div>
                   </div>
                   {/* Filtered Project List */}
-                  <div className="grid grid-cols-1 gap-4 md:gap-6 mb-6 md:mb-8 px-4 md:px-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6 md:mb-8 px-4 md:px-0">
                     {fallbackPublicProjects
                       .filter(p =>
                         (communityCategory === 'All Categories' || p.category === communityCategory) &&
@@ -3805,43 +3874,92 @@ class SocialFeed: ObservableObject {
                          p.description.toLowerCase().includes(communitySearch.toLowerCase()))
                       )
                       .map(project => (
-                        <div key={project.id} className="relative">
-                          <ProjectPreview
-                            project={project}
-                            onOpen={handleOpenProject}
-                            showPublishButton={false}
-                            showRemoveButton={false}
-                          />
+                        <div key={project.id} className="glass-card p-4 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
+                          {/* Project Info */}
+                          <div className="mb-4">
+                            <div className="flex items-start gap-2 mb-2">
+                              <h3 className="text-lg font-semibold text-white break-words">
+                                {project.name}
+                              </h3>
+                            </div>
+                            
+                            {/* Author display */}
+                            {(project.user_full_name || project.user_name) && (
+                              <div className="text-sm text-white/60 mb-2">
+                                by {project.user_full_name || project.user_name}
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-1 rounded-full">
+                                {project.category}
+                              </span>
+                              <span className="text-xs text-white/60">
+                                {new Date(project.updated_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            
+                            <p className="text-white/80 text-sm mb-3 line-clamp-2">
+                              {project.description}
+                            </p>
+                          </div>
                           
-                          {/* Community-specific action buttons */}
-                          <div className="flex gap-2 mt-4 px-4 md:px-6">
-                            <SignedIn>
-                              <button
-                                onClick={async () => {
-                                  await handleLikeProject(project.id);
-                                }}
-                                className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
-                              >
-                                ❤️ Like ({project.likes_count || 0})
-                              </button>
-                              {project.allow_remix && (
+                          {/* Phone Preview */}
+                          <div className="flex justify-center mb-4">
+                            <div className="w-32 h-64 md:w-40 md:h-80 bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-2 shadow-lg">
+                              <div className="w-full h-full bg-white rounded-2xl overflow-hidden">
+                                <PhonePreview 
+                                  htmlContent={project.preview_html || ''}
+                                  onPreviewInteraction={() => {}}
+                                  size="tiny"
+                                  onPreviewReady={() => {}}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Action Buttons */}
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => handleOpenProject(project.id)}
+                              className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300 font-medium"
+                            >
+                              Open
+                            </button>
+                            
+                            <div className="flex gap-2">
+                              <SignedIn>
                                 <button
                                   onClick={async () => {
-                                    await handleRemixAndOpenProject(project.id);
+                                    await handleLikeProject(project.id);
+                                    // Refresh public projects to update like counts
+                                    loadPublicProjects(communityCategory, communitySearch);
                                   }}
-                                  className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
+                                  className="glass-button flex-1 flex items-center justify-center px-3 py-2 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
                                 >
-                                  🔄 Remix ({project.remix_count || 0})
+                                  ❤️ Like ({project.likes_count || 0})
                                 </button>
-                              )}
-                            </SignedIn>
-                            <SignedOut>
-                              <SignInButton mode="modal">
-                                <button className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
-                                  Sign in to interact
-                                </button>
-                              </SignInButton>
-                            </SignedOut>
+                                {project.allow_remix && (
+                                  <button
+                                    onClick={async () => {
+                                      await handleRemixAndOpenProject(project.id);
+                                      // Refresh public projects to update remix counts
+                                      loadPublicProjects(communityCategory, communitySearch);
+                                    }}
+                                    className="glass-button flex-1 flex items-center justify-center px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
+                                  >
+                                    🔄 Remix ({project.remix_count || 0})
+                                  </button>
+                                )}
+                              </SignedIn>
+                              <SignedOut>
+                                <SignInButton mode="modal">
+                                  <button className="glass-button w-full flex items-center justify-center px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
+                                    Sign in to interact
+                                  </button>
+                                </SignInButton>
+                              </SignedOut>
+                            </div>
                           </div>
                         </div>
                       ))}

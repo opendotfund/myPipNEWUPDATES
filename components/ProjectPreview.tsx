@@ -15,6 +15,10 @@ interface ProjectPreviewProps {
   showDeleteButton?: boolean;
   showRenameButton?: boolean;
   className?: string;
+  // New props for selection
+  showCheckbox?: boolean;
+  checked?: boolean;
+  onCheckboxChange?: (checked: boolean) => void;
 }
 
 export const ProjectPreview: React.FC<ProjectPreviewProps> = ({
@@ -29,7 +33,11 @@ export const ProjectPreview: React.FC<ProjectPreviewProps> = ({
   showRemoveButton = false,
   showDeleteButton = false,
   showRenameButton = false,
-  className = ''
+  className = '',
+  // New props for selection
+  showCheckbox = false,
+  checked = false,
+  onCheckboxChange
 }) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(project.name);
@@ -55,8 +63,19 @@ export const ProjectPreview: React.FC<ProjectPreviewProps> = ({
   };
 
   return (
-    <div className={`glass-card p-4 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg ${className}`}>
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+    <div className={`glass-card p-4 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg flex ${className}`}>
+      {/* Selection Checkbox (if enabled) */}
+      {showCheckbox && (
+        <div className="flex items-start pr-4 pt-2">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={e => onCheckboxChange && onCheckboxChange(e.target.checked)}
+            className="w-5 h-5 accent-blue-500"
+          />
+        </div>
+      )}
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1">
         {/* Project Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2 mb-2">
@@ -85,19 +104,27 @@ export const ProjectPreview: React.FC<ProjectPreviewProps> = ({
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg md:text-xl font-semibold text-white break-words">
-                  {project.name}
-                </h3>
-                {showRenameButton && onRename && (
-                  <button
-                    onClick={() => setIsRenaming(true)}
-                    className="text-blue-400 hover:text-blue-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Rename project"
-                  >
-                    ✏️
-                  </button>
-                )}
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg md:text-xl font-semibold text-white break-words">
+                    {project.name}
+                  </h3>
+                  {showRenameButton && onRename && (
+                    <button
+                      onClick={() => setIsRenaming(true)}
+                      className="text-blue-400 hover:text-blue-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Rename project"
+                    >
+                      ✏️
+                    </button>
+                  )}
+                </div>
+                {/* Author display for community */}
+                {project.user_full_name || project.user_name ? (
+                  <span className="text-xs text-white/60 mt-0.5">
+                    by {project.user_full_name || project.user_name}
+                  </span>
+                ) : null}
               </div>
             )}
           </div>

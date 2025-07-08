@@ -146,8 +146,57 @@ export function useProjects() {
   }
 }
 
+export function useTopLikedProjects() {
+  const { user } = useUser()
+  const { getToken } = useAuth()
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const loadTopLikedProjects = async (limit: number = 4) => {
+    setLoading(true)
+    try {
+      const topProjects = await projectService.getTopLikedProjects(limit)
+      setProjects(topProjects)
+    } catch (error) {
+      console.error('Error loading top liked projects:', error)
+      setProjects([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadTopLikedProjects()
+  }, [])
+
+  const likeProject = async (projectId: string) => {
+    if (!user) return false
+
+    try {
+      const token = await getToken()
+      const success = await projectService.toggleProjectLike(projectId, user.id, token || undefined)
+      if (success) {
+        // Refresh projects to get updated like counts
+        await loadTopLikedProjects()
+      }
+      return success
+    } catch (error) {
+      console.error('Error liking project:', error)
+      return false
+    }
+  }
+
+  return {
+    projects,
+    loading,
+    refreshTopLikedProjects: loadTopLikedProjects,
+    likeProject
+  }
+}
+
 export function usePublicProjects() {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -169,7 +218,8 @@ export function usePublicProjects() {
     if (!user) return false
 
     try {
-      const success = await projectService.toggleProjectLike(projectId, user.id)
+      const token = await getToken()
+      const success = await projectService.toggleProjectLike(projectId, user.id, token || undefined)
       if (success) {
         // Refresh projects to get updated like counts
         await loadPublicProjects()

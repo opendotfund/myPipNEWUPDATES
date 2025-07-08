@@ -711,14 +711,68 @@ export const projectService = {
   },
 
   // Get public projects
+  async getTopLikedProjects(limit: number = 4): Promise<Project[]> {
+    try {
+      console.log('Getting top liked projects, limit:', limit);
+      
+      const { data, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          user:users!projects_user_id_fkey(
+            full_name,
+            username
+          )
+        `)
+        .eq('is_public', true)
+        .order('likes_count', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('Error getting top liked projects:', error);
+        return [];
+      }
+
+      // Transform the data to include user information
+      const transformedData = data?.map((project: any) => ({
+        ...project,
+        user_full_name: project.user?.full_name,
+        user_name: project.user?.username,
+        likes_count: project.likes_count || 0,
+        remix_count: project.remix_count || 0
+      })) || [];
+
+      console.log('Top liked projects data:', transformedData.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        user_full_name: p.user_full_name,
+        user_name: p.user_name,
+        likes_count: p.likes_count,
+        remix_count: p.remix_count
+      })));
+
+      return transformedData;
+    } catch (error) {
+      console.error('Exception getting top liked projects:', error);
+      return [];
+    }
+  },
+
   async getPublicProjects(category?: string, search?: string): Promise<Project[]> {
     try {
       console.log('Getting public projects with category:', category, 'search:', search);
       
       let query = supabase
         .from('projects')
-        .select('*')
+        .select(`
+          *,
+          user:users!projects_user_id_fkey(
+            full_name,
+            username
+          )
+        `)
         .eq('is_public', true)
+        .order('likes_count', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (category && category !== 'All Categories') {
@@ -736,16 +790,27 @@ export const projectService = {
         return [];
       }
 
-      console.log('Public projects data:', data?.map((p: any) => ({
+      // Transform the data to include user information
+      const transformedData = data?.map((project: any) => ({
+        ...project,
+        user_full_name: project.user?.full_name,
+        user_name: project.user?.username,
+        likes_count: project.likes_count || 0,
+        remix_count: project.remix_count || 0
+      })) || [];
+
+      console.log('Public projects data:', transformedData.map((p: any) => ({
         id: p.id,
         name: p.name,
+        user_full_name: p.user_full_name,
+        user_name: p.user_name,
+        likes_count: p.likes_count,
+        remix_count: p.remix_count,
         generated_code_length: p.generated_code?.length || 0,
-        preview_html_length: p.preview_html?.length || 0,
-        generated_code_preview: p.generated_code?.substring(0, 100) + '...',
-        preview_html_preview: p.preview_html?.substring(0, 100) + '...'
+        preview_html_length: p.preview_html?.length || 0
       })));
 
-      return data || [];
+      return transformedData;
     } catch (error) {
       console.error('Exception getting public projects:', error);
       return [];
@@ -823,10 +888,12 @@ export const projectService = {
   },
 
   // Toggle project like
-  async toggleProjectLike(projectId: string, userId: string): Promise<boolean> {
+  async toggleProjectLike(projectId: string, userId: string, token?: string): Promise<boolean> {
     try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase;
+      
       // Check if user already liked the project
-      const { data: existingLike } = await supabase
+      const { data: existingLike } = await client
         .from('project_likes')
         .select('*')
         .eq('project_id', projectId)
@@ -835,7 +902,7 @@ export const projectService = {
 
       if (existingLike) {
         // Unlike the project
-        const { error } = await supabase
+        const { error } = await client
           .from('project_likes')
           .delete()
           .eq('id', existingLike.id);
@@ -846,14 +913,14 @@ export const projectService = {
         }
 
         // Decrement likes_count
-        const { data: currentProject } = await supabase
+        const { data: currentProject } = await client
           .from('projects')
           .select('likes_count')
           .eq('id', projectId)
           .single();
         
         if (currentProject) {
-          await supabase
+          await client
             .from('projects')
             .update({ 
               likes_count: Math.max(0, (currentProject.likes_count || 0) - 1),
@@ -865,7 +932,7 @@ export const projectService = {
         return true;
       } else {
         // Like the project
-        const { error } = await supabase
+        const { error } = await client
           .from('project_likes')
           .insert({
             project_id: projectId,
@@ -878,14 +945,14 @@ export const projectService = {
         }
 
         // Increment likes_count
-        const { data: currentProject } = await supabase
+        const { data: currentProject } = await client
           .from('projects')
           .select('likes_count')
           .eq('id', projectId)
           .single();
         
         if (currentProject) {
-          await supabase
+          await client
             .from('projects')
             .update({ 
               likes_count: (currentProject.likes_count || 0) + 1,
