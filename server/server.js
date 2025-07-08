@@ -18,6 +18,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const axios = require('axios');
+const { handleWebhook } = require('./webhooks/lemonSqueezy');
 require('dotenv').config();
 
 const app = express();
@@ -497,6 +498,177 @@ function handleGitHubApiError(error, res) {
     });
   }
 }
+
+// Lemon Squeezy webhook endpoint
+app.post('/api/webhooks/lemon-squeezy', handleWebhook);
+
+// Lemon Squeezy webhook endpoint for subscription and affiliate tracking
+app.post('/webhooks/lemonsqueezy', express.json(), async (req, res) => {
+  try {
+    const { event_name, data, meta } = req.body;
+    console.log('Lemon Squeezy webhook received:', { event_name, data });
+    
+    // Handle order created event (when someone makes a purchase)
+    if (event_name === 'order_created') {
+      const { 
+        id: order_id, 
+        customer_email, 
+        total_formatted,
+        total,
+        affiliate_id,
+        subscription_id,
+        variant_id
+      } = data;
+      
+      // Handle affiliate tracking
+      if (affiliate_id) {
+        // Find the user with this affiliate ID
+        const { data: referralCode } = await supabase
+          .from('user_referral_codes')
+          .select('user_id, referral_code')
+          .eq('referral_code', affiliate_id)
+          .single();
+        
+        if (referralCode) {
+          // Record the conversion
+          await supabase
+            .from('referral_conversions')
+            .insert({
+              referral_code: affiliate_id,
+              customer_email,
+              order_amount: total / 100, // Convert from cents
+              converted_at: new Date().toISOString()
+            });
+          
+          console.log(`Referral conversion recorded for affiliate: ${affiliate_id}`);
+        }
+      }
+      
+      // Handle subscription creation
+      if (subscription_id) {
+        // Find user by email
+        const { data: user } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', customer_email)
+          .single();
+        
+        if (user) {
+          // Determine subscription tier based on variant_id
+          let subscription_tier = 'basic';
+          if (variant_id) {
+            // You'll need to map your Lemon Squeezy variant IDs to tiers
+            // This is an example - update with your actual variant IDs
+            const variantToTier = {
+              'your-pro-variant-id': 'pro',
+              'your-enterprise-variant-id': 'enterprise'
+            };
+            subscription_tier = variantToTier[variant_id] || 'basic';
+          }
+          
+          // Update user subscription
+          await supabase
+            .from('users')
+            .update({
+              subscription_tier,
+              subscription_status: 'active',
+              lemon_squeezy_customer_id: data.customer_id,
+              lemon_squeezy_subscription_id: subscription_id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id);
+          
+          // Record transaction
+          await supabase
+            .from('subscription_transactions')
+            .insert({
+              user_id: user.id,
+              lemon_squeezy_order_id: order_id,
+              lemon_squeezy_subscription_id: subscription_id,
+              plan_tier: subscription_tier,
+              amount: total / 100, // Convert from cents
+              status: 'completed',
+              transaction_date: new Date().toISOString()
+            });
+          
+          console.log(`Subscription updated for user: ${user.email} to tier: ${subscription_tier}`);
+        }
+      }
+    }
+    
+    // Handle subscription updated event
+    if (event_name === 'subscription_updated') {
+      const { 
+        id: subscription_id, 
+        customer_email,
+        variant_id,
+        status
+      } = data;
+      
+      // Find user by email
+      const { data: user } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', customer_email)
+        .single();
+      
+      if (user) {
+        // Determine subscription tier based on variant_id
+        let subscription_tier = 'basic';
+        if (variant_id) {
+          const variantToTier = {
+            'your-pro-variant-id': 'pro',
+            'your-enterprise-variant-id': 'enterprise'
+          };
+          subscription_tier = variantToTier[variant_id] || 'basic';
+        }
+        
+        // Update user subscription
+        await supabase
+          .from('users')
+          .update({
+            subscription_tier,
+            subscription_status: status,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+        
+        console.log(`Subscription updated for user: ${user.email} to tier: ${subscription_tier}, status: ${status}`);
+      }
+    }
+    
+    // Handle subscription cancelled event
+    if (event_name === 'subscription_cancelled') {
+      const { customer_email } = data;
+      
+      // Find user by email
+      const { data: user } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', customer_email)
+        .single();
+      
+      if (user) {
+        // Downgrade to basic tier
+        await supabase
+          .from('users')
+          .update({
+            subscription_tier: 'basic',
+            subscription_status: 'cancelled',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+        
+        console.log(`Subscription cancelled for user: ${user.email}, downgraded to basic`);
+      }
+    }
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error processing Lemon Squeezy webhook:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Error handling middleware
 app.use((error, req, res, next) => {

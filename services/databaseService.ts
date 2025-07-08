@@ -1,7 +1,5 @@
-import { createClerkSupabaseClient } from './supabaseClient'
+import { createAuthenticatedSupabaseClient, supabase } from './supabaseClient'
 import type { User, Project, ProjectLike, ProjectView, UserSavedProject, Waitlist } from '../types/database'
-
-const client = createClerkSupabaseClient()
 
 // User operations
 export const userService = {
@@ -13,60 +11,287 @@ export const userService = {
     username?: string
     avatar_url?: string
     bio?: string
-  }): Promise<User | null> {
-    const { data, error } = await client
-      .from('users')
-      .upsert(userData, { onConflict: 'clerk_id' })
-      .select()
-      .single()
+  }, token?: string): Promise<User | null> {
+    console.log('Upserting user to database:', { clerk_id: userData.clerk_id, email: userData.email });
+    
+    try {
+      // Always use the authenticated client for user operations
+      const client = createAuthenticatedSupabaseClient(token || '')
+      
+      const { data, error } = await client
+        .from('users')
+        .upsert({
+          clerk_id: userData.clerk_id,
+          email: userData.email,
+          full_name: userData.full_name || null,
+          username: userData.username || null,
+          avatar_url: userData.avatar_url || null,
+          bio: userData.bio || null,
+          subscription_tier: 'basic', // Default to basic tier
+          subscription_status: 'active',
+          builds_used: 0,
+          remixes_used: 0,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'clerk_id',
+          ignoreDuplicates: false
+        })
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error upserting user:', error)
-      return null
+      if (error) {
+        console.error('Error upserting user:', error);
+        return null;
+      }
+
+      console.log('User upserted successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Exception during user upsert:', error);
+      return null;
     }
-
-    return data
   },
 
   // Get user by Clerk ID
-  async getUserByClerkId(clerkId: string): Promise<User | null> {
-    const { data, error } = await client
-      .from('users')
-      .select()
-      .eq('clerk_id', clerkId)
-      .single()
+  async getUserByClerkId(clerkId: string, token?: string): Promise<User | null> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data, error } = await client
+        .from('users')
+        .select('*')
+        .eq('clerk_id', clerkId)
+        .single();
 
-    if (error) {
-      console.error('Error getting user:', error)
-      return null
+      if (error) {
+        console.error('Error getting user by Clerk ID:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Exception getting user by Clerk ID:', error);
+      return null;
     }
+  },
 
-    return data
+  // Get user by email
+  async getUserByEmail(email: string, token?: string): Promise<User | null> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data, error } = await client
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (error) {
+        console.error('Error getting user by email:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Exception getting user by email:', error);
+      return null;
+    }
   },
 
   // Update user profile
-  async updateUser(clerkId: string, updates: Partial<User>): Promise<User | null> {
-    const { data, error } = await client
-      .from('users')
-      .update(updates)
-      .eq('clerk_id', clerkId)
-      .select()
-      .single()
+  async updateUserProfile(clerkId: string, updates: {
+    full_name?: string
+    username?: string
+    avatar_url?: string
+    bio?: string
+  }, token?: string): Promise<User | null> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data, error } = await client
+        .from('users')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('clerk_id', clerkId)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error updating user:', error)
-      return null
+      if (error) {
+        console.error('Error updating user profile:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Exception updating user profile:', error);
+      return null;
+    }
+  },
+
+  // Update user subscription (admin function)
+  async updateUserSubscription(clerkId: string, subscriptionData: {
+    subscription_tier: string
+    subscription_status?: string
+    lemon_squeezy_customer_id?: string
+    lemon_squeezy_subscription_id?: string
+  }, token?: string): Promise<User | null> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data, error } = await client
+        .from('users')
+        .update({
+          ...subscriptionData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('clerk_id', clerkId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating user subscription:', error);
+        return null;
+      }
+
+      console.log(`Updated user ${clerkId} subscription to: ${subscriptionData.subscription_tier}`);
+      return data;
+    } catch (error) {
+      console.error('Exception updating user subscription:', error);
+      return null;
+    }
+  },
+
+  // Record subscription transaction
+  async recordSubscriptionTransaction(transactionData: {
+    user_id: string
+    lemon_squeezy_order_id: string
+    lemon_squeezy_subscription_id?: string
+    plan_tier: string
+    amount: number
+    status: string
+  }, token?: string): Promise<boolean> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { error } = await client
+        .from('subscription_transactions')
+        .insert({
+          ...transactionData,
+          transaction_date: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error recording subscription transaction:', error);
+        return false;
+      }
+
+      console.log('Subscription transaction recorded successfully');
+      return true;
+    } catch (error) {
+      console.error('Exception recording subscription transaction:', error);
+      return false;
+    }
+  },
+
+  // Get subscription plans
+  async getSubscriptionPlans(token?: string): Promise<any[]> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data, error } = await client
+        .from('subscription_plans')
+        .select('*')
+        .eq('is_active', true)
+        .order('price', { ascending: true });
+
+      if (error) {
+        console.error('Error getting subscription plans:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Exception getting subscription plans:', error);
+      return [];
+    }
+  },
+
+  // Get all users (admin only)
+  async getAllUsers(token?: string): Promise<User[]> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data, error } = await client
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error getting all users:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Exception getting all users:', error);
+      return [];
+    }
+  },
+
+  // Sync existing Clerk users to database
+  async syncExistingUsers(clerkUsers: Array<{
+    id: string
+    emailAddresses: Array<{ emailAddress: string }>
+    firstName?: string
+    lastName?: string
+    username?: string
+    imageUrl?: string
+  }>, token?: string): Promise<{ success: number; failed: number }> {
+    let success = 0;
+    let failed = 0;
+
+    for (const clerkUser of clerkUsers) {
+      try {
+        const email = clerkUser.emailAddresses[0]?.emailAddress;
+        if (!email) {
+          failed++;
+          continue;
+        }
+
+        const fullName = [clerkUser.firstName, clerkUser.lastName]
+          .filter(Boolean)
+          .join(' ');
+
+        const result = await this.upsertUser({
+          clerk_id: clerkUser.id,
+          email,
+          full_name: fullName || undefined,
+          username: clerkUser.username || undefined,
+          avatar_url: clerkUser.imageUrl || undefined
+        }, token);
+
+        if (result) {
+          success++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error('Error syncing user:', clerkUser.id, error);
+        failed++;
+      }
     }
 
-    return data
+    return { success, failed };
   }
-}
+};
 
 // Waitlist operations
 export const waitlistService = {
   // Join the waitlist
   async joinWaitlist(email: string, source: string = 'v2_popup'): Promise<Waitlist | null> {
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('waitlist')
       .insert({ email: email.toLowerCase().trim(), source })
       .select()
@@ -82,7 +307,7 @@ export const waitlistService = {
 
   // Check if email is already on waitlist
   async isEmailOnWaitlist(email: string): Promise<boolean> {
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('waitlist')
       .select('id')
       .eq('email', email.toLowerCase().trim())
@@ -98,7 +323,7 @@ export const waitlistService = {
 
   // Get all waitlist entries (admin only)
   async getAllWaitlistEntries(): Promise<Waitlist[]> {
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('waitlist')
       .select()
       .order('created_at', { ascending: false })
@@ -113,7 +338,7 @@ export const waitlistService = {
 
   // Get waitlist statistics
   async getWaitlistStats(): Promise<{ total: number; today: number; thisWeek: number }> {
-    const { data: totalData, error: totalError } = await client
+    const { data: totalData, error: totalError } = await supabase
       .from('waitlist')
       .select('id', { count: 'exact' })
 
@@ -122,7 +347,7 @@ export const waitlistService = {
       return { total: 0, today: 0, thisWeek: 0 }
     }
 
-    const { data: todayData, error: todayError } = await client
+    const { data: todayData, error: todayError } = await supabase
       .from('waitlist')
       .select('id', { count: 'exact' })
       .gte('created_at', new Date().toISOString().split('T')[0])
@@ -135,7 +360,7 @@ export const waitlistService = {
     const oneWeekAgo = new Date()
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
 
-    const { data: weekData, error: weekError } = await client
+    const { data: weekData, error: weekError } = await supabase
       .from('waitlist')
       .select('id', { count: 'exact' })
       .gte('created_at', oneWeekAgo.toISOString())
@@ -172,7 +397,7 @@ export const projectService = {
     category: string
     original_project_id?: string
   }): Promise<Project | null> {
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('projects')
       .insert(projectData)
       .select()
@@ -188,7 +413,9 @@ export const projectService = {
 
   // Get user's projects
   async getUserProjects(userId: string): Promise<Project[]> {
-    const { data, error } = await client
+    console.log('Loading user projects for:', userId);
+    
+    const { data, error } = await supabase
       .from('projects')
       .select()
       .eq('user_id', userId)
@@ -199,12 +426,15 @@ export const projectService = {
       return []
     }
 
+    console.log('User projects loaded:', data?.length || 0, 'projects');
     return data || []
   },
 
   // Get public projects for community feed
   async getPublicProjects(category?: string, search?: string): Promise<Project[]> {
-    let query = client
+    console.log('Loading public projects...', { category, search });
+    
+    let query = supabase
       .from('projects')
       .select()
       .eq('is_public', true)
@@ -225,12 +455,13 @@ export const projectService = {
       return []
     }
 
+    console.log('Public projects loaded:', data?.length || 0, 'projects');
     return data || []
   },
 
   // Get project by ID
   async getProjectById(projectId: string): Promise<Project | null> {
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('projects')
       .select()
       .eq('id', projectId)
@@ -246,7 +477,7 @@ export const projectService = {
 
   // Update project
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('projects')
       .update(updates)
       .eq('id', projectId)
@@ -263,7 +494,7 @@ export const projectService = {
 
   // Delete project
   async deleteProject(projectId: string): Promise<boolean> {
-    const { error } = await client
+    const { error } = await supabase
       .from('projects')
       .delete()
       .eq('id', projectId)
@@ -279,7 +510,7 @@ export const projectService = {
   // Like/unlike project
   async toggleProjectLike(projectId: string, userId: string): Promise<boolean> {
     // Check if user already liked the project
-    const { data: existingLike } = await client
+    const { data: existingLike } = await supabase
       .from('project_likes')
       .select()
       .eq('project_id', projectId)
@@ -288,7 +519,7 @@ export const projectService = {
 
     if (existingLike) {
       // Unlike
-      const { error } = await client
+      const { error } = await supabase
         .from('project_likes')
         .delete()
         .eq('id', existingLike.id)
@@ -307,7 +538,7 @@ export const projectService = {
       }
     } else {
       // Like
-      const { error } = await client
+      const { error } = await supabase
         .from('project_likes')
         .insert({ project_id: projectId, user_id: userId })
 
@@ -330,7 +561,7 @@ export const projectService = {
 
   // Record project view
   async recordProjectView(projectId: string, userId?: string, ipAddress?: string): Promise<void> {
-    const { error } = await client
+    const { error } = await supabase
       .from('project_views')
       .insert({
         project_id: projectId,
@@ -354,7 +585,7 @@ export const projectService = {
 
   // Save project to user's account
   async saveProject(projectId: string, userId: string): Promise<boolean> {
-    const { error } = await client
+    const { error } = await supabase
       .from('user_saved_projects')
       .insert({ project_id: projectId, user_id: userId })
 
@@ -368,7 +599,7 @@ export const projectService = {
 
   // Remove project from user's saved projects
   async unsaveProject(projectId: string, userId: string): Promise<boolean> {
-    const { error } = await client
+    const { error } = await supabase
       .from('user_saved_projects')
       .delete()
       .eq('project_id', projectId)
@@ -384,7 +615,9 @@ export const projectService = {
 
   // Get user's saved projects
   async getUserSavedProjects(userId: string): Promise<Project[]> {
-    const { data, error } = await client
+    console.log('Loading saved projects for user:', userId);
+    
+    const { data, error } = await supabase
       .from('user_saved_projects')
       .select(`
         project_id,
@@ -415,12 +648,14 @@ export const projectService = {
       return []
     }
 
-    return data?.map(item => item.projects).filter(Boolean) || []
+    const projects = data?.map(item => item.projects).filter(Boolean) || []
+    console.log('Saved projects loaded:', projects.length, 'projects');
+    return projects as unknown as Project[]
   },
 
   // Check if user has saved a project
   async isProjectSaved(projectId: string, userId: string): Promise<boolean> {
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('user_saved_projects')
       .select()
       .eq('project_id', projectId)

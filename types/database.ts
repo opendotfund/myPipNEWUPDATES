@@ -6,6 +6,9 @@ export interface User {
   username?: string
   avatar_url?: string
   bio?: string
+  subscription_tier: string
+  builds_used: number
+  remixes_used: number
   created_at: string
   updated_at: string
 }

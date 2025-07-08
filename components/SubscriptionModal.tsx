@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { useUser } from '@clerk/clerk-react';
 import { CloseIcon } from './icons/CloseIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 // LoadingSpinner is not directly used by stripe-buy-button but kept if needed for other parts or future UI elements.
@@ -54,13 +55,31 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   contactEmail,
   isDarkMode = false
 }) => {
+  const { user } = useUser();
   const [checkoutUrl, setCheckoutUrl] = useState<string>('');
   const [showCheckout, setShowCheckout] = useState<boolean>(false);
   const [showCreditInfo, setShowCreditInfo] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
 
   const handleCheckout = (url: string) => {
-    setCheckoutUrl(url);
+    if (!user) {
+      setError('You must be logged in to purchase a subscription');
+      return;
+    }
+
+    if (!user.primaryEmailAddress?.emailAddress) {
+      setError('A valid email address is required to purchase a subscription');
+      return;
+    }
+
+    // Add user data to checkout URL
+    const checkoutUrlWithUser = new URL(url);
+    checkoutUrlWithUser.searchParams.set('checkout[custom][user_id]', user.id);
+    checkoutUrlWithUser.searchParams.set('checkout[custom][email]', user.primaryEmailAddress.emailAddress);
+
+    setCheckoutUrl(checkoutUrlWithUser.toString());
     setShowCheckout(true);
+    setError('');
   };
 
   const handleCloseCheckout = () => {
@@ -69,6 +88,42 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   };
 
   if (!isOpen) return null;
+
+  // If user is not logged in, show login prompt
+  if (!user) {
+    return ReactDOM.createPortal(
+      <div
+        className="modal-overlay"
+        onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="subscription-modal-title"
+      >
+        <div
+          className={`modal-content ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'backdrop-blur-xl bg-white/70 border border-white/40 shadow-2xl'} p-6 rounded-2xl shadow-xl max-w-md w-full`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-center">
+            <h2 className={`text-2xl font-semibold mb-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+              Sign In Required
+            </h2>
+            <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              You must be logged in to purchase a subscription and manage your account.
+            </p>
+            <div className="flex justify-center">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  }
 
   return ReactDOM.createPortal(
     <>
@@ -83,6 +138,11 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           className={`modal-content ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'backdrop-blur-xl bg-white/70 border border-white/40 shadow-2xl'} p-6 rounded-2xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto transition-all duration-300`}
           onClick={(e) => e.stopPropagation()}
         >
+          {error && (
+            <div className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'} border`}>
+              <p className={`text-sm ${isDarkMode ? 'text-red-300' : 'text-red-700'}`}>{error}</p>
+            </div>
+          )}
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center">
               <h2 id="subscription-modal-title" className={`text-2xl font-semibold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} flex items-center`}>
@@ -159,7 +219,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  10 App Morphs Daily
+                  3 App Morphs Daily
                 </div>
                 <div className={`flex items-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-blue-700'}`}>
                   <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">

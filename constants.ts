@@ -3,7 +3,7 @@ import { ModelId, ModelOption } from './types';
 export const APP_TITLE = 'myPip';
 
 export const API_KEY_ENV_VAR = 'CLAUDE_API_KEY'; // To make it clear where the API key comes from
-export const MAX_FREE_PROMPTS = 5;
+export const MAX_FREE_PROMPTS = 3;
 export const CONTACT_EMAIL = 'm3stastn@uwaterloo.ca';
 
 // Claude API key

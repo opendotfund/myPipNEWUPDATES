@@ -13,10 +13,12 @@
     "@clerk/clerk-react": "^5.32.0",
     "@google/genai": "^1.6.0",
     "@supabase/supabase-js": "^2.50.0",
+    "jszip": "^3.10.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@types/jszip": "^3.4.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
