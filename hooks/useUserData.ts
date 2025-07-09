@@ -78,13 +78,31 @@ export function useUserData() {
     syncUser()
   }, [user, isLoaded, getToken])
 
+  const refetch = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const token = await getToken();
+      const refreshedUser = await userService.refreshUserData(user.id, token || undefined);
+      
+      if (refreshedUser) {
+        setUserData(refreshedUser);
+      }
+    } catch (err) {
+      console.error('Error refreshing user data:', err);
+      setError('Error refreshing user data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     userData,
     loading,
     error,
-    refetch: () => {
-      setLoading(true)
-      // This will trigger the useEffect again
-    }
+    refetch
   }
 } 

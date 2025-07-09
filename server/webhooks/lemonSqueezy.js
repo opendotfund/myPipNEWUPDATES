@@ -27,12 +27,12 @@ function verifyWebhookSignature(payload, signature) {
 }
 
 // Map Lemon Squeezy product IDs to tier IDs
+// These are the actual product IDs from your Lemon Squeezy store
 const PRODUCT_TO_TIER_MAPPING = {
-  // Update these with your actual Lemon Squeezy product IDs
-  123456: 1, // Basic tier
-  123457: 2, // Pro tier
-  123458: 3, // Pro Plus tier
-  123459: 4, // Enterprise tier
+  568025: 1, // Basic tier
+  568028: 2, // Pro tier
+  568031: 3, // Pro Plus tier
+  568029: 4, // Enterprise tier
 };
 
 async function handleSubscriptionCreated(data, userId, email) {
@@ -44,41 +44,77 @@ async function handleSubscriptionCreated(data, userId, email) {
     throw new Error(`Unknown product ID: ${attributes.product_id}`);
   }
   
-  const subscriptionData = {
-    user_id: userId,
-    tier_id: tierId,
-    lemon_squeezy_subscription_id: attributes.id,
-    status: attributes.status,
-    current_period_start: new Date(attributes.created_at).toISOString(),
-    current_period_end: new Date(attributes.renews_at).toISOString(),
-    cancel_at_period_end: false
+  // Map tier ID to subscription tier name
+  const tierMapping = {
+    1: 'basic',
+    2: 'pro', 
+    3: 'pro_plus',
+    4: 'enterprise'
   };
+  
+  const subscriptionTier = tierMapping[tierId];
+  if (!subscriptionTier) {
+    throw new Error(`Unknown tier ID: ${tierId}`);
+  }
+  
+  // Get subscription limits based on tier
+  const getSubscriptionLimits = (tier) => {
+    switch (tier) {
+      case 'basic':
+        return { buildsLimit: 50, remixesLimit: 25 };
+      case 'pro':
+        return { buildsLimit: 200, remixesLimit: 100 };
+      case 'pro_plus':
+        return { buildsLimit: 500, remixesLimit: 250 };
+      case 'enterprise':
+        return { buildsLimit: 1000, remixesLimit: 500 };
+      default:
+        return { buildsLimit: 5, remixesLimit: 3 };
+    }
+  };
+  
+  const limits = getSubscriptionLimits(subscriptionTier);
+  
+  // Update main users table with new subscription info
+  const { error: userError } = await supabase
+    .from('users')
+    .update({
+      subscription_tier: subscriptionTier,
+      subscription_status: 'active',
+      lemon_squeezy_subscription_id: attributes.id,
+      builds_limit: limits.buildsLimit,
+      remixes_limit: limits.remixesLimit,
+      updated_at: new Date().toISOString()
+    })
+    .eq('clerk_id', userId);
 
-  const { error } = await supabase
-    .from('user_subscriptions')
-    .upsert(subscriptionData, { onConflict: 'user_id' });
-
-  if (error) {
-    console.error('Error creating subscription:', error);
-    throw error;
+  if (userError) {
+    console.error('Error updating user subscription in users table:', userError);
+    throw userError;
   }
 
-  console.log(`Subscription created for user ${userId}, tier ${tierId}`);
+  console.log(`Subscription created for user ${userId}, tier ${subscriptionTier} with limits: ${limits.buildsLimit} builds, ${limits.remixesLimit} remixes`);
 }
 
 async function handleSubscriptionUpdated(data, userId) {
   const { attributes } = data;
   
   const updates = {
-    status: attributes.status,
-    current_period_end: new Date(attributes.renews_at).toISOString(),
-    cancel_at_period_end: attributes.ends_at !== null
+    subscription_status: attributes.status,
+    updated_at: new Date().toISOString()
   };
 
+  // If subscription is cancelled, reset to free tier
+  if (attributes.ends_at !== null) {
+    updates.subscription_tier = 'free';
+    updates.builds_limit = 5;
+    updates.remixes_limit = 3;
+  }
+
   const { error } = await supabase
-    .from('user_subscriptions')
+    .from('users')
     .update(updates)
-    .eq('user_id', userId);
+    .eq('clerk_id', userId);
 
   if (error) {
     console.error('Error updating subscription:', error);
@@ -89,17 +125,25 @@ async function handleSubscriptionUpdated(data, userId) {
 }
 
 async function handleSubscriptionCancelled(data, userId) {
-  const { error } = await supabase
-    .from('user_subscriptions')
-    .delete()
-    .eq('user_id', userId);
+  // Reset user to free tier in main users table
+  const { error: userError } = await supabase
+    .from('users')
+    .update({
+      subscription_tier: 'free',
+      subscription_status: 'active',
+      lemon_squeezy_subscription_id: null,
+      builds_limit: 5,
+      remixes_limit: 3,
+      updated_at: new Date().toISOString()
+    })
+    .eq('clerk_id', userId);
 
-  if (error) {
-    console.error('Error cancelling subscription:', error);
-    throw error;
+  if (userError) {
+    console.error('Error resetting user to free tier:', userError);
+    throw userError;
   }
 
-  console.log(`Subscription cancelled for user ${userId}`);
+  console.log(`Subscription cancelled for user ${userId}, reset to free tier`);
 }
 
 async function handleOrderCreated(data, userId, email) {
@@ -131,23 +175,12 @@ async function handleWebhook(req, res) {
 
     if (!userId.trim()) {
       console.error('Empty user_id in webhook custom_data');
-      return res.status(400).json({ error: 'Invalid user_id' });
+      return res.status(400).json({ error: 'Empty user_id' });
     }
 
-    if (!email) {
-      console.error('No email in webhook custom_data');
-      return res.status(400).json({ error: 'Missing email' });
-    }
+    console.log(`Processing webhook: ${event_name} for user: ${userId}`);
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      console.error('Invalid email format in webhook custom_data');
-      return res.status(400).json({ error: 'Invalid email format' });
-    }
-
-    console.log(`Processing webhook: ${event_name} for user ${userId} (${email})`);
-
+    // Handle different webhook events
     switch (event_name) {
       case 'subscription_created':
         await handleSubscriptionCreated(data, userId, email);
@@ -172,7 +205,4 @@ async function handleWebhook(req, res) {
   }
 }
 
-module.exports = {
-  handleWebhook,
-  verifyWebhookSignature
-}; 
+module.exports = { handleWebhook }; 

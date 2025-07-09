@@ -339,17 +339,20 @@ export class LemonSqueezyService {
     // Map Lemon Squeezy product/variant IDs to your tier IDs
     // You'll need to configure this mapping based on your Lemon Squeezy setup
     
-    // Example mapping (update with your actual product IDs):
+    // IMPORTANT: Replace these with your actual Lemon Squeezy product IDs
+    // To find these, go to your Lemon Squeezy dashboard > Products > click on each product
+    // The product ID will be in the URL or in the product details
     const productMapping: { [key: number]: number } = {
-      123456: 1, // Basic tier
-      123457: 2, // Pro tier
-      123458: 3, // Pro Plus tier
-      123459: 4, // Enterprise tier
+      568025: 1, // Basic tier
+      568028: 2, // Pro tier
+      568031: 3, // Pro Plus tier
+      568029: 4, // Enterprise tier
     };
 
     const tierId = productMapping[productId];
     if (!tierId) {
-      throw new Error(`Unknown product ID: ${productId}`);
+      console.error(`Unknown product ID: ${productId}. Please update the product mapping in lemonSqueezyService.ts`);
+      throw new Error(`Unknown product ID: ${productId}. Please update the product mapping.`);
     }
 
     return tierId;

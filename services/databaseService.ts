@@ -1,6 +1,22 @@
 import { createAuthenticatedSupabaseClient, supabase } from './supabaseClient'
 import type { User, Project, ProjectLike, ProjectView, UserSavedProject, Waitlist } from '../types/database'
 
+// Helper function to get subscription limits based on tier
+function getSubscriptionLimits(tier: string): { buildsLimit: number; remixesLimit: number } {
+  switch (tier) {
+    case 'basic':
+      return { buildsLimit: 50, remixesLimit: 25 };
+    case 'pro':
+      return { buildsLimit: 200, remixesLimit: 100 };
+    case 'pro_plus':
+      return { buildsLimit: 500, remixesLimit: 250 };
+    case 'enterprise':
+      return { buildsLimit: 1000, remixesLimit: 500 };
+    default: // free tier
+      return { buildsLimit: 5, remixesLimit: 3 };
+  }
+}
+
 // User operations
 export const userService = {
   // Create or update user when they sign up/sign in
@@ -193,10 +209,15 @@ export const userService = {
     try {
       const client = token ? createAuthenticatedSupabaseClient(token) : supabase
       
+      // Get the limits for the new tier
+      const limits = getSubscriptionLimits(subscriptionData.subscription_tier);
+      
       const { data, error } = await client
         .from('users')
         .update({
           ...subscriptionData,
+          builds_limit: limits.buildsLimit,
+          remixes_limit: limits.remixesLimit,
           updated_at: new Date().toISOString()
         })
         .eq('clerk_id', clerkId)
@@ -208,7 +229,7 @@ export const userService = {
         return null;
       }
 
-      console.log(`Updated user ${clerkId} subscription to: ${subscriptionData.subscription_tier}`);
+      console.log(`Updated user ${clerkId} subscription to: ${subscriptionData.subscription_tier} with limits: ${limits.buildsLimit} builds, ${limits.remixesLimit} remixes`);
       return data;
     } catch (error) {
       console.error('Exception updating user subscription:', error);
@@ -492,18 +513,45 @@ export const userService = {
         return null;
       }
 
+      const limits = getSubscriptionLimits(user.subscription_tier);
+      const canBuild = user.builds_used < limits.buildsLimit;
+      const canRemix = user.remixes_used < limits.remixesLimit;
+
       return {
         tier: user.subscription_tier,
         status: user.subscription_status,
         buildsUsed: user.builds_used,
-        buildsLimit: user.builds_limit,
+        buildsLimit: limits.buildsLimit,
         remixesUsed: user.remixes_used,
-        remixesLimit: user.remixes_limit,
-        canBuild: user.builds_used < user.builds_limit,
-        canRemix: user.remixes_used < user.remixes_limit
+        remixesLimit: limits.remixesLimit,
+        canBuild: canBuild,
+        canRemix: canRemix
       };
     } catch (error) {
       console.error('Error getting user subscription info:', error);
+      return null;
+    }
+  },
+
+  // Refresh user data from database
+  async refreshUserData(clerkId: string, token?: string): Promise<User | null> {
+    try {
+      const client = token ? createAuthenticatedSupabaseClient(token) : supabase
+      
+      const { data: user, error } = await client
+        .from('users')
+        .select('*')
+        .eq('clerk_id', clerkId)
+        .single();
+
+      if (error) {
+        console.error('Error refreshing user data:', error);
+        return null;
+      }
+
+      return user;
+    } catch (error) {
+      console.error('Exception refreshing user data:', error);
       return null;
     }
   }

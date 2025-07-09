@@ -3105,24 +3105,24 @@ class SocialFeed: ObservableObject {
                   <div className="text-center space-y-4 max-w-4xl">
                     <h1 className="text-4xl md:text-6xl font-bold">
                       {isDarkMode ? (
-                        <span className="bg-gradient-to-r from-pink-400 to-blue-400 bg-clip-text text-transparent">
+                        <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                           From Idea to App. Instantly.
                         </span>
                       ) : (
                         <>
-                          <span className="text-black">From Idea to App.</span>
-                          <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent"> Instantly.</span>
+                          <span className="text-gray-900">From Idea to App.</span>
+                          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> Instantly.</span>
                         </>
                       )}
                     </h1>
                     {isDarkMode ? (
-                      <p className="text-xl md:text-2xl font-medium max-w-3xl mx-auto leading-relaxed bg-gradient-to-r from-pink-400 to-blue-400 bg-clip-text text-transparent">
+                      <p className="text-xl md:text-2xl font-medium max-w-3xl mx-auto leading-relaxed bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                         myPip builds full-stack mobile apps for iOS & Android from a single prompt. No code. No limits.
                       </p>
                     ) : (
-                      <p className="text-xl md:text-2xl text-black font-medium max-w-3xl mx-auto leading-relaxed">
+                      <p className="text-xl md:text-2xl text-gray-700 font-medium max-w-3xl mx-auto leading-relaxed">
                         myPip builds full-stack mobile apps for iOS & Android from a single prompt.{" "}
-                        <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent font-semibold">
+                        <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-semibold">
                           No code. No limits.
                         </span>
                       </p>
@@ -3137,15 +3137,27 @@ class SocialFeed: ObservableObject {
                       <div className="w-full max-w-[500px]">
                         {/* Hide prompt input during first generation to give animations space */}
                         {isLoading && !hasGenerated ? (
-                          <div className="glass-card p-8 w-full transition-opacity duration-500 ease-in-out">
+                          <div className={`p-8 w-full transition-opacity duration-500 ease-in-out rounded-xl border ${
+                            isDarkMode 
+                              ? 'bg-slate-800 border-slate-600 shadow-2xl' 
+                              : 'bg-white border-gray-200 shadow-lg'
+                          }`}>
                             <div className="text-center">
                               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-6"></div>
-                              <p className="text-white/80 text-lg font-medium mb-2">Generating your app...</p>
-                              <p className="text-white/60 text-sm">This will take a few moments</p>
+                              <p className={`text-lg font-medium mb-2 ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>Generating your app...</p>
+                              <p className={`text-sm ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>This will take a few moments</p>
                             </div>
                           </div>
                         ) : (
-                          <div className="glass-card p-4 w-full transition-opacity duration-500 ease-in-out">
+                          <div className={`p-4 w-full transition-opacity duration-500 ease-in-out rounded-xl border ${
+                            isDarkMode 
+                              ? 'bg-slate-800 border-slate-600 shadow-2xl' 
+                              : 'bg-white border-gray-200 shadow-lg'
+                          }`}>
                             <PromptInput
                               prompt={prompt}
                               setPrompt={setPrompt}
@@ -3163,12 +3175,18 @@ class SocialFeed: ObservableObject {
                           </div>
                         )}
                         {error && (
-                          <div className={`mt-3 glass-card p-3 text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
+                          <div className={`mt-3 p-3 text-sm transition-opacity duration-300 ease-in-out rounded-lg border ${
+                            error.includes("successfully") 
+                              ? (isDarkMode ? 'bg-green-900/20 border-green-700 text-green-300' : 'bg-green-50 border-green-200 text-green-700')
+                              : (isDarkMode ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-red-50 border-red-200 text-red-700')
+                          }`}>
                             {error}
                           </div>
                         )}
                         {!canSubmit && !isEarlyBirdKeyApplied && (
-                          <div className="mt-3 glass-card p-3 text-sm text-center bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-400/30">
+                          <div className={`mt-3 p-3 text-sm text-center rounded-lg border ${
+                            isDarkMode ? 'bg-yellow-900/20 border-yellow-700 text-yellow-300' : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                          }`}>
                             You've used all your free prompts. Subscribe to a credit plan or an unlimited access plan for more prompts!
                           </div>
                         )}
@@ -3177,10 +3195,14 @@ class SocialFeed: ObservableObject {
                       {/* Community Showcase - Built with myPip */}
                       <div className="w-full max-w-[500px]">
                         <div className="text-center mb-6">
-                          <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
+                          <h2 className={`text-xl md:text-2xl font-bold mb-2 ${
+                            isDarkMode ? 'bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent' : 'text-gray-900'
+                          }`}>
                             Built with myPip
                           </h2>
-                          <p className="text-white/80 text-sm">
+                          <p className={`text-sm ${
+                            isDarkMode ? 'bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent' : 'text-gray-600'
+                          }`}>
                             Top community creations
                           </p>
                         </div>
@@ -3189,16 +3211,24 @@ class SocialFeed: ObservableObject {
                           {/* Show top 4 liked projects */}
                           {(topLikedProjects || []).slice(0, 4).map(project => (
                             <div key={project.id} className="relative">
-                              <div className="glass-card p-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
+                              <div className={`p-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg rounded-xl border ${
+                                isDarkMode 
+                                  ? 'bg-slate-800 border-slate-600 shadow-xl' 
+                                  : 'bg-white border-gray-200 shadow-lg'
+                              }`}>
                                 {/* Project Info */}
                                 <div className="mb-3">
-                                  <h3 className="text-sm font-semibold text-white break-words mb-1">
+                                  <h3 className={`text-sm font-semibold break-words mb-1 ${
+                                    isDarkMode ? 'text-white' : 'text-gray-900'
+                                  }`}>
                                     {project.name}
                                   </h3>
                                   
                                   {/* Author display */}
                                   {(project.user_full_name || project.user_name) && (
-                                    <div className="text-xs text-white/60 mb-2">
+                                    <div className={`text-xs mb-2 ${
+                                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                    }`}>
                                       by {project.user_full_name || project.user_name}
                                     </div>
                                   )}
@@ -3226,12 +3256,23 @@ class SocialFeed: ObservableObject {
                                 
                                 {/* Action Buttons */}
                                 <div className="flex flex-col gap-1">
-                                  <button
-                                    onClick={() => handleOpenProject(project.id)}
-                                    className="glass-button px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-xs transition-all duration-300 font-medium"
-                                  >
-                                    Open
-                                  </button>
+                                  <SignedIn>
+                                    <button
+                                      onClick={async () => {
+                                        await handleRemixAndOpenProject(project.id);
+                                      }}
+                                      className="glass-button px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-xs transition-all duration-300 font-medium"
+                                    >
+                                      Remix
+                                    </button>
+                                  </SignedIn>
+                                  <SignedOut>
+                                    <SignInButton mode="modal">
+                                      <button className="glass-button px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-xs transition-all duration-300 font-medium">
+                                        Remix
+                                      </button>
+                                    </SignInButton>
+                                  </SignedOut>
                                   
                                   <div className="flex gap-1">
                                     <SignedIn>
@@ -3273,7 +3314,11 @@ class SocialFeed: ObservableObject {
                         <div className="text-center mt-4">
                           <button
                             onClick={() => setCurrentView('community')}
-                            className="glass-button px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium rounded-lg transition-all duration-300 text-sm"
+                            className={`px-4 py-2 font-medium rounded-lg transition-all duration-300 text-sm ${
+                              isDarkMode 
+                                ? 'bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg' 
+                                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                            }`}
                           >
                             View All
                           </button>
@@ -3283,9 +3328,15 @@ class SocialFeed: ObservableObject {
                     
                     {/* Right Column - Phone Preview */}
                     <div className="flex flex-col items-center justify-start">
-                      <div className="glass-card p-4">
+                      <div className={`p-4 rounded-xl border ${
+                        isDarkMode 
+                          ? 'bg-slate-800 border-slate-600 shadow-2xl' 
+                          : 'bg-white border-gray-200 shadow-lg'
+                      }`}>
                         <div className="w-full flex justify-between items-center mb-4">
-                          <h2 className="text-xl font-semibold text-white">
+                          <h2 className={`text-xl font-semibold ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                             App Preview
                           </h2>
                         </div>
@@ -3312,10 +3363,14 @@ class SocialFeed: ObservableObject {
                   {user && (fallbackProjects.length > 0 || fallbackSavedProjects.length > 0) && (
                     <div className="col-span-1 md:col-span-2 mt-12">
                       <div className="text-center mb-8">
-                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                        <h2 className={`text-2xl md:text-3xl font-bold mb-2 ${
+                          isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                           Your Recent Projects
                         </h2>
-                        <p className="text-white/80 text-lg">
+                        <p className={`text-lg ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                           Continue working on your apps or start something new
                         </p>
                       </div>
@@ -3341,7 +3396,11 @@ class SocialFeed: ObservableObject {
                       <div className="text-center mt-8">
                         <button
                           onClick={() => setCurrentView('myPips')}
-                          className="glass-button px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300"
+                          className={`px-6 py-3 font-semibold rounded-xl transition-all duration-300 ${
+                            isDarkMode 
+                              ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
+                              : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                          }`}
                         >
                           View All Projects
                         </button>
@@ -3506,7 +3565,7 @@ class SocialFeed: ObservableObject {
                     }`}>
                       <div className={`rounded-lg border overflow-hidden ${
                         isDarkMode 
-                          ? 'bg-gray-800 border-gray-600' 
+                          ? 'bg-slate-800 border-slate-600 shadow-xl' 
                           : 'bg-gray-50 border-gray-300'
                       }`}>
                             <textarea
@@ -3609,7 +3668,7 @@ class SocialFeed: ObservableObject {
                       // Code Files View
                       <div className={`flex-1 flex flex-col rounded-xl border h-full ${
                         isDarkMode 
-                          ? 'bg-gray-800 border-gray-600' 
+                          ? 'bg-slate-800 border-slate-600 shadow-xl' 
                           : 'bg-white border-gray-200'
                       }`}>
                         {/* File Selector */}
