@@ -101,7 +101,7 @@ const App: React.FC = () => {
   const { user } = useUser();
   
   // Database hooks with error handling
-  const { userData, loading: userDataLoading, error: userDataError } = useUserData(); // Enable user sync
+  const { userData, loading: userDataLoading, error: userDataError, refetch } = useUserData(); // Enable user sync
   const { projects, createProject, updateProject, deleteProject, refreshProjects, remixProject } = useProjects();
   const { projects: publicProjects, loadPublicProjects, likeProject, recordView } = usePublicProjects();
   const { savedProjects, saveProject, unsaveProject, isProjectSaved } = useSavedProjects();
@@ -2355,21 +2355,19 @@ class SocialFeed: ObservableObject {
     return files;
   };
 
-  // Test Gemini API connection
-  const handleTestGeminiApi = async () => {
-    setAiThoughtProcess('Testing Gemini API connection...');
+
+
+  // Refresh user subscription data
+  const handleRefreshSubscriptionData = async () => {
+    if (!userData) return;
+    
     try {
-      const isWorking = await testGeminiApiConnection();
-      if (isWorking) {
-        setError('✅ Gemini API is working correctly!');
-        setTimeout(() => setError(null), 3000);
-      } else {
-        setError('❌ Gemini API test failed. Check your internet connection or API key.');
-      }
+      await refetch();
+      setError('✅ Subscription data refreshed successfully!');
+      setTimeout(() => setError(null), 3000);
     } catch (err) {
-      setError(`❌ Gemini API test error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setError(`❌ Failed to refresh subscription data: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
-    setAiThoughtProcess('');
   };
 
   return (
@@ -2916,6 +2914,10 @@ class SocialFeed: ObservableObject {
               {isEarlyBirdKeyApplied ? (
                 <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-green-400 to-blue-500 text-white">
                   Unlimited Access
+                </div>
+              ) : userData ? (
+                <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white">
+                  Builds: {userData.builds_limit - userData.builds_used}/{userData.builds_limit}
                 </div>
               ) : (
                 <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white">
@@ -5343,19 +5345,30 @@ class SocialFeed: ObservableObject {
                 </div>
               </div>
 
-              {/* AI API Testing */}
+
+
+              {/* Subscription Management */}
               <div className="glass-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-medium text-white">AI API Testing</h3>
-                    <p className="text-sm text-white/60 mt-1">Test Gemini API connection</p>
+                    <h3 className="text-lg font-medium text-white">Subscription Management</h3>
+                    <p className="text-sm text-white/60 mt-1">Manage your subscription and usage</p>
                   </div>
-                  <button 
-                    onClick={handleTestGeminiApi}
-                    className="glass-button px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-sm transition-all duration-300"
-                  >
-                    Test Gemini
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={handleRefreshSubscriptionData}
+                      className="glass-button px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white text-sm transition-all duration-300"
+                      title="Refresh subscription data"
+                    >
+                      <RefreshIcon className="h-4 w-4" />
+                    </button>
+                    <button 
+                      onClick={() => setIsSubscriptionModalOpen(true)}
+                      className="glass-button px-4 py-2 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white text-sm transition-all duration-300"
+                    >
+                      Manage
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

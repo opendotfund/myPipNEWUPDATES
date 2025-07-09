@@ -26,21 +26,47 @@ SET subscription_tier = 'free',
     remixes_limit = 3
 WHERE subscription_tier IS NULL;
 
--- 4. Create user_usage table if it doesn't exist
+-- 4. Check if user_usage table exists and handle it properly
+DO $$
+BEGIN
+    -- Check if user_usage table exists
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'user_usage') THEN
+        -- Check if it has user_id column (old structure)
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'user_usage' AND column_name = 'user_id') THEN
+            -- Drop the old table and recreate with clerk_id
+            DROP TABLE IF EXISTS user_usage CASCADE;
+        END IF;
+    END IF;
+END $$;
+
+-- 5. Create user_usage table with clerk_id
 CREATE TABLE IF NOT EXISTS user_usage (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  clerk_id TEXT NOT NULL,
   usage_date DATE DEFAULT CURRENT_DATE,
   builds_used INTEGER DEFAULT 0,
   remixes_used INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id, usage_date)
+  UNIQUE(clerk_id, usage_date)
 );
 
--- 5. Create subscription_transactions table if it doesn't exist
+-- 6. Check if subscription_transactions table exists and handle it properly
+DO $$
+BEGIN
+    -- Check if subscription_transactions table exists
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'subscription_transactions') THEN
+        -- Check if it has user_id column (old structure)
+        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'subscription_transactions' AND column_name = 'user_id') THEN
+            -- Drop the old table and recreate with clerk_id
+            DROP TABLE IF EXISTS subscription_transactions CASCADE;
+        END IF;
+    END IF;
+END $$;
+
+-- 7. Create subscription_transactions table with clerk_id
 CREATE TABLE IF NOT EXISTS subscription_transactions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  clerk_id TEXT NOT NULL,
   lemon_squeezy_order_id TEXT UNIQUE NOT NULL,
   plan_tier TEXT NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
@@ -48,67 +74,48 @@ CREATE TABLE IF NOT EXISTS subscription_transactions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 6. Enable RLS on new tables
+-- 8. Enable RLS on new tables
 ALTER TABLE user_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscription_transactions ENABLE ROW LEVEL SECURITY;
 
--- 7. Drop existing policies if they exist (to avoid conflicts)
+-- 9. Drop existing policies if they exist (to avoid conflicts)
 DROP POLICY IF EXISTS "Users can view their own usage" ON user_usage;
 DROP POLICY IF EXISTS "Users can insert their own usage" ON user_usage;
 DROP POLICY IF EXISTS "Users can update their own usage" ON user_usage;
 DROP POLICY IF EXISTS "Users can view their own transactions" ON subscription_transactions;
 DROP POLICY IF EXISTS "Users can insert their own transactions" ON subscription_transactions;
 
--- 8. Create RLS policies for new tables
+-- 10. Create RLS policies for new tables
+-- Using clerk_id directly to avoid UUID comparison issues
 CREATE POLICY "Users can view their own usage" ON user_usage
-  FOR SELECT USING (
-    user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'
-    )
-  );
+  FOR SELECT USING (clerk_id = auth.jwt() ->> 'sub');
 
 CREATE POLICY "Users can insert their own usage" ON user_usage
-  FOR INSERT WITH CHECK (
-    user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'
-    )
-  );
+  FOR INSERT WITH CHECK (clerk_id = auth.jwt() ->> 'sub');
 
 CREATE POLICY "Users can update their own usage" ON user_usage
-  FOR UPDATE USING (
-    user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'
-    )
-  );
+  FOR UPDATE USING (clerk_id = auth.jwt() ->> 'sub');
 
 CREATE POLICY "Users can view their own transactions" ON subscription_transactions
-  FOR SELECT USING (
-    user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'
-    )
-  );
+  FOR SELECT USING (clerk_id = auth.jwt() ->> 'sub');
 
 CREATE POLICY "Users can insert their own transactions" ON subscription_transactions
-  FOR INSERT WITH CHECK (
-    user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.jwt() ->> 'sub'
-    )
-  );
+  FOR INSERT WITH CHECK (clerk_id = auth.jwt() ->> 'sub');
 
--- 9. Create indexes for new tables
-CREATE INDEX IF NOT EXISTS idx_user_usage_user_id ON user_usage(user_id);
+-- 11. Create indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_user_usage_clerk_id ON user_usage(clerk_id);
 CREATE INDEX IF NOT EXISTS idx_user_usage_date ON user_usage(usage_date);
-CREATE INDEX IF NOT EXISTS idx_subscription_transactions_user_id ON subscription_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_transactions_clerk_id ON subscription_transactions(clerk_id);
 CREATE INDEX IF NOT EXISTS idx_subscription_transactions_lemon_squeezy_order_id ON subscription_transactions(lemon_squeezy_order_id);
 
--- 10. Initialize user usage for existing users
-INSERT INTO user_usage (user_id, usage_date, builds_used, remixes_used)
-SELECT id, CURRENT_DATE, 0, 0
+-- 12. Initialize user usage for existing users
+INSERT INTO user_usage (clerk_id, usage_date, builds_used, remixes_used)
+SELECT clerk_id, CURRENT_DATE, 0, 0
 FROM users
-WHERE id NOT IN (SELECT user_id FROM user_usage WHERE usage_date = CURRENT_DATE)
-ON CONFLICT (user_id, usage_date) DO NOTHING;
+WHERE clerk_id NOT IN (SELECT clerk_id FROM user_usage WHERE usage_date = CURRENT_DATE)
+ON CONFLICT (clerk_id, usage_date) DO NOTHING;
 
--- 11. Verify the changes
+-- 13. Verify the changes
 SELECT 
   column_name, 
   data_type, 

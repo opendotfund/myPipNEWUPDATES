@@ -7,8 +7,13 @@ export interface User {
   avatar_url?: string
   bio?: string
   subscription_tier: string
+  subscription_status?: string
+  lemon_squeezy_customer_id?: string
+  lemon_squeezy_subscription_id?: string
   builds_used: number
   remixes_used: number
+  builds_limit: number
+  remixes_limit: number
   created_at: string
   updated_at: string
 }

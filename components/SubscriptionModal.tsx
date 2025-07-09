@@ -5,6 +5,7 @@ import ReactDOM from 'react-dom';
 import { useUser } from '@clerk/clerk-react';
 import { CloseIcon } from './icons/CloseIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
+import { useUserData } from '../hooks/useUserData';
 // LoadingSpinner is not directly used by stripe-buy-button but kept if needed for other parts or future UI elements.
 
 // The global JSX.IntrinsicElements declaration has been moved to stripe.d.ts
@@ -56,10 +57,18 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   isDarkMode = false
 }) => {
   const { user } = useUser();
+  const { userData, refetch } = useUserData();
   const [checkoutUrl, setCheckoutUrl] = useState<string>('');
   const [showCheckout, setShowCheckout] = useState<boolean>(false);
   const [showCreditInfo, setShowCreditInfo] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+
+  // Refresh user data when modal opens
+  useEffect(() => {
+    if (isOpen && user) {
+      refetch();
+    }
+  }, [isOpen, user, refetch]);
 
   const handleCheckout = (url: string) => {
     if (!user) {
@@ -201,6 +210,102 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               <CloseIcon className="h-6 w-6" />
             </button>
           </div>
+
+          {/* Current Subscription Status */}
+          {userData && (
+            <div className={`mb-6 p-4 rounded-xl ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-blue-50 border-blue-200'} border`}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-gray-200' : 'text-blue-800'}`}>
+                  Current Subscription: {userData.subscription_tier?.charAt(0).toUpperCase() + userData.subscription_tier?.slice(1) || 'Free'}
+                </h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={refetch}
+                    className={`p-2 rounded-full ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'} transition-colors`}
+                    title="Refresh subscription data"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </button>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    userData.subscription_status === 'active' 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                  }`}>
+                    {userData.subscription_status || 'Active'}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
+                    {userData.builds_used || 0}
+                  </div>
+                  <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-blue-600'}`}>
+                    Builds Used
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
+                    {userData.builds_limit || 5}
+                  </div>
+                  <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-blue-600'}`}>
+                    Build Limit
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-600'}`}>
+                    {userData.remixes_used || 0}
+                  </div>
+                  <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-purple-600'}`}>
+                    Remixes Used
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${isDarkMode ? 'text-purple-300' : 'text-purple-600'}`}>
+                    {userData.remixes_limit || 3}
+                  </div>
+                  <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-purple-600'}`}>
+                    Remix Limit
+                  </div>
+                </div>
+              </div>
+              
+              {/* Progress bars */}
+              <div className="mt-4 space-y-2">
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Build Progress</span>
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                      {userData.builds_used || 0} / {userData.builds_limit || 5}
+                    </span>
+                  </div>
+                  <div className={`w-full bg-gray-200 rounded-full h-2 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(((userData.builds_used || 0) / (userData.builds_limit || 5)) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Remix Progress</span>
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                      {userData.remixes_used || 0} / {userData.remixes_limit || 3}
+                    </span>
+                  </div>
+                  <div className={`w-full bg-gray-200 rounded-full h-2 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                    <div 
+                      className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(((userData.remixes_used || 0) / (userData.remixes_limit || 3)) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* myPip Basic - Left */}
