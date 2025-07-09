@@ -10,6 +10,7 @@ interface PhonePreviewProps {
   onRotate?: () => void;
   isGenerating?: boolean;
   onPreviewReady?: () => void;
+  isDarkMode?: boolean;
 }
 
 export const PhonePreview: React.FC<PhonePreviewProps> = ({ 
@@ -21,7 +22,8 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
   isRotated = false,
   onRotate,
   isGenerating = false,
-  onPreviewReady
+  onPreviewReady,
+  isDarkMode = false
 }) => {
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
@@ -29,42 +31,74 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
   const sizeConfig = {
     mini: {
       portrait: {
-        container: 'bg-neutral-200 p-1 rounded-lg shadow-md w-[180px] h-[360px] md:w-[200px] md:h-[400px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-md overflow-hidden relative'
+        container: `p-1 rounded-lg shadow-md w-[180px] h-[360px] md:w-[200px] md:h-[400px] flex-shrink-0 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-neutral-200'
+        }`,
+        screen: `w-full h-full rounded-md overflow-hidden relative ${
+          isDarkMode ? 'bg-gray-800' : 'bg-neutral-800'
+        }`
       },
       landscape: {
-        container: 'bg-neutral-200 p-1 rounded-lg shadow-md w-[360px] h-[180px] md:w-[400px] md:h-[200px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-md overflow-hidden relative'
+        container: `p-1 rounded-lg shadow-md w-[360px] h-[180px] md:w-[400px] md:h-[200px] flex-shrink-0 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-neutral-200'
+        }`,
+        screen: `w-full h-full rounded-md overflow-hidden relative ${
+          isDarkMode ? 'bg-gray-800' : 'bg-neutral-800'
+        }`
       }
     },
     tiny: {
       portrait: {
-        container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[160px] h-[320px] md:w-[180px] md:h-[360px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-lg overflow-hidden relative'
+        container: `p-1 rounded-xl shadow-lg w-[160px] h-[320px] md:w-[180px] md:h-[360px] flex-shrink-0 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-neutral-200'
+        }`,
+        screen: `w-full h-full rounded-lg overflow-hidden relative ${
+          isDarkMode ? 'bg-gray-800' : 'bg-neutral-800'
+        }`
       },
       landscape: {
-        container: 'bg-neutral-200 p-1 rounded-xl shadow-lg w-[320px] h-[160px] md:w-[360px] md:h-[180px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-lg overflow-hidden relative'
+        container: `p-1 rounded-xl shadow-lg w-[320px] h-[160px] md:w-[360px] md:h-[180px] flex-shrink-0 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-neutral-200'
+        }`,
+        screen: `w-full h-full rounded-lg overflow-hidden relative ${
+          isDarkMode ? 'bg-gray-800' : 'bg-neutral-800'
+        }`
       }
     },
     small: {
       portrait: {
-        container: 'bg-neutral-200 p-1.5 rounded-2xl shadow-xl w-[240px] h-[480px] md:w-[260px] md:h-[520px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-xl overflow-hidden relative'
+        container: `p-1.5 rounded-2xl shadow-xl w-[240px] h-[480px] md:w-[260px] md:h-[520px] flex-shrink-0 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-neutral-200'
+        }`,
+        screen: `w-full h-full rounded-xl overflow-hidden relative ${
+          isDarkMode ? 'bg-gray-800' : 'bg-neutral-800'
+        }`
       },
       landscape: {
-        container: 'bg-neutral-200 p-1.5 rounded-2xl shadow-xl w-[480px] h-[240px] md:w-[520px] md:h-[260px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-xl overflow-hidden relative'
+        container: `p-1.5 rounded-2xl shadow-xl w-[480px] h-[240px] md:w-[520px] md:h-[260px] flex-shrink-0 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-neutral-200'
+        }`,
+        screen: `w-full h-full rounded-xl overflow-hidden relative ${
+          isDarkMode ? 'bg-gray-800' : 'bg-neutral-800'
+        }`
       }
     },
     default: {
       portrait: {
-        container: 'bg-neutral-200 p-2 rounded-3xl shadow-2xl w-[320px] h-[650px] md:w-[350px] md:h-[700px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-2xl overflow-hidden relative'
+        container: `p-2 rounded-3xl shadow-2xl w-[320px] h-[650px] md:w-[350px] md:h-[700px] flex-shrink-0 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-neutral-200'
+        }`,
+        screen: `w-full h-full rounded-2xl overflow-hidden relative ${
+          isDarkMode ? 'bg-gray-800' : 'bg-neutral-800'
+        }`
       },
       landscape: {
-        container: 'bg-neutral-200 p-2 rounded-3xl shadow-2xl w-[650px] h-[320px] md:w-[700px] md:h-[350px] flex-shrink-0',
-        screen: 'bg-neutral-800 w-full h-full rounded-2xl overflow-hidden relative'
+        container: `p-2 rounded-3xl shadow-2xl w-[650px] h-[320px] md:w-[700px] md:h-[350px] flex-shrink-0 ${
+          isDarkMode ? 'bg-gray-700' : 'bg-neutral-200'
+        }`,
+        screen: `w-full h-full rounded-2xl overflow-hidden relative ${
+          isDarkMode ? 'bg-gray-800' : 'bg-neutral-800'
+        }`
       }
     }
   };

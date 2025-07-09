@@ -36,5 +36,5 @@ export function createAuthenticatedSupabaseClient(token: string) {
   return authenticatedClient
 }
 
-// Test connection
-console.log('Supabase client created with URL:', supabaseUrl) 
+  // Test connection
+  console.log('Supabase client created with URL:', supabaseUrl)

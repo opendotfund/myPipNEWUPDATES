@@ -77,28 +77,28 @@ const parseClaudeJsonResponse = (responseText: string): ClaudeResponse => {
   
   // First, try to extract JSON from the response
   let jsonStr = responseText.trim();
-  
+    
   // Remove any markdown code blocks
   jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
   
   // Try to find JSON object boundaries
-  const jsonStart = jsonStr.indexOf('{');
+    const jsonStart = jsonStr.indexOf('{');
   const jsonEnd = jsonStr.lastIndexOf('}');
   
   if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
     jsonStr = jsonStr.substring(jsonStart, jsonEnd + 1);
   }
-  
+
   // Clean up common JSON issues
   jsonStr = jsonStr
     .replace(/\\n/g, '\\n')
     .replace(/\\r/g, '\\r')
     .replace(/\\t/g, '\\t')
-    .replace(/\\"/g, '\\"')
+                   .replace(/\\"/g, '\\"')
     .replace(/\\\\/g, '\\\\')
-    .replace(/\\b/g, "\\b")
-    .replace(/\\f/g, "\\f");
-
+                   .replace(/\\b/g, "\\b")
+                   .replace(/\\f/g, "\\f");
+  
   try {
     const parsedData = JSON.parse(jsonStr) as ClaudeResponse;
     if (!parsedData.swiftCode || !parsedData.previewHtml) {

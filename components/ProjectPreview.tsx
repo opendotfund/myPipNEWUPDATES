@@ -19,6 +19,7 @@ interface ProjectPreviewProps {
   showCheckbox?: boolean;
   checked?: boolean;
   onCheckboxChange?: (checked: boolean) => void;
+  isDarkMode?: boolean;
 }
 
 export const ProjectPreview: React.FC<ProjectPreviewProps> = ({
@@ -37,7 +38,8 @@ export const ProjectPreview: React.FC<ProjectPreviewProps> = ({
   // New props for selection
   showCheckbox = false,
   checked = false,
-  onCheckboxChange
+  onCheckboxChange,
+  isDarkMode = false
 }) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(project.name);
@@ -161,6 +163,7 @@ export const ProjectPreview: React.FC<ProjectPreviewProps> = ({
                 onPreviewInteraction={() => {}}
                 size="tiny"
                 onPreviewReady={() => {}}
+                isDarkMode={isDarkMode}
               />
             </div>
           </div>
@@ -170,7 +173,7 @@ export const ProjectPreview: React.FC<ProjectPreviewProps> = ({
         <div className="flex flex-col gap-2 lg:flex-shrink-0">
           <button
             onClick={() => onOpen(project.id)}
-            className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300 font-medium"
+            className="glass-button px-4 py-2 bg-gradient-to-br from-gray-900 to-gray-800 text-white rounded text-sm transition-all duration-300 font-medium"
           >
             Open
           </button>

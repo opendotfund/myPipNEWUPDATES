@@ -360,6 +360,7 @@ const App: React.FC = () => {
 
   const handleCheckoutV1 = () => {
     setShowV2WaitlistPopup(false);
+    window.open('https://mypip.lemonsqueezy.com/buy/e210a879-e5ce-4682-8dd6-b00dd56312f2', '_blank');
   };
 
   const openConfigModal = (platform: string) => {
@@ -1484,7 +1485,7 @@ const App: React.FC = () => {
         console.log('Public projects refreshed after remix');
         // Immediately open the remixed project for editing
         await handleOpenProject(remixedProject.id);
-        setError('Project remixed successfully and opened for editing!');
+        setError('Project remixed and opened for editing!');
         setTimeout(() => setError(null), 3000);
       } else {
         setError('Failed to remix project');
@@ -3161,11 +3162,14 @@ class SocialFeed: ObservableObject {
                             </div>
                           </div>
                         ) : (
-                          <div className={`p-4 w-full transition-opacity duration-500 ease-in-out rounded-xl border ${
+                          <div className={`p-4 w-full transition-opacity duration-500 ease-in-out rounded-xl border relative overflow-hidden ${
                             isDarkMode 
                               ? 'bg-slate-800 border-slate-600 shadow-2xl' 
                               : 'bg-white border-gray-200 shadow-lg'
                           }`}>
+                            {/* Liquid glass effect */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-gray-900/20 via-gray-800/20 to-gray-700/20 rounded-xl"></div>
+                            <div className="relative z-10">
                             <PromptInput
                               prompt={prompt}
                               setPrompt={setPrompt}
@@ -3180,6 +3184,7 @@ class SocialFeed: ObservableObject {
                               isDarkMode={isDarkMode}
                               hasGenerated={hasGenerated}
                             />
+                            </div>
                           </div>
                         )}
                         {error && (
@@ -3201,7 +3206,10 @@ class SocialFeed: ObservableObject {
                       </div>
                       
                       {/* Community Showcase - Built with myPip */}
-                      <div className="w-full max-w-[500px]">
+                      <div className="w-full max-w-[500px] relative overflow-hidden rounded-xl border border-white/20 backdrop-blur-xl bg-white/10 p-6 shadow-2xl">
+                        {/* Liquid glass effect */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/20 via-gray-800/20 to-gray-700/20 rounded-xl"></div>
+                        <div className="relative z-10">
                         <div className="text-center mb-6">
                           <h2 className={`text-xl md:text-2xl font-bold mb-2 ${
                             isDarkMode ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] drop-shadow-[0_0_16px_rgba(255,255,255,0.6)] drop-shadow-[0_0_24px_rgba(255,255,255,0.4)]' : 'text-gray-900'
@@ -3221,7 +3229,7 @@ class SocialFeed: ObservableObject {
                             <div key={project.id} className="relative">
                               <div className={`p-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg rounded-xl border ${
                                 isDarkMode 
-                                  ? 'bg-gray-800 border-gray-600 shadow-xl' 
+                                  ? 'bg-slate-800 border-slate-600 shadow-xl' 
                                   : 'bg-white border-gray-200 shadow-lg'
                               }`}>
                                 {/* Project Info */}
@@ -3242,7 +3250,7 @@ class SocialFeed: ObservableObject {
                                   )}
                                   
                                   <div className="flex items-center gap-1 mb-2">
-                                    <span className="text-xs bg-gradient-to-r from-gray-500 to-gray-600 text-white px-2 py-0.5 rounded-full">
+                                    <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-0.5 rounded-full">
                                       {project.category}
                                     </span>
                                   </div>
@@ -3257,7 +3265,6 @@ class SocialFeed: ObservableObject {
                                         onPreviewInteraction={() => {}}
                                         size="mini"
                                         onPreviewReady={() => {}}
-                                        isDarkMode={isDarkMode}
                                       />
                                     </div>
                                   </div>
@@ -3270,15 +3277,15 @@ class SocialFeed: ObservableObject {
                                       onClick={async () => {
                                         await handleRemixAndOpenProject(project.id);
                                       }}
-                                      className="glass-button px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded text-xs transition-all duration-300 font-medium"
+                                      className="glass-button px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-xs transition-all duration-300 font-medium"
                                     >
-                                      Open
+                                      Remix
                                     </button>
                                   </SignedIn>
                                   <SignedOut>
                                     <SignInButton mode="modal">
-                                      <button className="glass-button px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded text-xs transition-all duration-300 font-medium">
-                                        Open
+                                      <button className="glass-button px-2 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-xs transition-all duration-300 font-medium">
+                                        Remix
                                       </button>
                                     </SignInButton>
                                   </SignedOut>
@@ -3307,7 +3314,7 @@ class SocialFeed: ObservableObject {
                                     </SignedIn>
                                     <SignedOut>
                                       <SignInButton mode="modal">
-                                        <button className="glass-button w-full flex items-center justify-center px-1 py-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded text-xs transition-all duration-300">
+                                        <button className="glass-button w-full flex items-center justify-center px-1 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-xs transition-all duration-300">
                                           Sign in
                                         </button>
                                       </SignInButton>
@@ -3362,7 +3369,6 @@ class SocialFeed: ObservableObject {
                             onRotate={refreshPreview}
                             isGenerating={isLoading && !hasGenerated}
                             onPreviewReady={handlePreviewReady}
-                            isDarkMode={isDarkMode}
                           />
                         </div>
                       </div>
@@ -3374,12 +3380,12 @@ class SocialFeed: ObservableObject {
                     <div className="col-span-1 md:col-span-2 mt-12">
                       <div className="text-center mb-8">
                         <h2 className={`text-2xl md:text-3xl font-bold mb-2 ${
-                          isDarkMode ? 'text-white drop-shadow-[0_0_60px_rgba(255,255,255,1)] drop-shadow-[0_0_120px_rgba(255,255,255,1)] drop-shadow-[0_0_180px_rgba(255,255,255,0.95)] drop-shadow-[0_0_240px_rgba(255,255,255,0.9)] drop-shadow-[0_0_300px_rgba(255,255,255,0.85)]' : 'text-gray-900'
+                          isDarkMode ? 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.9)] drop-shadow-[0_0_25px_rgba(255,255,255,0.7)] drop-shadow-[0_0_35px_rgba(255,255,255,0.5)] drop-shadow-[0_0_45px_rgba(255,255,255,0.3)]' : 'text-gray-900'
                         }`}>
                           Your Recent Projects
                         </h2>
                         <p className={`text-lg ${
-                          isDarkMode ? 'text-white drop-shadow-[0_0_60px_rgba(255,255,255,1)] drop-shadow-[0_0_120px_rgba(255,255,255,1)] drop-shadow-[0_0_180px_rgba(255,255,255,0.95)] drop-shadow-[0_0_240px_rgba(255,255,255,0.9)] drop-shadow-[0_0_300px_rgba(255,255,255,0.85)]' : 'text-gray-600'
+                          isDarkMode ? 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.9)] drop-shadow-[0_0_25px_rgba(255,255,255,0.7)] drop-shadow-[0_0_35px_rgba(255,255,255,0.5)] drop-shadow-[0_0_45px_rgba(255,255,255,0.3)]' : 'text-gray-600'
                         }`}>
                           Continue working on your apps or start something new
                         </p>
@@ -3582,12 +3588,12 @@ class SocialFeed: ObservableObject {
                               value={prompt}
                               onChange={(e) => setPrompt(e.target.value)}
                               placeholder="Describe how you'd like to refine your app..."
-                              className={`w-full resize-none border-0 bg-transparent placeholder-gray-400 focus:outline-none focus:ring-0 text-sm leading-relaxed font-sf-pro p-3 ${
-                                isDarkMode 
-                                  ? 'text-white placeholder-gray-400' 
-                                  : 'text-gray-900 placeholder-gray-500'
-                              }`}
-                              rows={4}
+                          className={`w-full resize-none border-0 bg-transparent placeholder-gray-400 focus:outline-none focus:ring-0 text-sm leading-relaxed font-sf-pro p-3 ${
+                            isDarkMode 
+                              ? 'text-white placeholder-gray-400' 
+                              : 'text-gray-900 placeholder-gray-500'
+                          }`}
+                          rows={4}
                               disabled={!canSubmit || isLoading}
                             />
                         <div className={`flex justify-between items-center p-3 border-t ${
@@ -3788,7 +3794,6 @@ class SocialFeed: ObservableObject {
                             onRotate={refreshPreview}
                             isGenerating={isLoading && !hasGenerated}
                             onPreviewReady={handlePreviewReady}
-                            isDarkMode={isDarkMode}
                           />
                         </div>
                       </>
@@ -4064,7 +4069,7 @@ class SocialFeed: ObservableObject {
                   </button>
                 </div>
                 
-                <div className="text-center pt-20 md:pt-4">
+                <div className="text-center pt-16 md:pt-0">
                   <h1 className="text-2xl md:text-3xl font-bold mb-4 text-white">My Pips</h1>
                   <p className="text-white/80 mb-6 md:mb-8 px-4 md:px-0">Manage your created pips and share them with the community</p>
                   

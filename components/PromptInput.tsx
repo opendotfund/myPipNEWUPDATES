@@ -220,7 +220,11 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           onFocus={handleTextareaFocus}
           onBlur={handleTextareaBlur}
           placeholder={isTyping && !hasGenerated && prompt === '' ? "" : hasGenerated ? "e.g., Change the background to green, add a paperclip icon for file uploads, make the text larger..." : "e.g., A simple todo list app with a button to add tasks..."}
-          className="glass-input w-full p-4 rounded-xl focus:ring-2 focus:ring-white/30 focus:border-white/40 transition-all duration-300 placeholder-white/50 min-h-[120px] resize-none disabled:opacity-70 disabled:cursor-not-allowed text-white"
+          className={`w-full p-4 rounded-xl focus:ring-2 focus:ring-white/30 focus:border-white/40 transition-all duration-300 placeholder-white/50 min-h-[120px] resize-none disabled:opacity-70 disabled:cursor-not-allowed text-white ${
+            isDarkMode 
+              ? 'bg-gray-700/50 border-gray-600/50 backdrop-blur-sm' 
+              : 'glass-input'
+          }`}
           rows={5}
           disabled={isLoading || isDisabled}
           aria-label="App description prompt"
@@ -312,7 +316,11 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           <button
             onClick={onSubmit}
             disabled={isLoading || isDisabled || !prompt.trim()}
-            className="glass-button flex items-center justify-center px-4 py-2 bg-gradient-to-r from-blue-400 to-purple-500 hover:from-blue-500 hover:to-purple-600 disabled:from-gray-400 disabled:to-gray-500 disabled:text-white/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/30 text-xs"
+            className={`flex items-center justify-center px-4 py-2 font-semibold rounded-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/30 text-xs ${
+              isDarkMode
+                ? 'bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-white/50 disabled:cursor-not-allowed text-white'
+                : 'glass-button bg-gradient-to-r from-blue-400 to-purple-500 hover:from-blue-500 hover:to-purple-600 disabled:from-gray-400 disabled:to-gray-500 disabled:text-white/50 disabled:cursor-not-allowed text-white'
+            }`}
           >
             {isLoading ? (
               <>

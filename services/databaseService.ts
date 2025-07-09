@@ -45,8 +45,8 @@ export const userService = {
 
       if (existingUser) {
         // Update existing user - preserve subscription data
-        const { data, error } = await client
-          .from('users')
+    const { data, error } = await client
+      .from('users')
           .update({
             email: userData.email,
             full_name: userData.full_name || existingUser.full_name,
@@ -56,10 +56,10 @@ export const userService = {
             updated_at: new Date().toISOString()
           })
           .eq('clerk_id', userData.clerk_id)
-          .select()
+      .select()
           .single();
 
-        if (error) {
+    if (error) {
           console.error('Error updating user:', error);
           console.error('Error details:', error.message, error.details, error.hint);
           return null;
@@ -126,16 +126,16 @@ export const userService = {
     try {
       const client = token ? createAuthenticatedSupabaseClient(token) : supabase
       
-      const { data, error } = await client
-        .from('users')
+    const { data, error } = await client
+      .from('users')
         .select('*')
-        .eq('clerk_id', clerkId)
+      .eq('clerk_id', clerkId)
         .single();
 
-      if (error) {
+    if (error) {
         console.error('Error getting user by Clerk ID:', error);
         return null;
-      }
+    }
 
       return data;
     } catch (error) {
@@ -177,20 +177,20 @@ export const userService = {
     try {
       const client = token ? createAuthenticatedSupabaseClient(token) : supabase
       
-      const { data, error } = await client
-        .from('users')
+    const { data, error } = await client
+      .from('users')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
         })
-        .eq('clerk_id', clerkId)
-        .select()
+      .eq('clerk_id', clerkId)
+      .select()
         .single();
 
-      if (error) {
+    if (error) {
         console.error('Error updating user profile:', error);
         return null;
-      }
+    }
 
       return data;
     } catch (error) {
@@ -697,17 +697,17 @@ export const projectService = {
       }
 
       // Create the project
-      const { data, error } = await client
-        .from('projects')
+    const { data, error } = await client
+      .from('projects')
         .insert({
           ...projectData,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-        .select()
+      .select()
         .single();
 
-      if (error) {
+    if (error) {
         console.error('Error creating project:', error);
         console.error('Error details:', error.message, error.details, error.hint);
         return null;
@@ -731,13 +731,13 @@ export const projectService = {
       
       const client = token ? createAuthenticatedSupabaseClient(token) : supabase
       
-      const { data, error } = await client
-        .from('projects')
+    const { data, error } = await client
+      .from('projects')
         .select('*')
         .eq('user_id', userId) // This is now the Clerk ID
         .order('created_at', { ascending: false });
 
-      if (error) {
+    if (error) {
         console.error('Error getting user projects:', error);
         return [];
       }
@@ -811,7 +811,7 @@ export const projectService = {
       console.log('Getting public projects with category:', category, 'search:', search);
       
       let query = supabase
-        .from('projects')
+      .from('projects')
         .select(`
           *,
           user:users!projects_user_id_fkey(
@@ -819,24 +819,24 @@ export const projectService = {
             username
           )
         `)
-        .eq('is_public', true)
+      .eq('is_public', true)
         .order('likes_count', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (category && category !== 'All Categories') {
+    if (category && category !== 'All Categories') {
         query = query.eq('category', category);
-      }
+    }
 
-      if (search) {
+    if (search) {
         query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
-      }
+    }
 
       const { data, error } = await query;
 
-      if (error) {
+    if (error) {
         console.error('Error getting public projects:', error);
         return [];
-      }
+    }
 
       // Transform the data to include user information
       const transformedData = data?.map((project: any) => ({
@@ -869,15 +869,15 @@ export const projectService = {
   async getProjectById(projectId: string): Promise<Project | null> {
     try {
       const { data, error } = await supabase
-        .from('projects')
+      .from('projects')
         .select('*')
-        .eq('id', projectId)
+      .eq('id', projectId)
         .single();
 
-      if (error) {
+    if (error) {
         console.error('Error getting project by ID:', error);
         return null;
-      }
+    }
 
       return data;
     } catch (error) {
@@ -891,20 +891,20 @@ export const projectService = {
     try {
       const client = token ? createAuthenticatedSupabaseClient(token) : supabase
       
-      const { data, error } = await client
-        .from('projects')
+    const { data, error } = await client
+      .from('projects')
         .update({
           ...updates,
           updated_at: new Date().toISOString()
         })
-        .eq('id', projectId)
-        .select()
+      .eq('id', projectId)
+      .select()
         .single();
 
-      if (error) {
+    if (error) {
         console.error('Error updating project:', error);
         return null;
-      }
+    }
 
       return data;
     } catch (error) {
@@ -918,15 +918,15 @@ export const projectService = {
     try {
       const client = token ? createAuthenticatedSupabaseClient(token) : supabase
       
-      const { error } = await client
-        .from('projects')
-        .delete()
+    const { error } = await client
+      .from('projects')
+      .delete()
         .eq('id', projectId);
 
-      if (error) {
+    if (error) {
         console.error('Error deleting project:', error);
         return false;
-      }
+    }
 
       return true;
     } catch (error) {
@@ -940,25 +940,25 @@ export const projectService = {
     try {
       const client = token ? createAuthenticatedSupabaseClient(token) : supabase;
       
-      // Check if user already liked the project
-      const { data: existingLike } = await client
-        .from('project_likes')
+    // Check if user already liked the project
+    const { data: existingLike } = await client
+      .from('project_likes')
         .select('*')
-        .eq('project_id', projectId)
-        .eq('user_id', userId)
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
         .single();
 
-      if (existingLike) {
+    if (existingLike) {
         // Unlike the project
-        const { error } = await client
-          .from('project_likes')
-          .delete()
+      const { error } = await client
+        .from('project_likes')
+        .delete()
           .eq('id', existingLike.id);
 
-        if (error) {
+      if (error) {
           console.error('Error unliking project:', error);
           return false;
-        }
+      }
 
         // Decrement likes_count
         const { data: currentProject } = await client
@@ -967,7 +967,7 @@ export const projectService = {
           .eq('id', projectId)
           .single();
         
-        if (currentProject) {
+      if (currentProject) {
           await client
             .from('projects')
             .update({ 
@@ -978,19 +978,19 @@ export const projectService = {
         }
 
         return true;
-      } else {
+    } else {
         // Like the project
-        const { error } = await client
-          .from('project_likes')
+      const { error } = await client
+        .from('project_likes')
           .insert({
             project_id: projectId,
             user_id: userId
           });
 
-        if (error) {
+      if (error) {
           console.error('Error liking project:', error);
           return false;
-        }
+      }
 
         // Increment likes_count
         const { data: currentProject } = await client
@@ -999,15 +999,15 @@ export const projectService = {
           .eq('id', projectId)
           .single();
         
-        if (currentProject) {
+      if (currentProject) {
           await client
             .from('projects')
             .update({ 
               likes_count: (currentProject.likes_count || 0) + 1,
               updated_at: new Date().toISOString()
-            })
+        })
             .eq('id', projectId);
-        }
+    }
 
         return true;
       }
@@ -1021,9 +1021,9 @@ export const projectService = {
   async recordProjectView(projectId: string, userId?: string, ipAddress?: string): Promise<void> {
     try {
       await supabase
-        .from('project_views')
-        .insert({
-          project_id: projectId,
+      .from('project_views')
+      .insert({
+        project_id: projectId,
           user_id: userId || null,
           ip_address: ipAddress || null
         });
@@ -1036,16 +1036,16 @@ export const projectService = {
   async saveProject(projectId: string, userId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('user_saved_projects')
+      .from('user_saved_projects')
         .insert({
           project_id: projectId,
           user_id: userId
         });
 
-      if (error) {
+    if (error) {
         console.error('Error saving project:', error);
         return false;
-      }
+    }
 
       return true;
     } catch (error) {
@@ -1058,15 +1058,15 @@ export const projectService = {
   async unsaveProject(projectId: string, userId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('user_saved_projects')
-        .delete()
-        .eq('project_id', projectId)
+      .from('user_saved_projects')
+      .delete()
+      .eq('project_id', projectId)
         .eq('user_id', userId);
 
-      if (error) {
+    if (error) {
         console.error('Error unsaving project:', error);
         return false;
-      }
+    }
 
       return true;
     } catch (error) {
@@ -1081,20 +1081,20 @@ export const projectService = {
       console.log('Getting saved projects for user:', userId);
       
       const { data, error } = await supabase
-        .from('user_saved_projects')
-        .select(`
-          project_id,
-          projects (
-            id,
-            name,
-            description,
+      .from('user_saved_projects')
+      .select(`
+        project_id,
+        projects (
+          id,
+          name,
+          description,
             category,
-            is_public,
-            allow_remix,
-            likes_count,
-            views_count,
-            remix_count,
-            created_at,
+          is_public,
+          allow_remix,
+          likes_count,
+          views_count,
+          remix_count,
+          created_at,
             updated_at,
             generated_code,
             preview_html,
@@ -1106,12 +1106,12 @@ export const projectService = {
               full_name,
               username
             )
-          )
-        `)
-        .eq('user_id', userId)
+        )
+      `)
+      .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) {
+    if (error) {
         console.error('Error getting user saved projects:', error);
         return [];
       }
@@ -1163,15 +1163,15 @@ export const projectService = {
   async isProjectSaved(projectId: string, userId: string): Promise<boolean> {
     try {
       const { data, error } = await supabase
-        .from('user_saved_projects')
+      .from('user_saved_projects')
         .select('*')
-        .eq('project_id', projectId)
-        .eq('user_id', userId)
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
         .single();
 
-      if (error) {
+    if (error) {
         return false;
-      }
+    }
 
       return !!data;
     } catch (error) {
@@ -1184,12 +1184,12 @@ export const projectService = {
     try {
       const client = token ? createAuthenticatedSupabaseClient(token) : supabase
       
-      // Get the original project
+    // Get the original project
       const originalProject = await this.getProjectById(originalProjectId);
-      if (!originalProject) {
+    if (!originalProject) {
         console.error('Original project not found for remix');
         return null;
-      }
+    }
 
       // Get user to check usage limits
       const { data: user } = await client
@@ -1207,20 +1207,20 @@ export const projectService = {
       if (user.remixes_used >= user.remixes_limit) {
         console.error(`User ${user.clerk_id} has reached their remix limit (${user.remixes_used}/${user.remixes_limit})`);
         throw new Error('You have reached your remix limit for this subscription tier. Please upgrade to create more remixes.');
-      }
+    }
 
-      // Create a new project based on the original
-      const remixedProject = await this.createProject({
-        user_id: userId,
-        name: newName || `${originalProject.name} (Remix)`,
-        description: originalProject.description,
-        prompt: originalProject.prompt,
-        generated_code: originalProject.generated_code,
-        preview_html: originalProject.preview_html,
+    // Create a new project based on the original
+    const remixedProject = await this.createProject({
+      user_id: userId,
+      name: newName || `${originalProject.name} (Remix)`,
+      description: originalProject.description,
+      prompt: originalProject.prompt,
+      generated_code: originalProject.generated_code,
+      preview_html: originalProject.preview_html,
         is_public: false, // Remixes are private by default
         allow_remix: originalProject.allow_remix,
-        category: originalProject.category,
-        original_project_id: originalProjectId
+      category: originalProject.category,
+      original_project_id: originalProjectId
       }, token);
 
       if (remixedProject) {

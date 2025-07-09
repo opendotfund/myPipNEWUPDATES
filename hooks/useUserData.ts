@@ -12,8 +12,8 @@ export function useUserData() {
 
   useEffect(() => {
     async function syncUser() {
-      if (!isLoaded) return
-      
+    if (!isLoaded) return
+
       if (!user) {
         setUserData(null)
         setLoading(false)
@@ -70,12 +70,12 @@ export function useUserData() {
       } catch (err) {
         console.error('Error syncing user:', err)
         setError('Error syncing user data')
-      } finally {
-        setLoading(false)
+        } finally {
+          setLoading(false)
+        }
       }
-    }
 
-    syncUser()
+      syncUser()
   }, [user, isLoaded, getToken])
 
   const refetch = async () => {

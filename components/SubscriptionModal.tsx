@@ -98,6 +98,11 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Ensure document.body is available before creating portal
+  if (typeof document === 'undefined' || !document.body) {
+    return null;
+  }
+
   // If user is not logged in, show login prompt
   if (!user) {
     return ReactDOM.createPortal(
@@ -277,29 +282,39 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               <div className="mt-4 space-y-2">
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Build Progress</span>
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Builds Remaining</span>
                     <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                      {userData.builds_used || 0} / {userData.builds_limit || 5}
+                      {userData.builds_limit || 5} - {userData.builds_used || 0}
                     </span>
                   </div>
                   <div className={`w-full bg-gray-200 rounded-full h-2 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
                     <div 
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(((userData.builds_used || 0) / (userData.builds_limit || 5)) * 100, 100)}%` }}
+                      style={{ 
+                        width: `${Math.min(
+                          ((userData.builds_limit || 5) - (userData.builds_used || 0)) / (userData.builds_limit || 5) * 100, 
+                          100
+                        )}%` 
+                      }}
                     ></div>
                   </div>
                 </div>
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Remix Progress</span>
+                    <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Remixes Remaining</span>
                     <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                      {userData.remixes_used || 0} / {userData.remixes_limit || 3}
+                      {userData.remixes_limit || 3} - {userData.remixes_used || 0}
                     </span>
                   </div>
                   <div className={`w-full bg-gray-200 rounded-full h-2 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
                     <div 
                       className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.min(((userData.remixes_used || 0) / (userData.remixes_limit || 3)) * 100, 100)}%` }}
+                      style={{ 
+                        width: `${Math.min(
+                          ((userData.remixes_limit || 3) - (userData.remixes_used || 0)) / (userData.remixes_limit || 3) * 100, 
+                          100
+                        )}%` 
+                      }}
                     ></div>
                   </div>
                 </div>
@@ -330,7 +345,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  100 Build Credits Monthly
+                  100 Build Credits + 90 Free Daily Credits
                 </div>
                 <div className={`flex items-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-blue-700'}`}>
                   <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -371,13 +386,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  100 App Morphs a Day
-                </div>
-                <div className={`flex items-center text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                  <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  500 Monthly Build Credits
+                  500 Build Credits + 90 Free Daily Credits
                 </div>
                 <div className={`flex items-center text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
                   <svg className="h-4 w-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -433,7 +442,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   <svg className="h-4 w-4 text-yellow-300 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  1500 Monthly Build Credits
+                  1500 Build Credits + 90 Free Daily Credits
                 </div>
                 <div className="flex items-center text-sm text-white">
                   <svg className="h-4 w-4 text-yellow-300 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -487,7 +496,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Liquid glass effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-900/10 via-gray-800/10 to-gray-700/10 rounded-3xl"></div>
             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-3xl"></div>
             
             {/* Content */}
@@ -507,56 +516,57 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               <div className={`${isDarkMode ? 'bg-gray-700/50' : 'bg-white/50'} backdrop-blur-sm rounded-2xl p-6 mb-6 border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
                 <div className="space-y-4">
                   <div>
-                    <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-blue-300' : 'text-blue-600'} mb-2`}>🚀 One Prompt = One Complete Build</h3>
-                    <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'} text-sm leading-relaxed`}>
-                      Unlike other platforms that require multiple prompts for refining and editing, myPip's custom Agentic Framework handles most of the work in a single prompt. This means each build credit gives you a complete, production-ready app.
+                    <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} font-semibold mb-2`}>
+                      🚀 Agentic Framework Benefits
+                    </h3>
+                    <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm leading-relaxed`}>
+                      Unlike traditional AI builders that require manual prompting for every change, myPip's Agentic Framework uses intelligent agents that understand your app's context and can make autonomous improvements.
                     </p>
                   </div>
 
                   <div>
-                    <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-pink-300' : 'text-pink-600'} mb-2`}>💡 Credit Efficiency</h3>
-                    <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-700'} text-sm leading-relaxed`}>
-                      While other platforms might require 3-5 prompts to get a polished app, myPip's Agentic Framework delivers the same quality in just 1 prompt. This means your build credits go much further with us.
-                    </p>
+                    <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} font-semibold mb-2`}>
+                      💡 How Credits Work
+                    </h3>
+                    <ul className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm space-y-2`}>
+                      <li>• <strong>Build Credits:</strong> Used for initial app creation and major feature additions</li>
+                      <li>• <strong>App Morphs:</strong> Daily autonomous improvements by AI agents</li>
+                      <li>• <strong>Free Daily Credits:</strong> 3 free builds every day for all paid users</li>
+                      <li>• <strong>Community Remixes:</strong> Remix and learn from other creators' apps</li>
+                    </ul>
                   </div>
 
-                  <div className={`${isDarkMode ? 'bg-blue-900/30 border-blue-700' : 'bg-blue-50 border-blue-200'} border rounded-xl p-4`}>
-                    <h4 className={`font-semibold ${isDarkMode ? 'text-blue-300' : 'text-blue-700'} mb-2`}>🎯 Build Credits Include:</h4>
-                    <ul className={`${isDarkMode ? 'text-blue-200' : 'text-blue-800'} text-sm space-y-1`}>
-                      <li>• Complete app generation with full functionality</li>
-                      <li>• Automatic code optimization and refactoring</li>
-                      <li>• UI/UX enhancements and accessibility features</li>
-                      <li>• Cross-platform compatibility setup</li>
-                      <li>• Production-ready deployment configurations</li>
-                    </ul>
+                  <div>
+                    <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} font-semibold mb-2`}>
+                      🎯 Why This Matters
+                    </h3>
+                    <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm leading-relaxed`}>
+                      Traditional AI builders require you to manually prompt every change. With myPip's Agentic Framework, your app continuously improves autonomously, making you more productive than ever before.
+                    </p>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Close button */}
-              <div className="text-center">
-                <button
-                  onClick={() => setShowCreditInfo(false)}
-                  className={`px-6 py-3 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white font-semibold rounded-xl transition-all duration-300`}
-                >
-                  Got it!
-                </button>
-              </div>
-
-              {/* Close button (X) */}
+            {/* Close Button */}
+            <div className="flex justify-center">
               <button
                 onClick={() => setShowCreditInfo(false)}
-                className={`absolute top-4 right-4 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} transition-colors p-2`}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                  isDarkMode 
+                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                }`}
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Got it!
               </button>
             </div>
           </div>
         </div>
       )}
     </>,
-    document.getElementById('modal-root')!
+    document.body
   );
 };
+
+export default SubscriptionModal;
