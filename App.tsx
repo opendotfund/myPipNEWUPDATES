@@ -2624,13 +2624,20 @@ class SocialFeed: ObservableObject {
           
           {/* Footer */}
           <div className="p-4 border-t border-white/20">
-            <div className="flex items-center">
-              <svg className="h-4 w-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-              <span className="nav-text ml-3 text-xs text-white/60">
-                myPip v1.0
-              </span>
+            <div className="flex flex-col">
+              <div className="flex items-center">
+                <svg className="h-4 w-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <span className="nav-text ml-3 text-xs text-white/60">
+                  myPip v1.5
+                </span>
+              </div>
+              <div className="mt-1 ml-7">
+                <span className="text-xs text-white/40">
+                  Paragon Research Labs Ltd.
+                </span>
+              </div>
             </div>
           </div>
         </div>
