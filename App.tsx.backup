@@ -16,12 +16,13 @@ import { SparklesIcon } from './components/icons/SparklesIcon';
 import { EarlyBirdApiInput } from './components/EarlyBirdApiInput'; // Added
 import { SignInButton, SignedIn, SignedOut, UserButton, useUser, SignUpButton } from '@clerk/clerk-react';
 import { useUserData } from './hooks/useUserData';
-import { useProjects, usePublicProjects, useSavedProjects } from './hooks/useProjects';
+import { useProjects, usePublicProjects, useSavedProjects, useTopLikedProjects } from './hooks/useProjects';
 import { AppleIcon } from './components/icons/AppleIcon';
 import { convertSwiftToFlutter, convertSwiftToReact, convertFlutterToSwift, convertReactToSwift } from './services/conversionService.ts';
 import { GitHubModal } from './components/GitHubModal';
 import { waitlistService } from './services/databaseService';
 import { WaitlistAdmin } from './components/WaitlistAdmin';
+import { ProjectPreview } from './components/ProjectPreview';
 
 type AppView = 'main' | 'community' | 'myPips' | 'affiliate';
 
@@ -100,10 +101,21 @@ const App: React.FC = () => {
   const { user } = useUser();
   
   // Database hooks with error handling
-  // const { user: dbUser, updateUserProfile } = useUserData(); // Removed unused variables
+  const { userData, loading: userDataLoading, error: userDataError, refetch } = useUserData(); // Enable user sync
   const { projects, createProject, updateProject, deleteProject, refreshProjects, remixProject } = useProjects();
   const { projects: publicProjects, loadPublicProjects, likeProject, recordView } = usePublicProjects();
   const { savedProjects, saveProject, unsaveProject, isProjectSaved } = useSavedProjects();
+  const { projects: topLikedProjects, refreshTopLikedProjects, likeProject: likeTopProject } = useTopLikedProjects();
+
+  // Log user sync status for debugging
+  useEffect(() => {
+    if (userDataError) {
+      console.error('User data sync error:', userDataError);
+    }
+    if (userData) {
+      console.log('User data synced successfully:', userData.clerk_id);
+    }
+  }, [userData, userDataError]);
 
   // Fallback data in case database is not set up
   const fallbackProjects = projects || [];
@@ -113,13 +125,20 @@ const App: React.FC = () => {
   const [communitySearch, setCommunitySearch] = useState('');
   const [communityCategory, setCommunityCategory] = useState('All Categories');
 
+  // Load public projects when Community page is opened
+  useEffect(() => {
+    if (currentView === 'community') {
+      loadPublicProjects(communityCategory, communitySearch);
+    }
+  }, [currentView, communityCategory, communitySearch]);
+
   // Add new state for share modal, remix permission, and layout
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [allowRemix, setAllowRemix] = useState(true);
   const [isHorizontal, setIsHorizontal] = useState(false);
 
   // Add new state for My Pips page
-  const [myPipsTab, setMyPipsTab] = useState<'recent' | 'public' | 'saved'>('recent');
+  const [myPipsTab, setMyPipsTab] = useState<'recent' | 'public' | 'remixed'>('recent');
   const [selectedPips, setSelectedPips] = useState<Set<string>>(new Set());
   const [editingPipId, setEditingPipId] = useState<string | null>(null);
   const [editingPipName, setEditingPipName] = useState<string>('');
@@ -190,6 +209,8 @@ const App: React.FC = () => {
 
   // Waitlist admin state
   const [isWaitlistAdminOpen, setIsWaitlistAdminOpen] = useState(false);
+  const [showBuildsDetailModal, setShowBuildsDetailModal] = useState(false);
+  const [showFigmaImportModal, setShowFigmaImportModal] = useState(false);
 
   // Claude password protection state
   const [showClaudePasswordPopup, setShowClaudePasswordPopup] = useState<boolean>(false);
@@ -341,7 +362,6 @@ const App: React.FC = () => {
 
   const handleCheckoutV1 = () => {
     setShowV2WaitlistPopup(false);
-    window.open('https://mypip.lemonsqueezy.com/buy/e210a879-e5ce-4682-8dd6-b00dd56312f2', '_blank');
   };
 
   const openConfigModal = (platform: string) => {
@@ -716,6 +736,12 @@ const App: React.FC = () => {
         }
         
         // Success - set the results
+        console.log('AI generation successful:', {
+          swiftCodeLength: result.swiftCode?.length || 0,
+          previewHtmlLength: result.previewHtml?.length || 0,
+          previewHtmlPreview: result.previewHtml?.substring(0, 200) + '...'
+        });
+        
         setGeneratedCode(result.swiftCode);
         setPreviewHtml(result.previewHtml);
         
@@ -1190,6 +1216,8 @@ const App: React.FC = () => {
     setIsPhoneRotated(prev => !prev);
   };
 
+
+
   // Save handler with database integration
   const handleSave = async () => {
     if (!user) {
@@ -1279,6 +1307,12 @@ const App: React.FC = () => {
     }
     
     const pipsToDelete = Array.from(selectedPips);
+    
+    // Add confirmation dialog
+    if (!confirm(`Are you sure you want to delete ${pipsToDelete.length} project(s)? This action cannot be undone.`)) {
+      return;
+    }
+    
     try {
       for (const projectId of pipsToDelete) {
         await deleteProject(projectId);
@@ -1383,9 +1417,18 @@ const App: React.FC = () => {
     }
     
     try {
+      console.log('Liking project:', projectId);
       const success = await likeProject(projectId);
+      console.log('Like result:', success);
       if (success) {
         setError('Project liked!');
+        setTimeout(() => setError(null), 2000);
+        // Refresh public projects to update like counts
+        console.log('Refreshing public projects...');
+        await loadPublicProjects();
+        console.log('Public projects refreshed');
+      } else {
+        setError('Failed to like project');
         setTimeout(() => setError(null), 2000);
       }
     } catch (error) {
@@ -1410,10 +1453,157 @@ const App: React.FC = () => {
         setError('Failed to remix project');
         setTimeout(() => setError(null), 2000);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error remixing project:', error);
-      setError('Database not set up yet. This feature will work once you set up the database.');
+      
+      // Check if it's a remix limit error
+      if (error.message && error.message.includes('remix limit')) {
+        setError('You have reached your remix limit. Please upgrade your subscription to create more remixes.');
+        setTimeout(() => setError(null), 5000);
+      } else {
+        setError('Failed to remix project. Please try again.');
+        setTimeout(() => setError(null), 3000);
+      }
+    }
+  };
+
+  // New function to remix and immediately open project
+  const handleRemixAndOpenProject = async (projectId: string) => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+    
+    try {
+      // First remix the project
+      console.log('Remixing project:', projectId);
+      const remixedProject = await remixProject(projectId);
+      console.log('Remix result:', remixedProject);
+      if (remixedProject) {
+        // Refresh public projects to update remix counts
+        console.log('Refreshing public projects after remix...');
+        await loadPublicProjects();
+        console.log('Public projects refreshed after remix');
+        // Immediately open the remixed project for editing
+        await handleOpenProject(remixedProject.id);
+        setError('Project remixed successfully and opened for editing!');
+        setTimeout(() => setError(null), 3000);
+      } else {
+        setError('Failed to remix project');
+        setTimeout(() => setError(null), 2000);
+      }
+    } catch (error: any) {
+      console.error('Error remixing and opening project:', error);
+      
+      // Check if it's a remix limit error
+      if (error.message && error.message.includes('remix limit')) {
+        setError('You have reached your remix limit. Please upgrade your subscription to create more remixes.');
+        setTimeout(() => setError(null), 5000);
+      } else {
+        setError('Failed to remix and open project');
+        setTimeout(() => setError(null), 3000);
+      }
+    }
+  };
+
+  // Function to open a project in the editor
+  const handleOpenProject = async (projectId: string) => {
+    try {
+      // Get the project data from all available sources
+      const allProjects = [...fallbackProjects, ...fallbackSavedProjects, ...fallbackPublicProjects];
+      const project = allProjects.find(p => p.id === projectId);
+      
+      if (!project) {
+        setError('Project not found');
+        setTimeout(() => setError(null), 2000);
+        return;
+      }
+
+      // Load the project into the editor with all necessary state
+      console.log('Loading project data:', {
+        id: project.id,
+        name: project.name,
+        generated_code_length: project.generated_code?.length || 0,
+        preview_html_length: project.preview_html?.length || 0,
+        prompt: project.prompt
+      });
+      
+      setGeneratedCode(project.generated_code || '// Code will appear here once generated...');
+      setPreviewHtml(project.preview_html || '<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"></div></div>');
+      setPrompt(project.prompt || '');
+      setProjectName(project.name || '');
+      
+      // Set the project as generated so the UI shows the correct state
+      setHasGenerated(true);
+      setHasConfirmedFirstPrompt(true);
+      
+      // Reset chat history and thinking state for a clean start
+      setChatHistory([]);
+      setAiThoughtProcess('');
+      setThinkingLog('');
+      
+      // Force refresh the preview and code display
+      setPreviewRefreshKey(prev => prev + 1);
+      
+      // Generate app files from the loaded code
+      const generatedFiles = generateAppFiles(
+        project.generated_code || '// Code will appear here once generated...',
+        project.preview_html || '<div class="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-blue-50 to-indigo-100"><div class="max-w-xs"></div></div>',
+        'general'
+      );
+      setAppFiles(generatedFiles);
+      setCurrentFileId('main-swift');
+      
+      // Force update the code display by triggering a re-render
+      setTimeout(() => {
+        setPreviewRefreshKey(prev => prev + 1);
+        console.log('Code loaded and display refreshed:', {
+          generatedCode: project.generated_code?.substring(0, 100) + '...',
+          currentFileId: 'main-swift',
+          appFilesLength: generatedFiles.length
+        });
+      }, 200);
+      
+      // Switch to main view (app builder)
+      setCurrentView('main');
+      
+      // Show success message
+      setError('Project loaded successfully! You can now edit and refine your app.');
       setTimeout(() => setError(null), 3000);
+      
+    } catch (error) {
+      console.error('Error opening project:', error);
+      setError('Failed to open project');
+      setTimeout(() => setError(null), 2000);
+    }
+  };
+
+  // Function to toggle project publish status
+  const handleTogglePublish = async (projectId: string) => {
+    if (!user) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+
+    try {
+      const project = fallbackProjects.find(p => p.id === projectId);
+      if (!project) {
+        setError('Project not found');
+        setTimeout(() => setError(null), 2000);
+        return;
+      }
+
+      const success = await updateProject(projectId, { is_public: !project.is_public });
+      if (success) {
+        setError(project.is_public ? 'Project unpublished!' : 'Project published!');
+        setTimeout(() => setError(null), 2000);
+        // Refresh projects
+        await refreshProjects();
+      }
+    } catch (error) {
+      console.error('Error toggling publish status:', error);
+      setError('Failed to update project status');
+      setTimeout(() => setError(null), 2000);
     }
   };
 
@@ -1806,6 +1996,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleFigmaImport = () => {
+    setShowFigmaImportModal(true);
+  };
+
+  const handleFigmaProjectSelect = (projectKey: string, projectName: string) => {
+    // TODO: Implement actual Figma API integration
+    console.log('Selected Figma project:', projectKey, projectName);
+    
+    // For now, just update the prompt with a placeholder
+    const figmaContext = `Import design from Figma project "${projectName}" (${projectKey}). Please analyze the design and create a mobile app that matches the visual style, layout, and components from the Figma design. Include all the UI elements, colors, typography, and interactions shown in the design.`;
+    
+    setPrompt(figmaContext);
+    setShowFigmaImportModal(false);
+  };
+
   const handleClaudePasswordSubmit = () => {
     if (claudePassword === 'forvibecodersbyvibecoders') {
       setSelectedModel(ModelId.CLAUDE);
@@ -2166,21 +2371,19 @@ class SocialFeed: ObservableObject {
     return files;
   };
 
-  // Test Gemini API connection
-  const handleTestGeminiApi = async () => {
-    setAiThoughtProcess('Testing Gemini API connection...');
+
+
+  // Refresh user subscription data
+  const handleRefreshSubscriptionData = async () => {
+    if (!userData) return;
+    
     try {
-      const isWorking = await testGeminiApiConnection();
-      if (isWorking) {
-        setError('✅ Gemini API is working correctly!');
-        setTimeout(() => setError(null), 3000);
-      } else {
-        setError('❌ Gemini API test failed. Check your internet connection or API key.');
-      }
+      await refetch();
+      setError('✅ Subscription data refreshed successfully!');
+      setTimeout(() => setError(null), 3000);
     } catch (err) {
-      setError(`❌ Gemini API test error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setError(`❌ Failed to refresh subscription data: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
-    setAiThoughtProcess('');
   };
 
   return (
@@ -2437,13 +2640,20 @@ class SocialFeed: ObservableObject {
           
           {/* Footer */}
           <div className="p-4 border-t border-white/20">
-            <div className="flex items-center">
-              <svg className="h-4 w-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-              <span className="nav-text ml-3 text-xs text-white/60">
-                myPip v1.0
-              </span>
+            <div className="flex flex-col">
+              <div className="flex items-center">
+                <svg className="h-4 w-4 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <span className="nav-text ml-3 text-xs text-white/60">
+                  myPip v1.5
+                </span>
+              </div>
+              <div className="mt-1 ml-7">
+                <span className="text-xs text-white/40">
+                  Paragon Research Labs Ltd.
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -2717,9 +2927,9 @@ class SocialFeed: ObservableObject {
                 </svg>
               </button>
               <img 
-                src={isDarkMode ? '/robot-dark-logo.png' : appLogo} 
+                src="/plus-orb.png" 
                 alt={`${appName} Logo`} 
-                className="hidden md:block h-14 w-36 rounded-lg cursor-pointer md:cursor-default transition-all hover:scale-105"
+                className="hidden md:block h-14 w-14 rounded-lg cursor-pointer md:cursor-default transition-all hover:scale-105 object-contain"
                 onClick={() => setIsSidebarOpen(true)}
               />
             </div>
@@ -2728,9 +2938,83 @@ class SocialFeed: ObservableObject {
                 <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-green-400 to-blue-500 text-white">
                   Unlimited Access
                 </div>
+              ) : userData ? (
+                <div 
+                  className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white cursor-pointer relative group"
+                  title={`Builds Remaining: ${userData.builds_limit - userData.builds_used}/${userData.builds_limit}`}
+                  onClick={() => {
+                    // On mobile, show detailed popup
+                    if (window.innerWidth < 768) {
+                      setShowBuildsDetailModal(true);
+                    }
+                  }}
+                >
+                  Builds: {userData.builds_limit - userData.builds_used}/{userData.builds_limit}
+                  
+                  {/* Desktop hover tooltip */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 min-w-[200px]">
+                    <div className="text-center">
+                      <div className="font-semibold mb-2">Builds Remaining</div>
+                      <div className="text-blue-300 mb-2">{userData.builds_limit - userData.builds_used} / {userData.builds_limit}</div>
+                      
+                      {/* Progress bar */}
+                      <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(((userData.builds_limit || 5) - (userData.builds_used || 0)) / (userData.builds_limit || 5) * 100, 100)}%` }}
+                        />
+                      </div>
+                      
+                      <div className="text-gray-300 text-xs">
+                        {userData.builds_limit - userData.builds_used > 0 ? (
+                          <span>You have {userData.builds_limit - userData.builds_used} builds left</span>
+                        ) : (
+                          <span className="text-red-400">No builds remaining</span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Arrow */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                  </div>
+                </div>
               ) : (
-                <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white">
+                <div 
+                  className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white cursor-pointer relative group"
+                  title={`Builds Remaining: ${freePromptsRemaining}/${MAX_FREE_PROMPTS}`}
+                  onClick={() => {
+                    // On mobile, show detailed popup
+                    if (window.innerWidth < 768) {
+                      setShowBuildsDetailModal(true);
+                    }
+                  }}
+                >
                   Builds: {freePromptsRemaining}/{MAX_FREE_PROMPTS}
+                  
+                  {/* Desktop hover tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 min-w-[200px]">
+                    <div className="text-center">
+                      <div className="font-semibold mb-2">Free Builds Remaining</div>
+                      <div className="text-blue-300 mb-2">{freePromptsRemaining} / {MAX_FREE_PROMPTS}</div>
+                      
+                      {/* Progress bar */}
+                      <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(freePromptsRemaining / MAX_FREE_PROMPTS) * 100}%` }}
+                        />
+                      </div>
+                      
+                      <div className="text-gray-300 text-xs">
+                        {freePromptsRemaining > 0 ? (
+                          <span>You have {freePromptsRemaining} free builds left</span>
+                        ) : (
+                          <span className="text-red-400">No free builds remaining</span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Arrow */}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
                 </div>
               )}
               <button
@@ -2906,7 +3190,7 @@ class SocialFeed: ObservableObject {
           </div>
         )}
 
-        <main className={`flex-grow ${currentView === 'main' && hasConfirmedFirstPrompt ? 'w-full h-full' : 'container mx-auto p-4'} ${currentView === 'main' && hasConfirmedFirstPrompt ? 'flex flex-col' : isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
+        <main className={`flex-grow ${currentView === 'main' && hasConfirmedFirstPrompt ? 'w-full h-full p-4' : 'container mx-auto p-4'} ${currentView === 'main' && hasConfirmedFirstPrompt ? 'flex flex-col' : isHorizontal ? 'flex flex-row gap-6' : 'grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8'}`}>
           {currentView === 'main' ? (
             <>
               {!hasConfirmedFirstPrompt ? (
@@ -2915,37 +3199,60 @@ class SocialFeed: ObservableObject {
                   {/* Landing Page Title and Subtitle */}
                   <div className="text-center space-y-4 max-w-4xl">
                     <h1 className="text-4xl md:text-6xl font-bold">
-                      <span className="text-black">
-                        From Idea to App.
-                      </span>
-                      <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent">
-                        {" "}Instantly.
-                      </span>
+                      {isDarkMode ? (
+                        <span className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] drop-shadow-[0_0_20px_rgba(255,255,255,0.6)] drop-shadow-[0_0_30px_rgba(255,255,255,0.4)]">
+                          From Idea to App. Instantly.
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-gray-900">From Idea to App.</span>
+                          <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"> Instantly.</span>
+                        </>
+                      )}
                     </h1>
-                    <p className="text-xl md:text-2xl text-black font-medium max-w-3xl mx-auto leading-relaxed">
-                      myPip builds full-stack mobile apps for iOS & Android from a single prompt.{" "}
-                      <span className="bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent font-semibold">
-                        No code. No limits.
-                      </span>
-                    </p>
+                    {isDarkMode ? (
+                      <p className="text-xl md:text-2xl font-medium max-w-3xl mx-auto leading-relaxed text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.7)] drop-shadow-[0_0_16px_rgba(255,255,255,0.5)] drop-shadow-[0_0_24px_rgba(255,255,255,0.3)]">
+                        myPip builds full-stack mobile apps for iOS & Android from a single prompt. No code. No limits.
+                      </p>
+                    ) : (
+                      <p className="text-xl md:text-2xl text-gray-700 font-medium max-w-3xl mx-auto leading-relaxed">
+                        myPip builds full-stack mobile apps for iOS & Android from a single prompt.{" "}
+                        <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-semibold">
+                          No code. No limits.
+                        </span>
+                      </p>
+                    )}
                     </div>
                   
                   {/* Main Content Area - Two Column Layout */}
                   <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                    {/* Left Column - Prompt Input */}
-                    <div className="flex flex-col items-center justify-start space-y-4">
+                    {/* Left Column - Prompt Input + Community Showcase */}
+                    <div className="flex flex-col items-center justify-start space-y-8">
+                      {/* Prompt Input */}
                       <div className="w-full max-w-[500px]">
                         {/* Hide prompt input during first generation to give animations space */}
                         {isLoading && !hasGenerated ? (
-                          <div className="glass-card p-8 w-full transition-opacity duration-500 ease-in-out">
+                          <div className={`p-8 w-full transition-opacity duration-500 ease-in-out rounded-xl border ${
+                            isDarkMode 
+                              ? 'bg-slate-800 border-slate-600 shadow-2xl' 
+                              : 'bg-white border-gray-200 shadow-lg'
+                          }`}>
                             <div className="text-center">
                               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-6"></div>
-                              <p className="text-white/80 text-lg font-medium mb-2">Generating your app...</p>
-                              <p className="text-white/60 text-sm">This will take a few moments</p>
+                              <p className={`text-lg font-medium mb-2 ${
+                                isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>Generating your app...</p>
+                              <p className={`text-sm ${
+                                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>This will take a few moments</p>
                             </div>
                           </div>
                         ) : (
-                          <div className="glass-card p-4 w-full transition-opacity duration-500 ease-in-out">
+                          <div className={`p-4 w-full transition-opacity duration-500 ease-in-out rounded-xl border ${
+                            isDarkMode 
+                              ? 'bg-slate-800 border-slate-600 shadow-2xl' 
+                              : 'bg-white border-gray-200 shadow-lg'
+                          }`}>
                             <PromptInput
                               prompt={prompt}
                               setPrompt={setPrompt}
@@ -2959,30 +3266,177 @@ class SocialFeed: ObservableObject {
                               thinkingLog={thinkingLog}
                               isDarkMode={isDarkMode}
                               hasGenerated={hasGenerated}
+                              onFigmaImport={handleFigmaImport}
                             />
                           </div>
                         )}
-                    {error && (
-                          <div className={`mt-3 glass-card p-3 text-sm transition-opacity duration-300 ease-in-out ${error.includes("successfully") ? 'bg-gradient-to-r from-green-400/20 to-blue-500/20 border-green-400/30' : 'bg-gradient-to-r from-red-400/20 to-pink-500/20 border-red-400/30'}`}>
-                        {error}
+                        {error && (
+                          <div className={`mt-3 p-3 text-sm transition-opacity duration-300 ease-in-out rounded-lg border ${
+                            error.includes("successfully") 
+                              ? (isDarkMode ? 'bg-green-900/20 border-green-700 text-green-300' : 'bg-green-50 border-green-200 text-green-700')
+                              : (isDarkMode ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-red-50 border-red-200 text-red-700')
+                          }`}>
+                            {error}
+                          </div>
+                        )}
+                        {!canSubmit && !isEarlyBirdKeyApplied && (
+                          <div className={`mt-3 p-3 text-sm text-center rounded-lg border ${
+                            isDarkMode ? 'bg-yellow-900/20 border-yellow-700 text-yellow-300' : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                          }`}>
+                            You've used all your free prompts. Subscribe to a credit plan or an unlimited access plan for more prompts!
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {!canSubmit && !isEarlyBirdKeyApplied && (
-                          <div className="mt-3 glass-card p-3 text-sm text-center bg-gradient-to-r from-yellow-400/20 to-orange-500/20 border-yellow-400/30">
-                        You've used all your free prompts. Subscribe to a credit plan or an unlimited access plan for more prompts!
+                      
+                      {/* Community Showcase - Built with myPip */}
+                      <div className="w-full max-w-[500px]">
+                        <div className="text-center mb-6">
+                          <h2 className={`text-xl md:text-2xl font-bold mb-2 ${
+                            isDarkMode ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)] drop-shadow-[0_0_16px_rgba(255,255,255,0.6)] drop-shadow-[0_0_24px_rgba(255,255,255,0.4)]' : 'text-gray-900'
+                          }`}>
+                            Built with myPip
+                          </h2>
+                          <p className={`text-sm ${
+                            isDarkMode ? 'text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.7)] drop-shadow-[0_0_12px_rgba(255,255,255,0.5)] drop-shadow-[0_0_18px_rgba(255,255,255,0.3)]' : 'text-gray-600'
+                          }`}>
+                            Top community creations
+                          </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Show top 4 liked projects */}
+                          {(topLikedProjects || []).slice(0, 4).map(project => (
+                            <div key={project.id} className="relative">
+                              <div className={`p-3 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg rounded-xl border ${
+                                isDarkMode 
+                                  ? 'bg-gray-800 border-gray-600 shadow-xl' 
+                                  : 'bg-white border-gray-200 shadow-lg'
+                              }`}>
+                                {/* Project Info */}
+                                <div className="mb-3">
+                                  <h3 className={`text-sm font-semibold break-words mb-1 ${
+                                    isDarkMode ? 'text-white' : 'text-gray-900'
+                                  }`}>
+                                    {project.name}
+                                  </h3>
+                                  
+                                  {/* Author display */}
+                                  {(project.user_full_name || project.user_name) && (
+                                    <div className={`text-xs mb-2 ${
+                                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                    }`}>
+                                      by {project.user_full_name || project.user_name}
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex items-center gap-1 mb-2">
+                                    <span className="text-xs bg-gradient-to-r from-gray-500 to-gray-600 text-white px-2 py-0.5 rounded-full">
+                                      {project.category}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                {/* Mini Phone Preview */}
+                                <div className="flex justify-center mb-3">
+                                  <div className="w-20 h-40 bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-1 shadow-lg">
+                                    <div className="w-full h-full bg-white rounded-xl overflow-hidden">
+                                      <PhonePreview 
+                                        htmlContent={project.preview_html || ''}
+                                        onPreviewInteraction={() => {}}
+                                        size="mini"
+                                        onPreviewReady={() => {}}
+                                        isDarkMode={isDarkMode}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {/* Action Buttons */}
+                                <div className="flex flex-col gap-1">
+                                  <SignedIn>
+                                    <button
+                                      onClick={async () => {
+                                        await handleRemixAndOpenProject(project.id);
+                                      }}
+                                      className="glass-button px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded text-xs transition-all duration-300 font-medium"
+                                    >
+                                      Open
+                                    </button>
+                                  </SignedIn>
+                                  <SignedOut>
+                                    <SignInButton mode="modal">
+                                      <button className="glass-button px-2 py-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded text-xs transition-all duration-300 font-medium">
+                                        Open
+                                      </button>
+                                    </SignInButton>
+                                  </SignedOut>
+                                  
+                                  <div className="flex gap-1">
+                                    <SignedIn>
+                                      <button
+                                        onClick={async () => {
+                                          await handleLikeProject(project.id);
+                                          refreshTopLikedProjects();
+                                        }}
+                                        className="glass-button flex-1 flex items-center justify-center px-1 py-1 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-xs transition-all duration-300"
+                                      >
+                                        ❤️ ({project.likes_count || 0})
+                                      </button>
+                                      {project.allow_remix && (
+                                        <button
+                                          onClick={async () => {
+                                            await handleRemixAndOpenProject(project.id);
+                                          }}
+                                          className="glass-button flex-1 flex items-center justify-center px-1 py-1 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-xs transition-all duration-300"
+                                        >
+                                          🔄 ({project.remix_count || 0})
+                                        </button>
+                                      )}
+                                    </SignedIn>
+                                    <SignedOut>
+                                      <SignInButton mode="modal">
+                                        <button className="glass-button w-full flex items-center justify-center px-1 py-1 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded text-xs transition-all duration-300">
+                                          Sign in
+                                        </button>
+                                      </SignInButton>
+                                    </SignedOut>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* View Community Button */}
+                        <div className="text-center mt-4">
+                          <button
+                            onClick={() => setCurrentView('community')}
+                            className={`px-4 py-2 font-medium rounded-lg transition-all duration-300 text-sm ${
+                              isDarkMode 
+                                ? 'bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white shadow-lg' 
+                                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                            }`}
+                          >
+                            View All
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
                     
                     {/* Right Column - Phone Preview */}
                     <div className="flex flex-col items-center justify-start">
-                      <div className="glass-card p-4">
+                      <div className={`p-4 rounded-xl border ${
+                        isDarkMode 
+                          ? 'bg-slate-800 border-slate-600 shadow-2xl' 
+                          : 'bg-white border-gray-200 shadow-lg'
+                      }`}>
                         <div className="w-full flex justify-between items-center mb-4">
-                          <h2 className="text-xl font-semibold text-white">
+                          <h2 className={`text-xl font-semibold ${
+                            isDarkMode ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] drop-shadow-[0_0_20px_rgba(255,255,255,0.6)] drop-shadow-[0_0_30px_rgba(255,255,255,0.4)]' : 'text-gray-900'
+                          }`}>
                             App Preview
                           </h2>
-                              </div>
+                        </div>
                         
                         {/* Phone Preview - Hyper Realistic */}
                         <div className="flex justify-center mb-6">
@@ -2996,17 +3450,69 @@ class SocialFeed: ObservableObject {
                             onRotate={refreshPreview}
                             isGenerating={isLoading && !hasGenerated}
                             onPreviewReady={handlePreviewReady}
+                            isDarkMode={isDarkMode}
                           />
-                          </div>
                         </div>
-                            </div>
-                          </div>
-                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Recent Projects Section */}
+                  {user && (fallbackProjects.length > 0 || fallbackSavedProjects.length > 0) && (
+                    <div className="col-span-1 md:col-span-2 mt-12">
+                      <div className="text-center mb-8">
+                        <h2 className={`text-2xl md:text-3xl font-bold mb-2 ${
+                          isDarkMode ? 'text-white drop-shadow-[0_0_60px_rgba(255,255,255,1)] drop-shadow-[0_0_120px_rgba(255,255,255,1)] drop-shadow-[0_0_180px_rgba(255,255,255,0.95)] drop-shadow-[0_0_240px_rgba(255,255,255,0.9)] drop-shadow-[0_0_300px_rgba(255,255,255,0.85)]' : 'text-gray-900'
+                        }`}>
+                          Your Recent Projects
+                        </h2>
+                        <p className={`text-lg ${
+                          isDarkMode ? 'text-white drop-shadow-[0_0_60px_rgba(255,255,255,1)] drop-shadow-[0_0_120px_rgba(255,255,255,1)] drop-shadow-[0_0_180px_rgba(255,255,255,0.95)] drop-shadow-[0_0_240px_rgba(255,255,255,0.9)] drop-shadow-[0_0_300px_rgba(255,255,255,0.85)]' : 'text-gray-600'
+                        }`}>
+                          Continue working on your apps or start something new
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* Show recent projects (limit to 6) */}
+                        {[...fallbackProjects, ...fallbackSavedProjects]
+                          .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+                          .slice(0, 6)
+                          .map(project => (
+                            <ProjectPreview
+                              key={project.id}
+                              project={project}
+                              onOpen={handleOpenProject}
+                              showPublishButton={false}
+                              showRemoveButton={false}
+                              className="h-full"
+                            />
+                          ))}
+                      </div>
+                      
+                      {/* View All Projects Button */}
+                      <div className="text-center mt-8">
+                        <button
+                          onClick={() => setCurrentView('myPips')}
+                          className={`px-6 py-3 font-semibold rounded-xl transition-all duration-300 ${
+                            isDarkMode 
+                              ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
+                              : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                          }`}
+                        >
+                          View All Projects
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+
+                </div>
               ) : (
                 // Refine App Layout - Clean Two Column Design
-                <div className="w-full h-full flex flex-col lg:flex-row gap-6">
+                <div className="w-full h-full flex flex-col lg:flex-row gap-8">
                   {/* Mobile: Phone Preview on Top, Desktop: Left Column - Controls */}
-                  <div className={`w-full lg:w-80 lg:flex-shrink-0 flex flex-col rounded-xl border order-2 lg:order-1 ${
+                  <div className={`w-full lg:w-96 xl:w-[420px] lg:flex-shrink-0 flex flex-col rounded-xl border order-2 lg:order-1 ${
                     isDarkMode 
                       ? 'bg-gray-900 border-gray-700' 
                       : 'bg-white border-gray-200'
@@ -3111,7 +3617,7 @@ class SocialFeed: ObservableObject {
                             <span className={`text-xs font-medium ${
                               isDarkMode ? 'text-gray-300' : 'text-gray-600'
                             }`}>
-                              Overall Progress
+                              Builds Remaining
                             </span>
                             <span className={`text-xs font-medium ${
                               isDarkMode ? 'text-blue-400' : 'text-blue-600'
@@ -3152,25 +3658,24 @@ class SocialFeed: ObservableObject {
                       )}
                       
                     {/* Prompt Input */}
-                    {(
-                      <div className={`p-4 border-t ${
-                        isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                      }`}>
+                    <div className={`p-4 border-t ${
+                      isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                    }`}>
                       <div className={`rounded-lg border overflow-hidden ${
                         isDarkMode 
-                          ? 'bg-gray-800 border-gray-600' 
+                          ? 'bg-slate-800 border-slate-600 shadow-xl' 
                           : 'bg-gray-50 border-gray-300'
                       }`}>
                             <textarea
                               value={prompt}
                               onChange={(e) => setPrompt(e.target.value)}
                               placeholder="Describe how you'd like to refine your app..."
-                          className={`w-full resize-none border-0 bg-transparent placeholder-gray-400 focus:outline-none focus:ring-0 text-sm leading-relaxed font-sf-pro p-3 ${
-                            isDarkMode 
-                              ? 'text-white placeholder-gray-400' 
-                              : 'text-gray-900 placeholder-gray-500'
-                          }`}
-                          rows={4}
+                              className={`w-full resize-none border-0 bg-transparent placeholder-gray-400 focus:outline-none focus:ring-0 text-sm leading-relaxed font-sf-pro p-3 ${
+                                isDarkMode 
+                                  ? 'text-white placeholder-gray-400' 
+                                  : 'text-gray-900 placeholder-gray-500'
+                              }`}
+                              rows={4}
                               disabled={!canSubmit || isLoading}
                             />
                         <div className={`flex justify-between items-center p-3 border-t ${
@@ -3208,7 +3713,6 @@ class SocialFeed: ObservableObject {
                         </div>
                       )}
                     </div>
-                    )}
                   </div>
 
                                     {/* Mobile: Phone Preview on Top, Desktop: Right Column - Phone Preview or Code Files */}
@@ -3225,7 +3729,7 @@ class SocialFeed: ObservableObject {
                             <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                             </svg>
-                            Pages
+                            Edit
                           </button>
                         )}
                         
@@ -3262,7 +3766,7 @@ class SocialFeed: ObservableObject {
                       // Code Files View
                       <div className={`flex-1 flex flex-col rounded-xl border h-full ${
                         isDarkMode 
-                          ? 'bg-gray-800 border-gray-600' 
+                          ? 'bg-slate-800 border-slate-600 shadow-xl' 
                           : 'bg-white border-gray-200'
                       }`}>
                         {/* File Selector */}
@@ -3372,6 +3876,7 @@ class SocialFeed: ObservableObject {
                             onRotate={refreshPreview}
                             isGenerating={isLoading && !hasGenerated}
                             onPreviewReady={handlePreviewReady}
+                            isDarkMode={isDarkMode}
                           />
                         </div>
                       </>
@@ -3451,7 +3956,7 @@ class SocialFeed: ObservableObject {
                     <div className="max-w-2xl mx-auto mb-6 md:mb-8 px-4 md:px-0">
                       <div className="glass-card p-4 md:p-6 border border-white/20 backdrop-blur-xl bg-white/10 rounded-2xl shadow-2xl relative overflow-hidden">
                         {/* Liquid glass effect */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl"></div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/20 via-gray-800/20 to-gray-700/20 rounded-2xl"></div>
                         <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-2xl"></div>
                         
                         {/* Content */}
@@ -3519,7 +4024,7 @@ class SocialFeed: ObservableObject {
                     </div>
                   </div>
                   {/* Filtered Project List */}
-                  <div className="grid grid-cols-1 gap-4 md:gap-6 mb-6 md:mb-8 px-4 md:px-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6 md:mb-8 px-4 md:px-0">
                     {fallbackPublicProjects
                       .filter(p =>
                         (communityCategory === 'All Categories' || p.category === communityCategory) &&
@@ -3528,53 +4033,91 @@ class SocialFeed: ObservableObject {
                       )
                       .map(project => (
                         <div key={project.id} className="glass-card p-4 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0 sm:mb-2">
-                            <span className="text-base md:text-lg font-semibold text-white flex-1">{project.name}</span>
-                            <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-1 rounded-full self-start sm:self-auto sm:ml-2">{project.category}</span>
+                          {/* Project Info */}
+                          <div className="mb-4">
+                            <div className="flex items-start gap-2 mb-2">
+                              <h3 className="text-lg font-semibold text-white break-words">
+                                {project.name}
+                              </h3>
+                            </div>
+                            
+                            {/* Author display */}
+                            {(project.user_full_name || project.user_name) && (
+                              <div className="text-sm text-white/60 mb-2">
+                                by {project.user_full_name || project.user_name}
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-1 rounded-full">
+                                {project.category}
+                              </span>
+                              <span className="text-xs text-white/60">
+                                {new Date(project.updated_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            
+                            <p className="text-white/80 text-sm mb-3 line-clamp-2">
+                              {project.description}
+                            </p>
                           </div>
-                          <p className="text-white/80 text-sm mt-2 sm:mt-0">{project.description}</p>
-                          <div className="flex items-center gap-4 mt-3 text-xs text-white/60">
-                            <span>❤️ {project.likes_count} likes</span>
-                            <span>👁️ {project.views_count} views</span>
-                            <span>🔄 {project.remix_count} remixes</span>
-                            <span>📅 {new Date(project.created_at).toLocaleDateString()}</span>
+                          
+                          {/* Phone Preview */}
+                          <div className="flex justify-center mb-4">
+                            <div className="w-32 h-64 md:w-40 md:h-80 bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-2 shadow-lg">
+                              <div className="w-full h-full bg-white rounded-2xl overflow-hidden">
+                                <PhonePreview 
+                                  htmlContent={project.preview_html || ''}
+                                  onPreviewInteraction={() => {}}
+                                  size="tiny"
+                                  onPreviewReady={() => {}}
+                                />
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex gap-2 mt-4">
-                            <SignedIn>
-                              <button
-                                onClick={async () => {
-                                  await handleLikeProject(project.id);
-                                }}
-                                className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
-                              >
-                                ❤️ Like
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  await handleSaveProject(project.id);
-                                }}
-                                className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300"
-                              >
-                                💾 Save
-                              </button>
-                              {project.allow_remix && (
+                          
+                          {/* Action Buttons */}
+                          <div className="flex flex-col gap-2">
+                            <button
+                              onClick={() => handleOpenProject(project.id)}
+                              className="glass-button px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300 font-medium"
+                            >
+                              Open
+                            </button>
+                            
+                            <div className="flex gap-2">
+                              <SignedIn>
                                 <button
                                   onClick={async () => {
-                                    await handleRemixProject(project.id);
+                                    await handleLikeProject(project.id);
+                                    // Refresh public projects to update like counts
+                                    loadPublicProjects(communityCategory, communitySearch);
                                   }}
-                                  className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
+                                  className="glass-button flex-1 flex items-center justify-center px-3 py-2 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
                                 >
-                                  🔄 Remix
+                                  ❤️ Like ({project.likes_count || 0})
                                 </button>
-                              )}
-                            </SignedIn>
-                            <SignedOut>
-                              <SignInButton mode="modal">
-                                <button className="glass-button flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
-                                  Sign in to interact
-                                </button>
-                              </SignInButton>
-                            </SignedOut>
+                                {project.allow_remix && (
+                                  <button
+                                    onClick={async () => {
+                                      await handleRemixAndOpenProject(project.id);
+                                      // Refresh public projects to update remix counts
+                                      loadPublicProjects(communityCategory, communitySearch);
+                                    }}
+                                    className="glass-button flex-1 flex items-center justify-center px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
+                                  >
+                                    🔄 Remix ({project.remix_count || 0})
+                                  </button>
+                                )}
+                              </SignedIn>
+                              <SignedOut>
+                                <SignInButton mode="modal">
+                                  <button className="glass-button w-full flex items-center justify-center px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
+                                    Sign in to interact
+                                  </button>
+                                </SignInButton>
+                              </SignedOut>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -3586,7 +4129,7 @@ class SocialFeed: ObservableObject {
                         <div className="text-white/60 text-center py-8 md:py-12 text-base md:text-lg">
                           No projects found.
                         </div>
-                    )}
+                      )}
                   </div>
                 </div>
               </div>
@@ -3609,7 +4152,7 @@ class SocialFeed: ObservableObject {
                   </button>
                 </div>
                 
-                <div className="text-center pt-16 md:pt-0">
+                <div className="text-center pt-20 md:pt-4">
                   <h1 className="text-2xl md:text-3xl font-bold mb-4 text-white">My Pips</h1>
                   <p className="text-white/80 mb-6 md:mb-8 px-4 md:px-0">Manage your created pips and share them with the community</p>
                   
@@ -3638,14 +4181,14 @@ class SocialFeed: ObservableObject {
                           Public
                         </button>
                         <button
-                          onClick={() => setMyPipsTab('saved')}
+                          onClick={() => setMyPipsTab('remixed')}
                           className={`flex-1 px-3 md:px-6 py-2 rounded-md transition-all duration-300 text-sm md:text-base ${
-                            myPipsTab === 'saved' 
+                            myPipsTab === 'remixed' 
                               ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg' 
                               : 'text-white/80 hover:text-white'
                           }`}
                         >
-                          Saved
+                          Remixed
                         </button>
                       </div>
                     </div>
@@ -3656,7 +4199,7 @@ class SocialFeed: ObservableObject {
                         <label className="flex items-center">
                           <input
                             type="checkbox"
-                            checked={selectedPips.size === (myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
+                            checked={selectedPips.size === (myPipsTab === 'remixed' ? fallbackProjects.filter(p => p.original_project_id) : fallbackProjects).filter(project => 
                               myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
                             ).length && selectedPips.size > 0}
                             onChange={handleSelectAll}
@@ -3674,118 +4217,94 @@ class SocialFeed: ObservableObject {
                         )}
                       </div>
                       <div className="text-sm text-white/60 text-center sm:text-left">
-                        {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
-                          myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
-                        ).length} {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'saved'} builds
+                        {(myPipsTab === 'remixed' ? fallbackProjects.filter(p => p.original_project_id) : fallbackProjects).filter(project => 
+                          myPipsTab === 'recent' ? true : myPipsTab === 'public' ? project.is_public : true
+                        ).length} {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'remixed'} builds
                       </div>
                     </div>
                     
                     {/* Pip List */}
                     <div className="space-y-3 md:space-y-4">
-                      {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects)
-                        .filter(project => myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true)
+                      {(myPipsTab === 'remixed' ? fallbackProjects.filter(p => p.original_project_id) : fallbackProjects)
+                        .filter(project => myPipsTab === 'recent' ? true : myPipsTab === 'public' ? project.is_public : true)
                         .map(project => (
-                          <div key={project.id} className="glass-card p-4 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
-                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
-                              <div className="flex items-start gap-3 flex-1">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedPips.has(project.id.toString())}
-                                  onChange={() => handleSelectPip(project.id.toString())}
-                                  className="mt-1"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  {editingPipId === project.id.toString() ? (
-                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                      <input
-                                        type="text"
-                                        value={editingPipName}
-                                        onChange={(e) => setEditingPipName(e.target.value)}
-                                        className="glass-input px-2 py-1 rounded text-white text-sm"
-                                        onKeyPress={(e) => {
-                                          if (e.key === 'Enter') {
-                                            handleRenamePip(project.id.toString(), editingPipName);
-                                          }
-                                        }}
-                                      />
-                                      <div className="flex gap-2">
-                                        <button
-                                          onClick={() => handleRenamePip(project.id.toString(), editingPipName)}
-                                          className="text-green-400 hover:text-green-300 text-sm transition-colors"
-                                        >
-                                          ✓
-                                        </button>
-                                        <button
-                                          onClick={handleCancelRename}
-                                          className="text-red-400 hover:text-red-300 text-sm transition-colors"
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-start gap-2">
-                                      <span className="text-base md:text-lg font-semibold text-white break-words">{project.name}</span>
-                                      {myPipsTab !== 'saved' && (
-                                        <button
-                                          onClick={() => handleStartRename(project.id.toString(), project.name)}
-                                          className="text-white/60 hover:text-white text-sm flex-shrink-0 mt-1 transition-colors"
-                                        >
-                                          ✏️
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
-                                    <span className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white px-2 py-1 rounded-full self-start">{project.category}</span>
-                                    <span className="text-xs text-white/60">Last modified: {new Date(project.updated_at).toLocaleDateString()}</span>
-                                  </div>
-                                  <p className="text-white/80 text-sm mt-2">{project.description}</p>
-                                  {myPipsTab === 'saved' && (
-                                    <div className="flex items-center gap-4 mt-3 text-xs text-white/60">
-                                      <span>❤️ {project.likes_count} likes</span>
-                                      <span>👁️ {project.views_count} views</span>
-                                      <span>🔄 {project.remix_count} remixes</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex flex-col sm:flex-row gap-2 lg:flex-shrink-0">
-                                <button className="glass-button px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded text-sm transition-all duration-300">
-                                  Open
-                                </button>
-                                {myPipsTab !== 'saved' && (
-                                  <button className="glass-button px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded text-sm transition-all duration-300">
-                                    {project.is_public ? 'Unpublish' : 'Publish'}
-                                  </button>
-                                )}
-                                {myPipsTab === 'saved' && (
-                                  <button
-                                    onClick={async () => {
-                                      if (!user) {
-                                        setIsLoginPromptOpen(true);
-                                        return;
-                                      }
-                                      const success = await unsaveProject(project.id);
-                                      if (success) {
-                                        setError('Project removed from saved');
-                                        setTimeout(() => setError(null), 2000);
-                                      }
-                                    }}
-                                    className="glass-button px-3 py-1 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded text-sm transition-all duration-300"
-                                  >
-                                    Remove
-                                  </button>
-                                )}
-                              </div>
+                          <div key={project.id} className="relative">
+                            {/* Checkbox for bulk selection */}
+                            <div className="absolute top-4 left-4 z-10">
+                              <input
+                                type="checkbox"
+                                checked={selectedPips.has(project.id.toString())}
+                                onChange={() => handleSelectPip(project.id.toString())}
+                                className="w-4 h-4"
+                              />
                             </div>
+                            
+                            <ProjectPreview
+                              project={project}
+                              onOpen={handleOpenProject}
+                              onPublish={myPipsTab !== 'remixed' ? handleTogglePublish : undefined}
+                              onUnpublish={myPipsTab !== 'remixed' ? handleTogglePublish : undefined}
+                              onRemove={myPipsTab === 'remixed' ? async (projectId) => {
+                                if (!user) {
+                                  setIsLoginPromptOpen(true);
+                                  return;
+                                }
+                                // For remixed projects, we can delete them since they're copies
+                                const success = await deleteProject(projectId);
+                                if (success) {
+                                  setError('Remixed project deleted');
+                                  setTimeout(() => setError(null), 2000);
+                                  await refreshProjects();
+                                }
+                              } : undefined}
+                              onDelete={myPipsTab !== 'remixed' ? async (projectId) => {
+                                if (!user) {
+                                  setIsLoginPromptOpen(true);
+                                  return;
+                                }
+                                // Add confirmation dialog
+                                if (!confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+                                  return;
+                                }
+                                const success = await deleteProject(projectId);
+                                if (success) {
+                                  setError('Project deleted');
+                                  setTimeout(() => setError(null), 2000);
+                                  await refreshProjects();
+                                }
+                              } : undefined}
+                              onRename={async (projectId, newName) => {
+                                if (!user) {
+                                  setIsLoginPromptOpen(true);
+                                  return;
+                                }
+                                try {
+                                  const updatedProject = await updateProject(projectId, { name: newName });
+                                  if (updatedProject) {
+                                    setError(`Renamed pip to "${newName}"`);
+                                    setTimeout(() => setError(null), 2000);
+                                    await refreshProjects();
+                                  } else {
+                                    setError('Failed to rename pip');
+                                  }
+                                } catch (error) {
+                                  console.error('Error renaming project:', error);
+                                  setError('Failed to rename pip');
+                                }
+                              }}
+                              showPublishButton={myPipsTab !== 'remixed'}
+                              showRemoveButton={myPipsTab === 'remixed'}
+                              showDeleteButton={myPipsTab !== 'remixed'}
+                              showRenameButton={true}
+                              className="pl-12 group" // Add left padding for checkbox and group hover
+                            />
                           </div>
                         ))}
-                      {(myPipsTab === 'saved' ? fallbackSavedProjects : fallbackProjects).filter(project => 
-                        myPipsTab === 'recent' ? !project.is_public : myPipsTab === 'public' ? project.is_public : true
+                      {(myPipsTab === 'remixed' ? fallbackProjects.filter(p => p.original_project_id) : fallbackProjects).filter(project => 
+                        myPipsTab === 'recent' ? true : myPipsTab === 'public' ? project.is_public : true
                       ).length === 0 && (
                         <div className="text-white/60 text-center py-8 md:py-12 text-base md:text-lg">
-                          No {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'saved'} builds found.
+                          No {myPipsTab === 'recent' ? 'recent' : myPipsTab === 'public' ? 'public' : 'remixed'} builds found.
                         </div>
                       )}
                     </div>
@@ -3966,6 +4485,124 @@ class SocialFeed: ObservableObject {
             contactEmail={CONTACT_EMAIL}
             isDarkMode={isDarkMode}
           />
+        )}
+
+        {/* Builds Detail Modal for Mobile */}
+        {showBuildsDetailModal && (
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowBuildsDetailModal(false)}
+          >
+            <div
+              className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full shadow-2xl`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Builds Remaining
+                </h2>
+                <button
+                  onClick={() => setShowBuildsDetailModal(false)}
+                  className={`${isDarkMode ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-gray-700'} transition-colors`}
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {isEarlyBirdKeyApplied ? (
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'} mb-2`}>
+                      Unlimited Access
+                    </div>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      You have unlimited builds with your Early Bird access!
+                    </p>
+                  </div>
+                ) : userData ? (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} mb-2`}>
+                        {userData.builds_limit - userData.builds_used} / {userData.builds_limit}
+                      </div>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        Builds Remaining
+                      </p>
+                    </div>
+                    
+                    {/* Progress bar */}
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(((userData.builds_limit || 5) - (userData.builds_used || 0)) / (userData.builds_limit || 5) * 100, 100)}%` }}
+                      />
+                    </div>
+                    
+                    <div className={`text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {userData.builds_limit - userData.builds_used > 0 ? (
+                        <span>You have {userData.builds_limit - userData.builds_used} builds left</span>
+                      ) : (
+                        <span className="text-red-400">No builds remaining</span>
+                      )}
+                    </div>
+                    
+                    {userData.builds_limit - userData.builds_used === 0 && (
+                      <button
+                        onClick={() => {
+                          setShowBuildsDetailModal(false);
+                          setIsSubscriptionModalOpen(true);
+                        }}
+                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300"
+                      >
+                        Get More Builds
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} mb-2`}>
+                        {freePromptsRemaining} / {MAX_FREE_PROMPTS}
+                      </div>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        Free Builds Remaining
+                      </p>
+                    </div>
+                    
+                    {/* Progress bar */}
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${(freePromptsRemaining / MAX_FREE_PROMPTS) * 100}%` }}
+                      />
+                    </div>
+                    
+                    <div className={`text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {freePromptsRemaining > 0 ? (
+                        <span>You have {freePromptsRemaining} free builds left</span>
+                      ) : (
+                        <span className="text-red-400">No free builds remaining</span>
+                      )}
+                    </div>
+                    
+                    {freePromptsRemaining === 0 && (
+                      <button
+                        onClick={() => {
+                          setShowBuildsDetailModal(false);
+                          setIsSubscriptionModalOpen(true);
+                        }}
+                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300"
+                      >
+                        Get More Builds
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Configuration Modal */}
@@ -4923,19 +5560,30 @@ class SocialFeed: ObservableObject {
                 </div>
               </div>
 
-              {/* AI API Testing */}
+
+
+              {/* Subscription Management */}
               <div className="glass-card p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-medium text-white">AI API Testing</h3>
-                    <p className="text-sm text-white/60 mt-1">Test Gemini API connection</p>
+                    <h3 className="text-lg font-medium text-white">Subscription Management</h3>
+                    <p className="text-sm text-white/60 mt-1">Manage your subscription and usage</p>
                   </div>
-                  <button 
-                    onClick={handleTestGeminiApi}
-                    className="glass-button px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white text-sm transition-all duration-300"
-                  >
-                    Test Gemini
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={handleRefreshSubscriptionData}
+                      className="glass-button px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white text-sm transition-all duration-300"
+                      title="Refresh subscription data"
+                    >
+                      <RefreshIcon className="h-4 w-4" />
+                    </button>
+                    <button 
+                      onClick={() => setIsSubscriptionModalOpen(true)}
+                      className="glass-button px-4 py-2 bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white text-sm transition-all duration-300"
+                    >
+                      Manage
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -5311,7 +5959,7 @@ class SocialFeed: ObservableObject {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="glass-card max-w-md w-full p-6 md:p-8 border border-white/20 backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl relative overflow-hidden">
             {/* Liquid glass effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-900/20 via-gray-800/20 to-gray-700/20 rounded-3xl"></div>
             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-3xl"></div>
             <div className="absolute inset-0 bg-gradient-to-bl from-transparent via-white/3 to-transparent rounded-3xl"></div>
             
@@ -5395,7 +6043,7 @@ class SocialFeed: ObservableObject {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="glass-card max-w-lg w-full p-6 md:p-8 border border-white/20 backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl relative overflow-hidden">
             {/* Liquid glass effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-pink-500/20 via-purple-500/20 to-blue-500/20 rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-900/20 via-gray-800/20 to-gray-700/20 rounded-3xl"></div>
             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-3xl"></div>
             <div className="absolute inset-0 bg-gradient-to-bl from-transparent via-white/3 to-transparent rounded-3xl"></div>
             
@@ -5478,7 +6126,7 @@ class SocialFeed: ObservableObject {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'backdrop-blur-xl bg-white/90 border border-white/40'} max-w-md w-full p-6 md:p-8 rounded-3xl shadow-2xl relative overflow-hidden`}>
             {/* Liquid glass effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-900/10 via-gray-800/10 to-gray-700/10 rounded-3xl"></div>
             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-3xl"></div>
             
             {/* Content */}

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, SignInButton } from '@clerk/clerk-react';
 import { CloseIcon } from './icons/CloseIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import { useUserData } from '../hooks/useUserData';
@@ -58,9 +58,11 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 }) => {
   const { user } = useUser();
   const { userData, refetch } = useUserData();
-  const [checkoutUrl, setCheckoutUrl] = useState<string>('');
-  const [showCheckout, setShowCheckout] = useState<boolean>(false);
-  const [showCreditInfo, setShowCreditInfo] = useState<boolean>(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState('');
+  const [showCreditInfo, setShowCreditInfo] = useState(false);
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [pendingCheckoutUrl, setPendingCheckoutUrl] = useState('');
   const [error, setError] = useState<string>('');
 
   // Refresh user data when modal opens
@@ -69,6 +71,14 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       refetch();
     }
   }, [isOpen, user, refetch]);
+
+  // Check for pending checkout URL after sign-in
+  useEffect(() => {
+    if (user && pendingCheckoutUrl) {
+      handleCheckout(pendingCheckoutUrl);
+      setPendingCheckoutUrl('');
+    }
+  }, [user, pendingCheckoutUrl]);
 
   const handleCheckout = (url: string) => {
     if (!user) {
@@ -101,42 +111,6 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   // Ensure document.body is available before creating portal
   if (typeof document === 'undefined' || !document.body) {
     return null;
-  }
-
-  // If user is not logged in, show login prompt
-  if (!user) {
-    return ReactDOM.createPortal(
-      <div
-        className="modal-overlay"
-        onClick={onClose}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="subscription-modal-title"
-      >
-        <div
-          className={`modal-content ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'backdrop-blur-xl bg-white/70 border border-white/40 shadow-2xl'} p-6 rounded-2xl shadow-xl max-w-md w-full`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="text-center">
-            <h2 className={`text-2xl font-semibold mb-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-              Sign In Required
-            </h2>
-            <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              You must be logged in to purchase a subscription and manage your account.
-            </p>
-            <div className="flex justify-center">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>,
-      document.body
-    );
   }
 
   return ReactDOM.createPortal(
@@ -290,12 +264,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   <div className={`w-full bg-gray-200 rounded-full h-2 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
                     <div 
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${Math.min(
-                          ((userData.builds_limit || 5) - (userData.builds_used || 0)) / (userData.builds_limit || 5) * 100, 
-                          100
-                        )}%` 
-                      }}
+                      style={{ width: `${Math.min(((userData.builds_limit || 5) - (userData.builds_used || 0)) / (userData.builds_limit || 5) * 100, 100)}%` }}
                     ></div>
                   </div>
                 </div>
@@ -357,10 +326,18 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
               <div className="space-y-2">
                 <button 
-                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/e210a879-e5ce-4682-8dd6-b00dd56312f2')}
+                  onClick={() => {
+                    if (!user) {
+                      // Show sign-in modal first, then redirect to checkout
+                      setShowSignInModal(true);
+                      setPendingCheckoutUrl('https://mypip.lemonsqueezy.com/buy/e210a879-e5ce-4682-8dd6-b00dd56312f2');
+                    } else {
+                      handleCheckout('https://mypip.lemonsqueezy.com/buy/e210a879-e5ce-4682-8dd6-b00dd56312f2');
+                    }
+                  }}
                   className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
-                  Buy myPip Basic
+                  {user ? 'Buy myPip Basic' : 'Sign In to Buy'}
                 </button>
               </div>
             </div>
@@ -398,10 +375,18 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
               <div className="space-y-2 mb-4">
                 <button 
-                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/b0e37f2f-9385-471f-a4cb-ca24b1ff7108')}
+                  onClick={() => {
+                    if (!user) {
+                      // Show sign-in modal first, then redirect to checkout
+                      setShowSignInModal(true);
+                      setPendingCheckoutUrl('https://mypip.lemonsqueezy.com/buy/b0e37f2f-9385-471f-a4cb-ca24b1ff7108');
+                    } else {
+                      handleCheckout('https://mypip.lemonsqueezy.com/buy/b0e37f2f-9385-471f-a4cb-ca24b1ff7108');
+                    }
+                  }}
                   className="w-full flex items-center justify-center px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
-                  Buy myPip Pro
+                  {user ? 'Buy myPip Pro' : 'Sign In to Buy'}
                 </button>
               </div>
 
@@ -414,10 +399,18 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                 <p className="text-xs text-gray-300 mb-1">Base monthly + $0.10 per prompt</p>
                 <p className="text-xs text-gray-400 mb-2">Perfect for high-volume users who want to pay only for what they use.</p>
                 <button 
-                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/570daf7c-d83f-4f80-8844-8c295955af16')}
+                  onClick={() => {
+                    if (!user) {
+                      // Show sign-in modal first, then redirect to checkout
+                      setShowSignInModal(true);
+                      setPendingCheckoutUrl('https://mypip.lemonsqueezy.com/buy/570daf7c-d83f-4f80-8844-8c295955af16');
+                    } else {
+                      handleCheckout('https://mypip.lemonsqueezy.com/buy/570daf7c-d83f-4f80-8844-8c295955af16');
+                    }
+                  }}
                   className="w-full flex items-center justify-center px-3 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 text-xs"
                 >
-                  Buy Pro Plus
+                  {user ? 'Buy Pro Plus' : 'Sign In to Buy'}
                 </button>
               </div>
             </div>
@@ -466,10 +459,18 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
               <div className="space-y-2">
                 <button 
-                  onClick={() => handleCheckout('https://mypip.lemonsqueezy.com/buy/96500a66-befe-4016-be3b-ae691ad87b3f')}
+                  onClick={() => {
+                    if (!user) {
+                      // Show sign-in modal first, then redirect to checkout
+                      setShowSignInModal(true);
+                      setPendingCheckoutUrl('https://mypip.lemonsqueezy.com/buy/96500a66-befe-4016-be3b-ae691ad87b3f');
+                    } else {
+                      handleCheckout('https://mypip.lemonsqueezy.com/buy/96500a66-befe-4016-be3b-ae691ad87b3f');
+                    }
+                  }}
                   className="w-full flex items-center justify-center px-4 py-3 bg-white hover:bg-gray-100 text-blue-600 font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg"
                 >
-                  Buy myPip Enterprise
+                  {user ? 'Buy myPip Enterprise' : 'Sign In to Buy'}
                 </button>
               </div>
             </div>
@@ -520,46 +521,58 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                       🚀 Agentic Framework Benefits
                     </h3>
                     <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm leading-relaxed`}>
-                      Unlike traditional AI builders that require manual prompting for every change, myPip's Agentic Framework uses intelligent agents that understand your app's context and can make autonomous improvements.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} font-semibold mb-2`}>
-                      💡 How Credits Work
-                    </h3>
-                    <ul className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm space-y-2`}>
-                      <li>• <strong>Build Credits:</strong> Used for initial app creation and major feature additions</li>
-                      <li>• <strong>App Morphs:</strong> Daily autonomous improvements by AI agents</li>
-                      <li>• <strong>Free Daily Credits:</strong> 3 free builds every day for all paid users</li>
-                      <li>• <strong>Community Remixes:</strong> Remix and learn from other creators' apps</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-800'} font-semibold mb-2`}>
-                      🎯 Why This Matters
-                    </h3>
-                    <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm leading-relaxed`}>
-                      Traditional AI builders require you to manually prompt every change. With myPip's Agentic Framework, your app continuously improves autonomously, making you more productive than ever before.
+                      {/* Add your content here or close the tag if empty */}
                     </p>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* Close Button */}
-            <div className="flex justify-center">
-              <button
-                onClick={() => setShowCreditInfo(false)}
-                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                  isDarkMode 
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
-                }`}
-              >
-                Got it!
-              </button>
+      {/* Sign In Modal */}
+      {showSignInModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowSignInModal(false)}
+        >
+          <div 
+            className={`${isDarkMode ? 'bg-gray-800 border-gray-600' : 'backdrop-blur-xl bg-white/90 border border-white/40'} max-w-md w-full p-6 rounded-3xl shadow-2xl relative overflow-hidden`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Liquid glass effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-900/10 via-gray-800/10 to-gray-700/10 rounded-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent rounded-3xl"></div>
+            
+            {/* Content */}
+            <div className="relative z-10">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'} mb-2`}>Sign In Required</h2>
+                <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm`}>Please sign in to continue with your purchase</p>
+              </div>
+
+              {/* Sign In Button */}
+              <div className="flex flex-col space-y-3">
+                <SignInButton mode="modal">
+                  <button className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    Sign In to Continue
+                  </button>
+                </SignInButton>
+                
+                <button 
+                  onClick={() => setShowSignInModal(false)}
+                  className="w-full flex items-center justify-center px-4 py-3 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

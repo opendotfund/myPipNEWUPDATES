@@ -23,6 +23,7 @@ import { GitHubModal } from './components/GitHubModal';
 import { waitlistService } from './services/databaseService';
 import { WaitlistAdmin } from './components/WaitlistAdmin';
 import { ProjectPreview } from './components/ProjectPreview';
+import { FigmaImportModal } from './components/FigmaImportModal';
 
 type AppView = 'main' | 'community' | 'myPips' | 'affiliate';
 
@@ -209,6 +210,8 @@ const App: React.FC = () => {
 
   // Waitlist admin state
   const [isWaitlistAdminOpen, setIsWaitlistAdminOpen] = useState(false);
+  const [showBuildsDetailModal, setShowBuildsDetailModal] = useState(false);
+  const [showFigmaImportModal, setShowFigmaImportModal] = useState(false);
 
   // Claude password protection state
   const [showClaudePasswordPopup, setShowClaudePasswordPopup] = useState<boolean>(false);
@@ -1994,6 +1997,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleFigmaImport = () => {
+    setShowFigmaImportModal(true);
+  };
+
+  const handleFigmaProjectSelect = (projectKey: string, projectName: string) => {
+    // TODO: Implement actual Figma API integration
+    console.log('Selected Figma project:', projectKey, projectName);
+    
+    // For now, just update the prompt with a placeholder
+    const figmaContext = `Import design from Figma project "${projectName}" (${projectKey}). Please analyze the design and create a mobile app that matches the visual style, layout, and components from the Figma design. Include all the UI elements, colors, typography, and interactions shown in the design.`;
+    
+    setPrompt(figmaContext);
+    setShowFigmaImportModal(false);
+  };
+
   const handleClaudePasswordSubmit = () => {
     if (claudePassword === 'forvibecodersbyvibecoders') {
       setSelectedModel(ModelId.CLAUDE);
@@ -2922,12 +2940,82 @@ class SocialFeed: ObservableObject {
                   Unlimited Access
                 </div>
               ) : userData ? (
-                <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white">
+                <div 
+                  className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white cursor-pointer relative group"
+                  title={`Builds Remaining: ${userData.builds_limit - userData.builds_used}/${userData.builds_limit}`}
+                  onClick={() => {
+                    // On mobile, show detailed popup
+                    if (window.innerWidth < 768) {
+                      setShowBuildsDetailModal(true);
+                    }
+                  }}
+                >
                   Builds: {userData.builds_limit - userData.builds_used}/{userData.builds_limit}
+                  
+                  {/* Desktop hover tooltip */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 min-w-[200px]">
+                    <div className="text-center">
+                      <div className="font-semibold mb-2">Builds Remaining</div>
+                      <div className="text-blue-300 mb-2">{userData.builds_limit - userData.builds_used} / {userData.builds_limit}</div>
+                      
+                      {/* Progress bar */}
+                      <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(((userData.builds_limit || 5) - (userData.builds_used || 0)) / (userData.builds_limit || 5) * 100, 100)}%` }}
+                        />
+                      </div>
+                      
+                      <div className="text-gray-300 text-xs">
+                        {userData.builds_limit - userData.builds_used > 0 ? (
+                          <span>You have {userData.builds_limit - userData.builds_used} builds left</span>
+                        ) : (
+                          <span className="text-red-400">No builds remaining</span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Arrow */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                  </div>
                 </div>
               ) : (
-                <div className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white">
+                <div 
+                  className="glass-button text-xs sm:text-sm font-medium px-3 sm:px-4 py-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 text-white cursor-pointer relative group"
+                  title={`Builds Remaining: ${freePromptsRemaining}/${MAX_FREE_PROMPTS}`}
+                  onClick={() => {
+                    // On mobile, show detailed popup
+                    if (window.innerWidth < 768) {
+                      setShowBuildsDetailModal(true);
+                    }
+                  }}
+                >
                   Builds: {freePromptsRemaining}/{MAX_FREE_PROMPTS}
+                  
+                  {/* Desktop hover tooltip */}
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 min-w-[200px]">
+                    <div className="text-center">
+                      <div className="font-semibold mb-2">Free Builds Remaining</div>
+                      <div className="text-blue-300 mb-2">{freePromptsRemaining} / {MAX_FREE_PROMPTS}</div>
+                      
+                      {/* Progress bar */}
+                      <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(freePromptsRemaining / MAX_FREE_PROMPTS) * 100}%` }}
+                        />
+                      </div>
+                      
+                      <div className="text-gray-300 text-xs">
+                        {freePromptsRemaining > 0 ? (
+                          <span>You have {freePromptsRemaining} free builds left</span>
+                        ) : (
+                          <span className="text-red-400">No free builds remaining</span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Arrow */}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
                 </div>
               )}
               <button
@@ -3179,6 +3267,7 @@ class SocialFeed: ObservableObject {
                               thinkingLog={thinkingLog}
                               isDarkMode={isDarkMode}
                               hasGenerated={hasGenerated}
+                              onFigmaImport={handleFigmaImport}
                             />
                           </div>
                         )}
@@ -4397,6 +4486,124 @@ class SocialFeed: ObservableObject {
             contactEmail={CONTACT_EMAIL}
             isDarkMode={isDarkMode}
           />
+        )}
+
+        {/* Builds Detail Modal for Mobile */}
+        {showBuildsDetailModal && (
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowBuildsDetailModal(false)}
+          >
+            <div
+              className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full shadow-2xl`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Builds Remaining
+                </h2>
+                <button
+                  onClick={() => setShowBuildsDetailModal(false)}
+                  className={`${isDarkMode ? 'text-white/70 hover:text-white' : 'text-gray-500 hover:text-gray-700'} transition-colors`}
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                {isEarlyBirdKeyApplied ? (
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${isDarkMode ? 'text-green-400' : 'text-green-600'} mb-2`}>
+                      Unlimited Access
+                    </div>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      You have unlimited builds with your Early Bird access!
+                    </p>
+                  </div>
+                ) : userData ? (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} mb-2`}>
+                        {userData.builds_limit - userData.builds_used} / {userData.builds_limit}
+                      </div>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        Builds Remaining
+                      </p>
+                    </div>
+                    
+                    {/* Progress bar */}
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(((userData.builds_limit || 5) - (userData.builds_used || 0)) / (userData.builds_limit || 5) * 100, 100)}%` }}
+                      />
+                    </div>
+                    
+                    <div className={`text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {userData.builds_limit - userData.builds_used > 0 ? (
+                        <span>You have {userData.builds_limit - userData.builds_used} builds left</span>
+                      ) : (
+                        <span className="text-red-400">No builds remaining</span>
+                      )}
+                    </div>
+                    
+                    {userData.builds_limit - userData.builds_used === 0 && (
+                      <button
+                        onClick={() => {
+                          setShowBuildsDetailModal(false);
+                          setIsSubscriptionModalOpen(true);
+                        }}
+                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300"
+                      >
+                        Get More Builds
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} mb-2`}>
+                        {freePromptsRemaining} / {MAX_FREE_PROMPTS}
+                      </div>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        Free Builds Remaining
+                      </p>
+                    </div>
+                    
+                    {/* Progress bar */}
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300"
+                        style={{ width: `${(freePromptsRemaining / MAX_FREE_PROMPTS) * 100}%` }}
+                      />
+                    </div>
+                    
+                    <div className={`text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {freePromptsRemaining > 0 ? (
+                        <span>You have {freePromptsRemaining} free builds left</span>
+                      ) : (
+                        <span className="text-red-400">No free builds remaining</span>
+                      )}
+                    </div>
+                    
+                    {freePromptsRemaining === 0 && (
+                      <button
+                        onClick={() => {
+                          setShowBuildsDetailModal(false);
+                          setIsSubscriptionModalOpen(true);
+                        }}
+                        className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300"
+                      >
+                        Get More Builds
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Configuration Modal */}
@@ -6000,6 +6207,14 @@ class SocialFeed: ObservableObject {
       <WaitlistAdmin
         isOpen={isWaitlistAdminOpen}
         onClose={() => setIsWaitlistAdminOpen(false)}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* Figma Import Modal */}
+      <FigmaImportModal
+        isOpen={showFigmaImportModal}
+        onClose={() => setShowFigmaImportModal(false)}
+        onProjectSelect={handleFigmaProjectSelect}
         isDarkMode={isDarkMode}
       />
     </div>
